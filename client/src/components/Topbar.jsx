@@ -1,5 +1,15 @@
-const Topbar = ({ isSidebarOpen, toggleSidebar, hasSidebar }) => {
-  const isLoggedIn = true; // TODO: Replace with actual authentication state
+import { useNavigate } from 'react-router-dom';
+import authService from '../services/auth.service';
+
+const Topbar = ({ isSidebarOpen, toggleSidebar, hasSidebar, isLoggedIn }) => {
+  const navigate = useNavigate();
+  const currentUser = authService.getCurrentUser();
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/login');
+    window.location.reload(); // Reload to update Topbar/Sidebar state
+  };
 
   return (
     <header style={{
@@ -29,14 +39,14 @@ const Topbar = ({ isSidebarOpen, toggleSidebar, hasSidebar }) => {
       <div style={{ flexGrow: 1, textAlign: 'center' }}></div>
 
       {/* Right Section (conditional based on login status) */}
-      {isLoggedIn ? (
+      {isLoggedIn && currentUser ? (
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* User Icon */}
           <div style={{ marginRight: '10px' }}>User Icon</div>
           {/* User Name */}
-          <div style={{ marginRight: '10px' }}>User Name</div>
+          <div style={{ marginRight: '10px' }}>{currentUser.name}</div>
           {/* Logout Button */}
-          <button>Logout</button>
+          <button onClick={handleLogout}>Logout</button>
         </div>
       ) : (
         null

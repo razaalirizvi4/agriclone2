@@ -143,3 +143,8 @@ export default Sidebar;
 - The `marginLeft` on the `main` content area in `CorePage.jsx` is crucial for pushing the content to the right when the sidebar is open.
 - The `position: fixed` and `transition` properties on the `Sidebar` are key for the sticky and sliding effect.
 - The `position: sticky` on the `Topbar` keeps it at the top of the viewport.
+
+## Login & Register page layout (frontend-layout.md)
+Should adhere to sidebar and topbar layout guide during these pages.
+Both to not show sidebar and only show simpler topbar when opened.
+(Should be handled through main page by having a list of unauthorized routes, where it behave like that)

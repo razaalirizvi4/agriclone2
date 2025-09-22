@@ -2,18 +2,24 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth.service';
 
-const LoginPage = () => {
+const RegisterPage = () => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [contact, setContact] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setMessage('Passwords do not match');
+      return;
+    }
     try {
-      await authService.login(email, password);
-      navigate('/');
-      window.location.reload(); // Reload to update Topbar/Sidebar state
+      await authService.register(name, email, password, contact);
+      navigate('/login');
     } catch (error) {
       setMessage(error.message);
     }
@@ -35,8 +41,18 @@ const LoginPage = () => {
         textAlign: 'center',
         width: '300px'
       }}>
-        <h2>Login</h2>
+        <h2>Register (Farmer)</h2>
         <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '15px' }}>
+            <input
+              type="text"
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+            />
+          </div>
           <div style={{ marginBottom: '15px' }}>
             <input
               type="email"
@@ -47,7 +63,7 @@ const LoginPage = () => {
               style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
           </div>
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '15px' }}>
             <input
               type="password"
               placeholder="Password"
@@ -57,21 +73,41 @@ const LoginPage = () => {
               style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
           </div>
+          <div style={{ marginBottom: '20px' }}>
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+            />
+          </div>
+          <div style={{ marginBottom: '20px' }}>
+            <input
+              type="text"
+              placeholder="Contact (Optional)"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+            />
+          </div>
           <button type="submit"
             style={{
-              width: '100%', padding: '10px', backgroundColor: '#007bff',
+              width: '100%', padding: '10px', backgroundColor: '#28a745',
               color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
             }}>
-            Login
+            Register
           </button>
         </form>
         {message && <p style={{ color: 'red', marginTop: '10px' }}>{message}</p>}
         <p style={{ marginTop: '20px' }}>
-          Don't have an account? <a href="/register">Register here</a>
+          Already have an account? <a href="/login">Login here</a>
         </p>
       </div>
     </div>
   );
 };
 
-export default LoginPage;
+export default RegisterPage;
+
