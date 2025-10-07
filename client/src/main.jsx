@@ -10,6 +10,7 @@ import EventStreamPage from './pages/EventStreamPage';
 import ProtectedRoute from './router/ProtectedRoute';
 import PublicRoute from './router/PublicRoute';
 import './index.css';
+import './App.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
