@@ -1,7 +1,8 @@
 import { combineReducers } from 'redux';
+import eventStreamReducer from '../features/eventStream/eventStream.slice.js';
 
 const rootReducer = combineReducers({
-  // Add your reducers here
+  eventStream: eventStreamReducer,
 });
 
 export default rootReducer;

@@ -15,6 +15,7 @@ const Sidebar = ({ isOpen }) => {
         <ul>
           <li><a href="/">Home</a></li>
           <li><a href="/about">About</a></li>
+          <li><a href="/event-stream">Event Stream</a></li>
           {/* Add other navigation links here */}
         </ul>
       </nav>
