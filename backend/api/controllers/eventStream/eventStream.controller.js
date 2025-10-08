@@ -1,4 +1,4 @@
-const { getEvents, updateEventStatus } = require('../../services/eventStream.service.js');
+const { getEvents, updateEventStatus } = require('../../../services/eventStream.service')
 
 const getEventsController = async (req, res) => {
   try {
