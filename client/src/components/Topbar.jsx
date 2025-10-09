@@ -26,17 +26,17 @@ const Topbar = ({ isSidebarOpen, toggleSidebar, hasSidebar, isLoggedIn }) => {
       {/* Left Section: Logo + Hamburger */}
       <div style={{ display: 'flex', alignItems: 'center' }}>
         {/* Logo */}
-        <div style={{ marginRight: '10px' }}>Logo</div>
-        {/* Hamburger Icon (conditional) */}
-        {hasSidebar && (
-          <button onClick={toggleSidebar}>
-            {isSidebarOpen ? 'Close' : 'Open'}
-          </button>
-        )}
+        <div style={{ marginRight: '20px' }}>Logo</div>
       </div>
 
-      {/* Center Section (empty for now) */}
-      <div style={{ flexGrow: 1, textAlign: 'center' }}></div>
+      {/* Center Section: Navigation */}
+      <nav style={{ flexGrow: 1 }}>
+        <ul style={{ display: 'flex', justifyContent: 'center', listStyle: 'none', margin: 0, padding: 0 }}>
+          <li style={{ margin: '0 15px' }}><a href="/">Home</a></li>
+          <li style={{ margin: '0 15px' }}><a href="/about">About</a></li>
+          <li style={{ margin: '0 15px' }}><a href="/event-stream">Event Stream</a></li>
+        </ul>
+      </nav>
 
       {/* Right Section (conditional based on login status) */}
       {isLoggedIn && currentUser ? (

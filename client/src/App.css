@@ -11,10 +11,15 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
-
 .map-container {
-  height: 400px;
+  width: 100%;
+  height: 100%;
+  min-height: 350px; /* Ensures visibility even in small grid cells */
+  border-radius: 12px;
+  overflow: hidden;
 }
+
+/* Recenter Button */
 .recenter-button {
   position: absolute;
   top: 50%;
@@ -33,8 +38,9 @@ code {
   transition: all 0.3s ease;
 }
 
+/* Hover and Active States */
 .recenter-button:hover {
-  background-color: #0056b3; /* Darker blue on hover */
+  background-color: #0056b3;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   transform: translateY(-50%) scale(1.05);
 }
@@ -42,4 +48,103 @@ code {
 .recenter-button:active {
   background-color: #00408a;
   transform: translateY(-50%) scale(0.98);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+  .map-container {
+    min-height: 300px;
+  }
+  .recenter-button {
+    right: 15px;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .map-container {
+    min-height: 250px;
+  }
+  .recenter-button {
+    top: auto;
+    bottom: 15px;
+    right: 15px;
+    transform: none; /* Place button at bottom right instead of center */
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .map-container {
+    min-height: 220px;
+  }
+  .recenter-button {
+    bottom: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ============================= */
+/* Dashboard Layout (Home Page) */
+/* ============================= */
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+/* Top: Map + Weather */
+.top-section {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap; /* responsive */
+}
+
+.map-section {
+  flex: 2;
+  min-width: 300px;
+}
+
+.weather-section {
+  flex: 1;
+  min-width: 250px;
+  background: #f9f9f9;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Bottom: Crop Lifecycle */
+.bottom-section {
+  background: #f3f6fa;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.lifecycle {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.lifecycle span {
+  background: white;
+  border-radius: 20px;
+  padding: 8px 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Dashboard Adjustments */
+@media (max-width: 768px) {
+  .top-section {
+    flex-direction: column;
+  }
 }

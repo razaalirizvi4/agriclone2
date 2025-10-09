@@ -6,8 +6,8 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 const useMapViewModel = ({ geoJSON }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const [initialCenter, setInitialCenter] = useState([74.570, 31.553]);
-  const [initialZoom, setInitialZoom] = useState(13);
+  const [initialCenter, _setInitialCenter] = useState([74.570, 31.553]);
+  const [initialZoom, _setInitialZoom] = useState(13);
 
   const handleRecenter = () => {
     map.current.flyTo({
