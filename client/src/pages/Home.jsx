@@ -1,41 +1,35 @@
-// import React from 'react';
-// import Map from '../components/View/Map';
-// import { farmsGeoJSON } from '../data/farms';
-
-// function Home() {
-//   return (
-//     <div>
-//       <h1>Home Page</h1>
-//       <p>Welcome to the home page!</p>
-//       <Map geoJSON={farmsGeoJSON} />
-//     </div>
-//   );
-// }
-
-// export default Home;
-
 import React from "react";
-import Map from "../components/View/Map";
-import Weather from "../components/View/Weather";
-import CropLifeCycle from "../components/View/CropLifeCycle";
-import { farmsGeoJSON } from "../data/farms";
+import { dashboardSchema } from "../data/dashboardSchema";
+import { componentMapper } from "../components/componentMapper";
+import { dataSources } from "../data/dataSources";
 
 function Home() {
   return (
-    <div className="dashboard">
-      {/* Top Section */}
-      <div className="top-section">
-        <div className="map-section">
-          <Map geoJSON={farmsGeoJSON} />
-        </div>
+    <div className="dashboard-grid">
+      {dashboardSchema.map((item) => {
+        const Component = componentMapper[item.component];
+        if (!Component) {
+          return <div key={item.key}>Component not found</div>;
+        }
 
-        <div className="weather-section">
-          <Weather />
-        </div>
-      </div>
+        const props = Object.entries(item.props).reduce(
+          (acc, [key, value]) => {
+            acc[key] = dataSources[value] || value;
+            return acc;
+          },
+          {}
+        );
 
-      {/* Bottom Section */}
-<CropLifeCycle/>
+        const gridStyle = {
+          gridColumn: `span ${item.colSpan}`,
+        };
+
+        return (
+          <div key={item.key} style={gridStyle}>
+            <Component {...props} />
+          </div>
+        );
+      })}
     </div>
   );
 }
