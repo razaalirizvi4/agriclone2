@@ -4,10 +4,12 @@ import { componentMapper } from "../components/componentMapper";
 import { dataSources } from "../data/dataSources";
 
 function Home() {
+  const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
+
   return (
     <div className="dashboard-grid">
-      {dashboardSchema.map((item) => {
-        const Component = componentMapper[item.component];
+      {sortedSchema.map((item) => {
+        const Component = componentMapper[item.key];
         if (!Component) {
           return <div key={item.key}>Component not found</div>;
         }

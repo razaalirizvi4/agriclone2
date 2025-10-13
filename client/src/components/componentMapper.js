@@ -3,7 +3,7 @@ import Weather from "./View/Weather";
 import CropLifeCycle from "./View/CropLifeCycle";
 
 export const componentMapper = {
-  Map,
-  Weather,
-  CropLifeCycle,
+  map:Map,
+  weather:Weather,
+  crop:CropLifeCycle,
 };
