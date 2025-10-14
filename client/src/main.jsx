@@ -9,6 +9,7 @@ import About from './pages/About';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import EventStreamPage from './pages/EventStreamPage';
+import LocationPage from './pages/LocationPage';
 import ProtectedRoute from './router/ProtectedRoute';
 import PublicRoute from './router/PublicRoute';
 import './index.css';
@@ -29,6 +30,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route index element={<Home />} />
               <Route path="about" element={<About />} />
               <Route path="event-stream" element={<EventStreamPage />} />
+              <Route path="locations" element={<LocationPage />} />
             </Route>
           </Route>
         </Routes>

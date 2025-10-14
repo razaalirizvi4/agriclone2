@@ -35,6 +35,7 @@ const Topbar = ({ isSidebarOpen, toggleSidebar, hasSidebar, isLoggedIn }) => {
           <li style={{ margin: '0 15px' }}><a href="/">Home</a></li>
           <li style={{ margin: '0 15px' }}><a href="/about">About</a></li>
           <li style={{ margin: '0 15px' }}><a href="/event-stream">Event Stream</a></li>
+          <li style={{ margin: '0 15px' }}><a href="/locations">Locations</a></li>
         </ul>
       </nav>
 
