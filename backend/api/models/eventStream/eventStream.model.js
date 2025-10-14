@@ -9,7 +9,7 @@ const eventStreamSchema = new mongoose.Schema({
   Module_Action: {
     type: String,
     required: true,
-    enum: ['Watering', 'Pesticide', 'Fungisite', 'Weedisite']
+    enum: ['Watering', 'Pesticide', 'Fungisite', 'Weedisite','API_Fetch']
   },
   Date: {
     type: Date,
