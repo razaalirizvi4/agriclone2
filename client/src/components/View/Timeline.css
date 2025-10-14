@@ -1,0 +1,214 @@
+/* Timeline.css
+   Matches JSX: .timeline-container > .timeline > .timeline-event (circle, card, name)
+   - Desktop: horizontal non-alternating, cards above a horizontal line, circles on the line, names below.
+   - Mobile: vertical stack with left vertical line.
+*/
+
+/* === Configurable variables === */
+:root {
+  --accent: #007bff;
+  --card-max-h: 220px; /* adjust this to allow larger cards; long content will scroll */
+  --card-width: 300px;
+  --circle-size: 40px;
+  --circle-border: 4px;
+  --gap-between-events: 2.5rem;
+}
+
+/* --- General container --- */
+.timeline-container {
+  width: 100%;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  box-sizing: border-box;
+}
+
+.timeline-container h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  color: #222;
+}
+
+/* --- Mobile-first: vertical timeline --- */
+.timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+
+/* vertical connecting line on the left */
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: calc((var(--circle-size) / 2) + var(--circle-border)); /* lines up with circle centers */
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 0;
+}
+
+/* one event row (mobile) */
+.timeline-event {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-left: calc(var(--circle-size) + var(--circle-border) * 2 + 8px);
+}
+
+/* circle marker (mobile and desktop) */
+.timeline-circle {
+  width: var(--circle-size);
+  height: var(--circle-size);
+  border-radius: 50%;
+  background: #fff;
+  border: var(--circle-border) solid var(--accent);
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  z-index: 3;
+  /* place the circle aligned with the left line on mobile */
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateY(0);
+}
+
+/* card (mobile stacked to the right of the circle) */
+.timeline-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  border: 1px solid #e6e6e6;
+  padding: 12px 14px;
+  color: #333;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* header inside card */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #444;
+  gap: 8px;
+}
+
+.card-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* body text */
+.card-body p {
+  margin: 0;
+  color: #555;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+
+/* event name (mobile below card, but shown inline flow) */
+.event-name {
+  margin-top: 8px;
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+/* === Desktop / large screens: horizontal non-alternating timeline === */
+@media (min-width: 768px) {
+  .timeline {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--gap-between-events);
+    padding: 2.5rem 0 6rem;
+    overflow-x: auto;
+  }
+
+  /* horizontal line below the cards. The top value is based on --card-max-h so it's aligned */
+  .timeline::before {
+    top: calc(var(--card-max-h) + (var(--circle-size) / 2) + 16px); /* 16px is a breathing gap */
+    left: 0;
+    right: 0;
+    height: 4px;
+    width: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    z-index: 1;
+  }
+
+  .timeline-event {
+    flex: 0 0 auto;
+    width: var(--card-width);
+    min-width: var(--card-width);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+    padding: 0;
+  }
+
+  /* place card at top of each event block, and give it a consistent max height for stable line placement */
+  .timeline-card {
+    width: 100%;
+    max-width: var(--card-width);
+    max-height: var(--card-max-h);
+    overflow: auto;            /* long content scrolls inside the card */
+    margin-bottom: 0.75rem;    /* space between card bottom and the circle/line */
+    z-index: 4;                /* above the line */
+    box-sizing: border-box;
+  }
+
+  /* Circle sits exactly on the horizontal line, centered horizontally relative to each event */
+  .timeline-circle {
+    position: absolute;
+    top: calc(var(--card-max-h) + 16px); /* 16px is gap between card bottom and circle center line */
+    left: 50%;
+    transform: translate(-50%, -50%);    /* center the circle on the line */
+    z-index: 3;
+    background: #fff;
+  }
+
+  /* event name sits below the circle and clearly separated from it and the line */
+  .event-name {
+    position: absolute;
+    top: calc(var(--card-max-h) + (var(--circle-size) / 2) + 28px); /* circle center + half size + gap */
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: #222;
+    width: calc(100% + 24px); /* give a little breathing room for wrapping */
+    font-size: 0.95rem;
+    z-index: 2;
+    word-wrap: break-word;
+    line-height: 1.25;
+  }
+
+  /* tweak header sizes for desktop */
+  .card-header { font-size: 1rem; }
+  .card-body p { font-size: 0.95rem; }
+
+  /* make sure images/icons don't overflow */
+  .card-icon { display: inline-block; }
+}
+
+/* === Small visual niceties === */
+/* hide native scrollbars in some browsers for the horizontal container (non-critical) */
+.timeline::-webkit-scrollbar { height: 10px; }
+.timeline::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 6px; }
+
+/* ensure long names don't overflow */
+.event-name, .card-header span { overflow-wrap: break-word; word-break: break-word; }
+
+/* accessibility focus ring on icon images if used as button-like elements */
+.card-icon:focus { outline: 2px solid rgba(0,123,255,0.25); outline-offset: 2px; }

@@ -40,5 +40,3 @@
 ## pull API to be generated to handle/update status of events based on user actions.
 
 ## events will not be removed so no API/controller etc.
-
-
