@@ -10,7 +10,7 @@ export const dashboardSchema = [
   {
     key: "weather",
     component: "Weather",
-    props: {},
+    props: { weather: "weatherData" }, // Pass the data source key
     colSpan: 4,
     order: 2,
   },
