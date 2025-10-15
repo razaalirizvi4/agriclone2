@@ -5,17 +5,25 @@ const useTimelineViewModel = (events) => {
     const color = event.color || defaultColor;
     
     const cardStyle = {
-      borderTop: `5px solid ${color}`,
+      border: `2px solid ${color}`,
+      background: `${color}33`,
+      transition: 'background 0.4s ease',
     };
 
     const circleStyle = {
       borderColor: color,
-    };
+      background: `${color}33`,
+      transition: 'background 0.4s ease',
 
+    };
+    const TextStyle = {
+      color: color,
+    };
     return {
       ...event,
       cardStyle,
       circleStyle,
+      TextStyle,
     };
   });
 };

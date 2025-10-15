@@ -6,7 +6,7 @@ const Timeline = ({ timelineName, events }) => {
   const processedEvents = useTimelineViewModel(events);
 
   return (
-    <div className="bottom-section">
+    <div className="timeline-container">
       <h2>{timelineName}</h2>
       <div className="timeline">
         {processedEvents.map((event, index) => (
@@ -21,7 +21,7 @@ const Timeline = ({ timelineName, events }) => {
                 <p>{event.details}</p>
               </div>
             </div>
-            <div className="event-name">{event.name}</div>
+            <div className="event-name" style={event.TextStyle}>{event.name}</div>
           </div>
         ))}
       </div>
