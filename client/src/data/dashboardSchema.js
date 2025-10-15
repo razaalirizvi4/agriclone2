@@ -4,14 +4,14 @@ export const dashboardSchema = [
     key: "map",
     component: "Map",
     props: { geoJSON: "farmsGeoJSON" },
-    colSpan: 8,
+    colSpan: 9,
     order: 1,
   },
   {
     key: "weather",
     component: "Weather",
     props: { weather: "weatherData" }, // Pass the data source key
-    colSpan: 4,
+    colSpan: 3,
     order: 2,
   },
 

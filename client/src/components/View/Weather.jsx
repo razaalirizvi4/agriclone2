@@ -14,10 +14,17 @@ const Weather = (props) => {
       {/* Current Weather */}
       <div className="current-weather">
         <div className="weather-icon-container">
-          <img src={currentWeather.icon} alt={currentWeather.condition} className="weather-icon" />
+          <img
+            src={currentWeather.icon}
+            alt={currentWeather.condition}
+            className="weather-icon"
+          />
         </div>
         <div className="temperature-details">
           <div className="current-temp">{currentWeather.temperature}°C</div>
+          <div className="high-low">
+            H: {currentWeather.high}° / L: {currentWeather.low}°
+          </div>
           <div className="current-condition">{currentWeather.condition}</div>
           <div className="current-humidity">Humidity: {currentWeather.humidity}%</div>
         </div>
@@ -29,8 +36,8 @@ const Weather = (props) => {
         <ul className="forecast-list">
           {forecast.map((item, index) => (
             <li key={index} className="forecast-item">
-              <img src={item.icon} alt={item.day} className="forecast-icon" />
               <span className="forecast-day">{item.day}</span>
+              <span className="forecast-condition">{item.condition}</span>
               <span className="forecast-temp">{item.high}° / {item.low}°</span>
             </li>
           ))}
