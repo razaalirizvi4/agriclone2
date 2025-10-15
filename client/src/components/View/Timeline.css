@@ -1,10 +1,6 @@
 /* --- Overall Section Styling --- */
 .timeline-container,
 .bottom-section {
-    background-color: #ffffff;
-    padding: 20px 20px 30px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     font-family: sans-serif;
     box-sizing: border-box;
 }
@@ -36,7 +32,7 @@
     overflow-x: auto;
     overflow-y: hidden;
     gap: 40px;
-    padding: 20px 70px 10px 20px; /* Adjusted: left aligned + right space */
+    padding: 20px 70px 60px 10px; /* Increased bottom padding to make space for names */
     box-sizing: border-box;
 }
 
@@ -56,20 +52,19 @@
     content: '';
     position: absolute;
     bottom: -5px;
-    left: calc(50% + 10px); /* Slight adjustment for circle position */
-    width: calc(100% + 40px - 20px); /* Subtract circle diameter to align smoothly */
+    left: calc(50% + 10px);
+    width: calc(100% + 40px - 20px);
     height: 2px;
     background-color: #e0e0e0;
     z-index: 1;
 }
-
 
 /* --- Timeline Card --- */
 .timeline-card {
     background: #ffffff;
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    padding: 10px 8px;
+    padding: 10px 8px 10px 8px;
     min-height: 100px;
     margin-bottom: 20px;
     width: 100%;
@@ -101,8 +96,8 @@
 }
 
 .card-icon {
-    width: 30px;
-    height: 30px;
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
     flex-shrink: 0;
 }
@@ -125,20 +120,24 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    border: 1px solid #ffffff;
+    border: 2px solid #ffffff;
+    background-color: #4caf50; /* Example color */
     z-index: 2;
 }
 
-/* --- Event Name --- */
+/* --- Event Name (Below Circle) --- */
 .event-name {
+    position: absolute;
+    bottom: -40px; /* Placed below the circle */
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 12px;
     font-weight: 500;
     color: #555;
     text-align: center;
-    margin-bottom: 5px;
-    width: 100%;
-    word-wrap: break-word;
-    display:none; /* Hidden because text appears inside the card */
+    width: max-content;
+    white-space: nowrap;
+    display: block; /* Visible now */
 }
 
 /* --- Responsive (Mobile) --- */
