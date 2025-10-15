@@ -12,7 +12,6 @@ function cleanWeatherData(data) {
             temperature: current.temp_c,
             condition: current.condition.text,
             humidity: current.humidity,
-            icon: current.condition.icon,
             timestamp: new Date(current.last_updated_epoch * 1000).toISOString()
         },
         nextHours: forecast.forecastday[0].hour.map(hour => ({
@@ -20,7 +19,6 @@ function cleanWeatherData(data) {
             temperature: hour.temp_c,
             windSpeed: hour.wind_kph,
             condition: hour.condition.text,
-            icon: hour.condition.icon
         })),
         forecast3Days: forecast.forecastday.map(day => ({
             day: new Date(day.date_epoch * 1000).toLocaleDateString('en-US', { weekday: 'long' }),
@@ -29,7 +27,6 @@ function cleanWeatherData(data) {
                 high: day.day.maxtemp_c,
                 low: day.day.mintemp_c
             },
-            icon: day.day.condition.icon
         })),
         source: 'WeatherAPI.com',
         lastUpdated: new Date().toISOString()

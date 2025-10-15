@@ -35,18 +35,17 @@ Weather data will be stored as a new `EventStream` entry.
       "temperature": 32,
       "condition": "Sunny",
       "humidity": 65,
-      "icon": "☀️",
       "timestamp": "2025-10-09T09:00:00Z"
     },
     "nextHours": [
-      { "time": "11AM", "temperature": 33, "windSpeed": 8, "condition": "Sunny", "icon": "☀️" }
+      { "time": "11AM", "temperature": 33, "windSpeed": 8, "condition": "Sunny"}
     ],
     "forecast3Days": [
-      { "day": "Today", "condition": "Sunny", "temperature": { "high": 36, "low": 24 }, "icon": "☀️" },
-      { "day": "Tomorrow", "condition": "Cloudy", "temperature": { "high": 34, "low": 23 }, "icon": "☁️" },
-      { "day": "Sunday", "condition": "Rainy", "temperature": { "high": 30, "low": 22 }, "icon": "🌧" }
+      { "day": "Today", "condition": "Sunny", "temperature": { "high": 36, "low": 24 } },
+      { "day": "Tomorrow", "condition": "Cloudy", "temperature": { "high": 34, "low": 23 } },
+      { "day": "Sunday", "condition": "Rainy", "temperature": { "high": 30, "low": 22 } }
     ],
-    "source": "OpenWeatherMap",
+    "source": "WeatherAPI",
     "lastUpdated": "2025-10-09T10:00:00Z"
   },
   "RelationIds": { "farmId": "farm_01" }
@@ -116,22 +115,8 @@ The backend will be implemented in three layers: Data Layer, Service Layer, and 
 
 ### 3.5. Scheduler
 
-- A scheduler (e.g., `node-cron`) will be used to periodically update the weather data.
-- The scheduler will call the `weatherService.updateWeatherData()` method every 2 hours.
-
-#### Example Cron Job:
-
-```javascript
-const cron = require('node-cron');
-const weatherService = require('../../services/weather.service');
-
-// Schedule a job to run every 2 hours
-cron.schedule('0 */2 * * *', async () => {
-  console.log('Updating weather data...');
-  await weatherService.updateWeatherData();
-  console.log('Weather data updated.');
-});
-```
+- A scheduler (e.g., `setTimeout`) will be used to periodically update the weather data.
+- The scheduler will call the `scheduleWeatherUpdate()` method every 2 hours.
 
 ## 4. File Structure
 
@@ -150,4 +135,8 @@ backend/
 │           └── weather.routes.js
 └── services/
     └── weather.service.js
+    └── scheduler.js
+└── utils/
+    └── weatherDataCleaner.js
+
 ```

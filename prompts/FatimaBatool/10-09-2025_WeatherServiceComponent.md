@@ -23,16 +23,15 @@ Weather data will be stored as a new EventStream entry with the following struct
       "temperature": 32,
       "condition": "Sunny",
       "humidity": 65,
-      "icon": "☀️",
       "timestamp": "2025-10-09T09:00:00Z"
     },
     "nextHours": [
-      { "time": "11AM", "temperature": 33, "windSpeed": 8, "condition": "Sunny", "icon": "☀️" }
+      { "time": "11AM", "temperature": 33, "windSpeed": 8, "condition": "Sunny" }
     ],
     "forecast3Days": [
-      { "day": "Today", "condition": "Sunny", "temperature": { "high": 36, "low": 24 }, "icon": "☀️" },
-      { "day": "Tomorrow", "condition": "Cloudy", "temperature": { "high": 34, "low": 23 }, "icon": "☁️" },
-      { "day": "Sunday", "condition": "Rainy", "temperature": { "high": 30, "low": 22 }, "icon": "🌧" }
+      { "day": "Today", "condition": "Sunny", "temperature": { "high": 36, "low": 24 } },
+      { "day": "Tomorrow", "condition": "Cloudy", "temperature": { "high": 34, "low": 23 } },
+      { "day": "Sunday", "condition": "Rainy", "temperature": { "high": 30, "low": 22 } }
     ],
     "source": "OpenWeatherMap",
     "lastUpdated": "2025-10-09T10:00:00Z"
@@ -102,10 +101,4 @@ router.post('/api/weather/refresh/:farmId', weatherController.refreshWeather);
 
 ## 5. Scheduler
 
-Use node-cron or similar library to update data periodically.
-
-cron.schedule('0 */2 * * *', async () => {
-  await weatherService.updateWeatherData();
-});
-
-This updates weather every 2 hours automatically.
+Use setTimeout function to update weather every 2 hours automatically.
