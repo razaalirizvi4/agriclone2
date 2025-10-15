@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const locationSchema = new mongoose.Schema({
@@ -25,6 +24,27 @@ const locationSchema = new mongoose.Schema({
   },
   attributes: {
     type: Object,
+  },
+
+  // 🌤️ Weather information
+  weather: {
+    current: {
+      temp: { type: String, default: '' },           // e.g. "28°C"
+      humid: { type: String, default: '' },          // e.g. "70%"
+      precipitation: { type: String, default: '' },  // e.g. "5mm"
+      condition: { type: String, default: '' },      // e.g. "Sunny", "Cloudy"
+      maxTemp: { type: String, default: '' },
+      minTemp: { type: String, default: '' },
+      date: { type: String, default: '' },
+    },
+    forecast: [
+      {
+        maxTemp: { type: String, default: '' },
+        minTemp: { type: String, default: '' },
+        date: { type: String, default: '' },
+        condition: { type: String, default: '' },
+      },
+    ],
   },
 });
 
