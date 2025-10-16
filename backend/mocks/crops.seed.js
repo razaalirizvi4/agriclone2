@@ -73,13 +73,6 @@ const seedCropData = async () => {
     const totalCount = await Crop.countDocuments();
     console.log(`\n📊 Total crops in database: ${totalCount}`);
 
-    console.log('\n🎉 Crop seed data insertion completed successfully!');
-    console.log('\n📋 For MongoDB Compass:');
-    console.log('🏠 Connection: mongodb://localhost:27017');
-    console.log('📊 Database name: agripro');
-    console.log('📋 Collection name: crops');
-    console.log('💡 The crops collection has been added to your existing agripro database alongside your location and other collections.');
-
   } catch (error) {
     console.error('❌ Error seeding crop data:', error);
   } finally {

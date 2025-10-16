@@ -67,4 +67,11 @@ export const dashboardSchema = [
     colSpan: 8,
     order: 3,
   },
+  {
+    key: "crop",
+    component: "Crop",
+    props: { crop: "crop" }, // refers to your mock data from dataSources.js
+    colSpan: 4, // width — adjust as needed
+    order: 4, // controls vertical placement — higher number = lower position
+  }
 ];
