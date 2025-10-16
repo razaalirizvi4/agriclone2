@@ -2,6 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const EventStream = require('../api/models/eventStream/eventStream.model');
 const connectDB = require('../serverSetup/database');
+const Location = require('../api/models/locationModule/location.model')
 
 const seedData = async () => {
   await connectDB();
@@ -10,18 +11,8 @@ const seedData = async () => {
     // 🧹 Clear existing EventStream data
     await EventStream.deleteMany();
 
-    // 👤 Single Owner (Same for all events)
-    const owner = {
-      id: new mongoose.Types.ObjectId(),
-      email: 'owner@example.com',
-      name: 'Ali Khan',
-    };
-
-    // 🌾 Same Field and Farm for all events
-    const relationIds = {
-      fieldId: new mongoose.Types.ObjectId(),
-      farmId: new mongoose.Types.ObjectId(),
-    };
+    const field1 = await Location.findOne({ name: 'North Field' });
+    const field2 = await Location.findOne({ name: 'South Field' });
 
     // 📅 Events according to your schema
     const events = [
@@ -40,15 +31,8 @@ const seedData = async () => {
           method: 'Seed Drill',
           equipmentUsed: 'Seeder X200',
         },
-        RelationIds: relationIds,
-        RelatedUsers: [
-          {
-            _id: owner.id,
-            email: owner.email,
-            name: owner.name,
-            status: 'ActionTaken',
-          },
-        ],
+        RelationIds: [field1._id],
+  
       },
       {
         Feature_Type: 'Fertilizer',
@@ -64,15 +48,8 @@ const seedData = async () => {
           quantity: '40kg',
           method: 'Broadcast',
         },
-        RelationIds: relationIds,
-        RelatedUsers: [
-          {
-            _id: owner.id,
-            email: owner.email,
-            name: owner.name,
-            status: 'ActionTaken',
-          },
-        ],
+        RelationIds: null,
+        
       },
       {
         Feature_Type: 'Irrigation',
@@ -89,15 +66,8 @@ const seedData = async () => {
           waterSource: 'Well-3',
           method: 'Drip Irrigation',
         },
-        RelationIds: relationIds,
-        RelatedUsers: [
-          {
-            _id: owner.id,
-            email: owner.email,
-            name: owner.name,
-            status: 'ActionTaken',
-          },
-        ],
+        RelationIds: [field2._id],
+        
       },
       {
         Feature_Type: 'Disease',
@@ -113,15 +83,8 @@ const seedData = async () => {
           pesticideUsed: 'RustGuard 250ml',
           severity: 'Medium',
         },
-        RelationIds: relationIds,
-        RelatedUsers: [
-          {
-            _id: owner.id,
-            email: owner.email,
-            name: owner.name,
-            status: 'ActionTaken',
-          },
-        ],
+        RelationIds: null,
+       
       },
       {
         Feature_Type: 'Harvesting',
@@ -137,15 +100,8 @@ const seedData = async () => {
           weather: 'Sunny',
           machine: 'Combine Harvester H350',
         },
-        RelationIds: relationIds,
-        RelatedUsers: [
-          {
-            _id: owner.id,
-            email: owner.email,
-            name: owner.name,
-            status: 'ActionTaken',
-          },
-        ],
+        RelationIds: null,
+        
       },
     ];
 

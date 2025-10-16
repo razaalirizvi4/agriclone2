@@ -11,6 +11,7 @@ const seedCropData = async () => {
 
     // 🧹 Clear existing crop data
     await Crop.deleteMany();
+
     console.log('🧹 Cleared existing crop data');
 
     // 🌾 Sample crop data
