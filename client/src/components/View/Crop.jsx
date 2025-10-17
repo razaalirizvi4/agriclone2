@@ -2,7 +2,8 @@ import React from "react";
 import { crop } from "../../data/crop";
 import "./Crop.css";
 
-const Crop = () => {
+const Crop = (cropdata) => {
+  console.log("in crop component:",cropdata)
   return (
     <div className="crop-wrapper">
       <div className="crop-container">

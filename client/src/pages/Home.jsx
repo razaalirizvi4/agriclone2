@@ -5,9 +5,10 @@ import { getLocations } from "../features/location/location.slice";
 
 import { dashboardSchema } from "../data/dashboardSchema";
 import { componentMapper } from "../components/componentMapper";
-import { dataSources } from "../data/dataSources";
+// import { dataSources } from "../data/dataSources";
 
 import { getEvents } from "../features/eventStream/eventStream.slice";
+import { getCrops } from "../features/cropModule/crop.slice";
 
 function Home() {
   const dispatch = useDispatch();
@@ -15,26 +16,30 @@ function Home() {
   // ✅ Access Redux state
   const { locations, status, error } = useSelector((state) => state.locations);
   const { events } = useSelector((state) => state.eventStream);
+  const {crops}=useSelector((state)=>state.crops)
 
   useEffect(() => {
      dispatch(getEvents());
     dispatch(getLocations());
+    dispatch(getCrops())
   }, [dispatch]);
 
   // ✅ Log data when fetched
   useEffect(() => {
     if (status === "succeeded") {
-      console.log("Fetched locations from MongoDB:", JSON.stringify(locations));
+      console.log("Fetched locations from MongoDB:", locations);
       console.log("Fetched events from MongoDB:", events);
+      console.log("Fetched crops from MongoDB:", crops);
+
     } else if (status === "failed") {
       console.error("Error fetching locations:", error);
     }
-  }, [events, status, locations, error]);
+  }, [crops,events, status, locations, error]);
 
 
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
 
-  let data = { dloc: locations, dEv: events, crops: [] };
+  let data = { dloc: locations, dEv: events, crops: [crops] };
 
   return (
     <div className="dashboard-grid">
