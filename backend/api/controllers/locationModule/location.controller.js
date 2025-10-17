@@ -12,7 +12,7 @@ exports.createLocation = async (req, res) => {
 
 exports.getLocations = async (req, res) => {
   try {
-    const locations = await locationService.getLocations();
+    const locations = await locationService.getLocations(req.query);
     res.status(200).send(locations);
   } catch (error) {
     res.status(500).send(error);

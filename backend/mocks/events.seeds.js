@@ -31,7 +31,10 @@ const seedData = async () => {
           method: 'Seed Drill',
           equipmentUsed: 'Seeder X200',
         },
-        RelationIds: [field1._id],
+        // RelationIds: [field1._id],
+        RelationIds:{
+          "Field_id": field1._id,
+        }
   
       },
       {
@@ -66,7 +69,9 @@ const seedData = async () => {
           waterSource: 'Well-3',
           method: 'Drip Irrigation',
         },
-        RelationIds: [field2._id],
+        RelationIds:{
+          "Field_id": field2._id,
+        }
         
       },
       {

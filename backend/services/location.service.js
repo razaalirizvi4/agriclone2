@@ -5,8 +5,8 @@ exports.createLocation = async (locationData) => {
   return await locationDataLayer.createLocation(locationData);
 };
 
-exports.getLocations = async () => {
-  return await locationDataLayer.getLocations();
+exports.getLocations = async (query) => {
+  return await locationDataLayer.getLocations(query);
 };
 
 exports.getLocationById = async (id) => {
