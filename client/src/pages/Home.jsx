@@ -24,7 +24,7 @@ function Home() {
   // ✅ Log data when fetched
   useEffect(() => {
     if (status === "succeeded") {
-      console.log("Fetched locations from MongoDB:", locations);
+      console.log("Fetched locations from MongoDB:", JSON.stringify(locations));
       console.log("Fetched events from MongoDB:", events);
     } else if (status === "failed") {
       console.error("Error fetching locations:", error);

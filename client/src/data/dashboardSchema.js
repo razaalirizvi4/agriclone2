@@ -4,9 +4,12 @@ export const dashboardSchema = [
     key: "map",
     component: "Map",
     props: {
-      geoJSON: (d) => {
-        return d.dloc.filter((lc) => lc.type === "field");
+      locations: (d) => {
+        return d.dloc;
       },
+      // (d) => {
+      //   return d.dloc.filter((lc) => lc.type === "field");
+      // },
     },
     colSpan: 8,
     order: 1,
