@@ -1,12 +1,11 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import eventStreamService from '../../services/eventStream.service';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import eventStreamService from "../../services/eventStream.service";
 
 export const getEvents = createAsyncThunk(
-  'eventStream/getEvents',
-  async (params, { getState, rejectWithValue }) => {
+  "eventStream/getEvents",
+  async (params, {  rejectWithValue }) => {
     try {
-      const { auth } = getState();
-      const response = await eventStreamService.getEvents(params, auth.user.token);
+      const response = await eventStreamService.getEvents(params);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -15,11 +14,15 @@ export const getEvents = createAsyncThunk(
 );
 
 export const updateEventStatus = createAsyncThunk(
-  'eventStream/updateEventStatus',
+  "eventStream/updateEventStatus",
   async ({ eventId, data }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-      const response = await eventStreamService.updateEventStatus(eventId, data, auth.user.token);
+      const response = await eventStreamService.updateEventStatus(
+        eventId,
+        data,
+        auth.user.token
+      );
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -28,11 +31,11 @@ export const updateEventStatus = createAsyncThunk(
 );
 
 const eventStreamSlice = createSlice({
-  name: 'eventStream',
+  name: "eventStream",
   initialState: {
     events: [],
     loading: false,
-    error: null
+    error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -55,7 +58,9 @@ const eventStreamSlice = createSlice({
       })
       .addCase(updateEventStatus.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.events.findIndex((event) => event._id === action.payload._id);
+        const index = state.events.findIndex(
+          (event) => event._id === action.payload._id
+        );
         if (index !== -1) {
           state.events[index] = action.payload;
         }
@@ -64,7 +69,7 @@ const eventStreamSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
-  }
+  },
 });
 
 export default eventStreamSlice.reducer;
