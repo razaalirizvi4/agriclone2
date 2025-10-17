@@ -1,4 +1,4 @@
-const useTimelineViewModel = (events) => {
+const useTimelineViewModel = (events = []) => {
   const defaultColor = '#cccccc'; // A default color for events without a specified color
 
   return events.map(event => {

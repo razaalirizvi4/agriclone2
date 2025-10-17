@@ -13,11 +13,11 @@
 // sagaMiddleware.run(rootSaga);
 
 // export default store;
-import { createStore, applyMiddleware } from 'redux';
-import createSagaMiddleware from 'redux-saga';
-import {thunk} from 'redux-thunk'; // ✅ add this
-import rootReducer from './rootReducer';
-import rootSaga from './rootSaga';
+import { createStore, applyMiddleware } from "redux";
+import createSagaMiddleware from "redux-saga";
+import { thunk } from "redux-thunk"; // ✅ add this
+import rootReducer from "./rootReducer";
+import rootSaga from "./rootSaga";
 
 const sagaMiddleware = createSagaMiddleware();
 

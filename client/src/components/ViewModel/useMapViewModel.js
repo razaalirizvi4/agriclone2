@@ -4,6 +4,14 @@ import mapboxgl from 'mapbox-gl';
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const useMapViewModel = ({ geoJSON }) => {
+
+
+
+
+
+
+
+  
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [initialCenter, _setInitialCenter] = useState([74.570, 31.553]);

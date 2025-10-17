@@ -1,13 +1,13 @@
 import React from "react";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { getLocations } from "../features/location/location.slice";
+
 import { dashboardSchema } from "../data/dashboardSchema";
 import { componentMapper } from "../components/componentMapper";
 import { dataSources } from "../data/dataSources";
-import { useDispatch, useSelector } from "react-redux";
-import { useEffect } from "react";
-import { getLocations } from "../features/location/location.slice";
+
 import { getEvents } from "../features/eventStream/eventStream.slice";
-
-
 
 function Home() {
   const dispatch = useDispatch();
@@ -34,6 +34,8 @@ function Home() {
 
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
 
+  let data = { dloc: locations, dEv: events, crops: [] };
+
   return (
     <div className="dashboard-grid">
       {sortedSchema.map((item) => {
@@ -42,13 +44,13 @@ function Home() {
           return <div key={item.key}>Component not found</div>;
         }
 
-        const props = Object.entries(item.props).reduce(
-          (acc, [key, value]) => {
-            acc[key] = dataSources[value] || value;
-            return acc;
-          },
-          {}
-        );
+        const props = Object.entries(item.props).reduce((acc, [key, value]) => {
+          acc[key] = value;
+          if (typeof value === "function") {
+            acc[key] = value(data);
+          }
+          return acc; // always return the accumulator
+        }, {});
 
         const gridStyle = {
           gridColumn: `span ${item.colSpan}`,
