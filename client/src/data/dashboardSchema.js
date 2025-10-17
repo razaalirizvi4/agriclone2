@@ -8,7 +8,7 @@ export const dashboardSchema = [
         return d.dloc.filter((lc) => lc.type === "field");
       },
     },
-    colSpan: 9,
+    colSpan: 8,
     order: 1,
   },
   {
@@ -19,7 +19,7 @@ export const dashboardSchema = [
         return d.dloc[0] && d.dloc[0].weather;
       },
     }, // Pass the data source key
-    colSpan: 3,
+    colSpan: 4,
     order: 2,
   },
 
@@ -29,7 +29,13 @@ export const dashboardSchema = [
     props: {
       timelineName: "Event Time Line",
       events: (d) => {
-        d.dEv;
+        return d.dEv.map((event) => ({
+          date: event.Date,
+          icon: event.Meta_Data.icon,
+          details: event.Meta_Data.details,
+          name: event.Meta_Data.name,
+          color: event.Meta_Data.color,
+        }));
       },
     },
     colSpan: 8,

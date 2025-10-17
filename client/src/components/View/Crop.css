@@ -1,7 +1,7 @@
 .crop-wrapper {
   width: 100%;
   display: flex;
-  justify-content: flex-end; /* ✅ pushes the entire card to the right */
+  justify-content:flex-start; /* ✅ pushes the entire card to the right */
 }
 
 .crop-container {
@@ -9,9 +9,12 @@
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  width: 300px;
-  text-align: left; /* ✅ keeps text left-aligned inside */
+  width: 100%;
+  height: 100%; /* ✅ fills parent height too */
+  box-sizing: border-box;
+  text-align: left;
 }
+
 
 .crop-title {
   font-size: 1.5rem;
