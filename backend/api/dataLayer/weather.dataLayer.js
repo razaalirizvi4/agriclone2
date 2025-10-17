@@ -1,34 +1,40 @@
 const axios = require('axios');
-const EventStream = require('../models/eventStream/eventStream.model');
+const Location = require('../models/locationModule/location.model.js');
+const { cleanWeatherData } = require('../../utils/weatherDataCleaner.js');
 
 class WeatherDataLayer {
-    async fetchWeatherFromAPI(location) {
+    async fetchWeatherFromAPI(lat, lon) {
         const apiKey = process.env.WEATHER_API_KEY;
-        const url = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${location}&days=3`;
+        const url = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${lat},${lon}&days=3`;
         const response = await axios.get(url);
         return response.data;
     }
 
-    async saveWeatherEvent(weatherData, relationIds) {
-        const filter = {
-            'RelationIds.farmId': relationIds.farmId,
-            Feature_Type: 'Weather'
-        };
-        const update = {
-            Feature_Type: 'Weather',
-            Module_Action: 'API_Fetch',
-            Date: new Date(),
-            State: 'ActionTaken',
-            Meta_Data: weatherData,
-            RelationIds: relationIds
-        };
-        const options = { upsert: true, new: true };
-        return await EventStream.findOneAndUpdate(filter, update, options);
+    async saveWeatherEvent(locationId,rawWeatherData) {
+    try {
+      // Clean the API data
+      const cleanedData = cleanWeatherData(rawWeatherData);
+
+      // Save cleaned data into location's attributes
+      await Location.findByIdAndUpdate(
+        locationId,
+        { $set: { 'weather': cleanedData.weather } },
+        { new: true }
+      );
+
+      console.log(`Weather data updated successfully for location ${locationId}`);
+    } catch (error) {
+      console.error('Error saving weather data:', error.message);
+      throw error;
     }
 
-    async getLatestWeather(farmId) {
-        return await EventStream.findOne({ 'RelationIds.farmId': farmId, Feature_Type: 'Weather' }).sort({ Date: -1 });
+    }
+
+    async getLatestWeather(locationId) {
+        const location = await Location.findById(locationId).lean();
+        return location?.weather || null;
     }
 }
 
 module.exports = new WeatherDataLayer();
+

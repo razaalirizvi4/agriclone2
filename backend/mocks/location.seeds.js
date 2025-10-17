@@ -38,6 +38,8 @@ const seedData = async () => {
       },
       attributes: {
         area: "15 acres",
+        lat: 71.64160189965244,
+        lon: 31.722087042293893,
         geoJsonCords: {
         type: "FeatureCollection",
         features: [
