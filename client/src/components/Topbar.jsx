@@ -1,57 +1,84 @@
-import { useNavigate } from 'react-router-dom';
-import authService from '../services/auth.service';
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import authService from "../services/auth.service";
+import "./Topbar.css";
 
-const Topbar = ({ isSidebarOpen, toggleSidebar, hasSidebar, isLoggedIn }) => {
+const Topbar = ({ isLoggedIn }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const currentUser = authService.getCurrentUser();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
     authService.logout();
-    navigate('/login');
-    window.location.reload(); // Reload to update Topbar/Sidebar state
+    navigate("/login");
+    window.location.reload();
   };
 
+  const navItems = [
+    { name: "Home", path: "/" },
+    { name: "About", path: "/about" },
+    { name: "Event Stream", path: "/event-stream" },
+    { name: "Locations", path: "/locations" },
+  ];
+
   return (
-    <header style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000,
-      backgroundColor: '#f0f0f0',
-      padding: '10px 20px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderBottom: '1px solid #ccc'
-    }}>
-      {/* Left Section: Logo + Hamburger */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        {/* Logo */}
-        <div style={{ marginRight: '20px' }}>Logo</div>
+    <header className="topbar">
+      {/* 🌿 Logo */}
+      <div className="topbar-logo" onClick={() => navigate("/")}>
+        <img
+          src="https://thumbs.dreamstime.com/b/plant-leaves-hands-symbol-health-agriculture-farm-logo-plant-leaves-hands-symbol-health-agriculture-farm-logo-icon-172208439.jpg"
+          alt="Logo"
+          className="logo-img"
+        />
+        <span className="logo-text">AgriPro</span>
       </div>
 
-      {/* Center Section: Navigation */}
-      <nav style={{ flexGrow: 1 }}>
-        <ul style={{ display: 'flex', justifyContent: 'center', listStyle: 'none', margin: 0, padding: 0 }}>
-          <li style={{ margin: '0 15px' }}><a href="/">Home</a></li>
-          <li style={{ margin: '0 15px' }}><a href="/about">About</a></li>
-          <li style={{ margin: '0 15px' }}><a href="/event-stream">Event Stream</a></li>
-          <li style={{ margin: '0 15px' }}><a href="/locations">Locations</a></li>
+      {/* 🍔 Hamburger Menu */}
+      <div
+        className={`hamburger ${menuOpen ? "open" : ""}`}
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+
+      {/* 🌾 Navbar */}
+      <nav className={`navbar ${menuOpen ? "active" : ""}`}>
+        <ul>
+          {navItems.map((item) => (
+            <li key={item.name}>
+              <button
+                className={`nav-btn ${
+                  location.pathname === item.path ? "active" : ""
+                }`}
+                onClick={() => {
+                  navigate(item.path);
+                  setMenuOpen(false);
+                }}
+              >
+                {item.name}
+              </button>
+            </li>
+          ))}
         </ul>
       </nav>
 
-      {/* Right Section (conditional based on login status) */}
+      {/* 👤 User Section */}
       {isLoggedIn && currentUser ? (
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          {/* User Icon */}
-          <div style={{ marginRight: '10px' }}>User Icon</div>
-          {/* User Name */}
-          <div style={{ marginRight: '10px' }}>{currentUser.name}</div>
-          {/* Logout Button */}
-          <button onClick={handleLogout}>Logout</button>
+        <div className="user-info">
+          <img
+            src="https://c8.alamy.com/comp/2RJ013K/agriculture-logo-design-concept-with-wheat-icon-farming-logotype-symbol-template-2RJ013K.jpg"
+            alt="User"
+            className="user-img"
+          />
+          <span className="user-name">{currentUser.name}</span>
+          <button className="logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
-      ) : (
-        null
-      )}
+      ) : null}
     </header>
   );
 };
