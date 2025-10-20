@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getLocations } from "../features/location/location.slice";
 import { getEvents } from "../features/eventStream/eventStream.slice";
-import { getCrops } from "../features/cropModule/crop.slice";
+import { getCrops, setSelectedCropId } from "../features/cropModule/crop.slice";
 import { dashboardSchema } from "../data/dashboardSchema";
 import { componentMapper } from "../components/componentMapper";
 
@@ -30,12 +30,23 @@ function Home() {
     }
   }, [status, locations, error]);
 
-
+  const selectedCropId = useSelector((state) => state.crops.crop_id);
+  
+  // Log when selectedCropId changes
+  useEffect(() => {
+    if (selectedCropId) {
+      console.log("🟢 Selected crop ID updated:", selectedCropId);
+    }
+  }, [selectedCropId]);
+  
   // Callback to handle field selection
   const callbacks = {
-    onFieldSelect: (fieldId) => {
+    onFieldSelect: ({ fieldId, cropId }) => {
       console.log("🟢 Field selected:", fieldId);
+      console.log("🟢 Crop selected:", cropId);
+      
       setSelectedFieldId(fieldId);
+      dispatch(setSelectedCropId(cropId));
     },
   };
 

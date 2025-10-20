@@ -18,6 +18,11 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         id: elem?._id,
         owner: elem?.owner?.name,
         size: elem?.attributes?.area,
+          // If it's a field, attach its cropId for downstream selection handling
+          cropId:
+            elem?.type?.toLowerCase() === "field"
+              ? (elem?.attributes?.cropId || elem?.attributes?.crop_id || elem?.attributes?.crop?.id || elem?.attributes?.crop?._id || null)
+              : null,
         farm:
           elem?.type?.toLowerCase() === "field"
             ? locations.find((l) => l._id === elem.parentId)?.name
@@ -163,9 +168,11 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
       });
       
       mapInstance.on("click", "fields-layer", (e) => {
-        const fieldId = e.features[0].properties.id;
-        console.log("🟢 Field clicked:", fieldId);
-        if (onFieldSelect) onFieldSelect(fieldId); // ✅ send to Dashboard
+        const props = e.features[0].properties;
+        const fieldId = props.id;
+        const cropId = props.cropId || null;
+        console.log("🟢 Field clicked:", { fieldId, cropId });
+        if (onFieldSelect) onFieldSelect({ fieldId, cropId }); // ✅ send both IDs to Dashboard
       });
 
       // 🟢 Popups (Farms)
@@ -204,6 +211,11 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
           .setHTML(content)
           .addTo(mapInstance);
       });
+
+      mapInstance.on("click", "fields-layer", (e) => {
+        console.log("field clicked", e.features[0].properties);
+      });
+
       mapInstance.on("mouseleave", "fields-layer", () => {
         mapInstance.getCanvas().style.cursor = "";
         if (fieldPopup) {

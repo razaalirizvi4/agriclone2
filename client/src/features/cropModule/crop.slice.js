@@ -28,8 +28,13 @@ const cropSlice = createSlice({
     crops: [],
     status: 'idle',
     error: null,
+    crop_id: "",
   },
-  reducers: {},
+  reducers: {
+    setSelectedCropId: (state, action) => {
+      state.crop_id = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(getCrops.pending, (state) => {
@@ -58,4 +63,5 @@ const cropSlice = createSlice({
   },
 });
 
+export const { setSelectedCropId } = cropSlice.actions;
 export default cropSlice.reducer;
