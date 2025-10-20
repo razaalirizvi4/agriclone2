@@ -1,8 +1,14 @@
 import React from "react";
 import useMapViewModel from "../ViewModel/useMapViewModel";
 
-const Map = ({ locations }) => {
-  const { mapContainer, handleRecenter } = useMapViewModel({ locations });
+const Map = ({ locations, onFieldSelect }) => {
+  const { mapContainer, handleRecenter } = useMapViewModel({
+    locations,
+    onFieldSelect, // ✅ forward callback
+  });
+
+
+
 
   return (
     <div style={{ position: "relative" }}>

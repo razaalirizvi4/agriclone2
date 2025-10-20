@@ -1,65 +1,70 @@
-import React from "react";
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getLocations } from "../features/location/location.slice";
-
-import { dashboardSchema } from "../data/dashboardSchema";
-import { componentMapper } from "../components/componentMapper";
-// import { dataSources } from "../data/dataSources";
-
 import { getEvents } from "../features/eventStream/eventStream.slice";
 import { getCrops } from "../features/cropModule/crop.slice";
+import { dashboardSchema } from "../data/dashboardSchema";
+import { componentMapper } from "../components/componentMapper";
 
 function Home() {
   const dispatch = useDispatch();
+  const [_selectedFieldId, setSelectedFieldId] = useState(null);
 
-  // ✅ Access Redux state
   const { locations, status, error } = useSelector((state) => state.locations);
   const { events } = useSelector((state) => state.eventStream);
-  const {crops}=useSelector((state)=>state.crops)
+  const { crops } = useSelector((state) => state.crops);
 
+  // Fetch data
   useEffect(() => {
-     dispatch(getEvents());
+    dispatch(getEvents());
     dispatch(getLocations());
-    dispatch(getCrops())
+    dispatch(getCrops());
   }, [dispatch]);
 
-  // ✅ Log data when fetched
+  // Log locations status
   useEffect(() => {
     if (status === "succeeded") {
-      console.log("Fetched locations from MongoDB:", locations);
-      console.log("Fetched events from MongoDB:", events);
-      console.log("Fetched crops from MongoDB:", crops);
-
+      console.log("✅ Fetched locations:", locations);
     } else if (status === "failed") {
-      console.error("Error fetching locations:", error);
+      console.error("❌ Error fetching locations:", error);
     }
-  }, [crops,events, status, locations, error]);
+  }, [status, locations, error]);
 
 
+  // Callback to handle field selection
+  const callbacks = {
+    onFieldSelect: (fieldId) => {
+      console.log("🟢 Field selected:", fieldId);
+      setSelectedFieldId(fieldId);
+    },
+  };
+
+  // Prepare data for schema functions
+  const data = { dloc: locations, dEv: events, crops: [crops] };
+
+  // Sort schema by order
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
-
-  let data = { dloc: locations, dEv: events, crops: [crops] };
 
   return (
     <div className="dashboard-grid">
       {sortedSchema.map((item) => {
         const Component = componentMapper[item.key];
         if (!Component) {
-          return <div key={item.key}>Component not found</div>;
+          return <div key={item.key}>Component not found: {item.key}</div>;
         }
 
+        // Generate props from schema
         const props = Object.entries(item.props).reduce((acc, [key, value]) => {
-          acc[key] = value;
-          if (typeof value === "function") {
-            acc[key] = value(data);
-          }
-          return acc; // always return the accumulator
+          acc[key] = typeof value === "function" ? value(data) : value;
+          return acc;
         }, {});
 
-        const gridStyle = {
-          gridColumn: `span ${item.colSpan}`,
-        };
+        // ✅ Inject callback only into map
+        if (item.key === "map") {
+          props.onFieldSelect = callbacks.onFieldSelect;
+        }
+
+        const gridStyle = { gridColumn: `span ${item.colSpan}` };
 
         return (
           <div key={item.key} style={gridStyle}>

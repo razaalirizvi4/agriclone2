@@ -3,7 +3,7 @@ import mapboxgl from "mapbox-gl";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
-const useMapViewModel = ({ locations = [] }) => {
+const useMapViewModel = ({ locations = [], onFieldSelect }) => {
   console.log("data from db:", locations);
 
   // ✅ Only use DB data (no mock fallback)
@@ -15,6 +15,7 @@ const useMapViewModel = ({ locations = [] }) => {
       properties: {
         type: elem?.type?.toLowerCase(), // "farm" or "field"
         name: elem?.name,
+        id: elem?._id,
         owner: elem?.owner?.name,
         size: elem?.attributes?.area,
         farm:
@@ -68,33 +69,32 @@ const useMapViewModel = ({ locations = [] }) => {
   const [initialCenter] = useState(centerFromData || [0, 0]); // fallback if empty
   const [initialZoom] = useState(centerFromData ? 10 : 2); // zoom out if no data
 
- const handleRecenter = () => {
-  if (!map.current) return;
+  const handleRecenter = () => {
+    if (!map.current) return;
 
-  const mapInstance = map.current;
+    const mapInstance = map.current;
 
-  if (farmsGeoJSON && farmsGeoJSON.features.length > 0) {
-    const bounds = new mapboxgl.LngLatBounds();
+    if (farmsGeoJSON && farmsGeoJSON.features.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
 
-    farmsGeoJSON.features.forEach((feature) => {
-      if (feature.geometry?.coordinates) {
-        const coords = feature.geometry.coordinates[0];
-        coords.forEach((coord) => bounds.extend(coord));
-      }
-    });
+      farmsGeoJSON.features.forEach((feature) => {
+        if (feature.geometry?.coordinates) {
+          const coords = feature.geometry.coordinates[0];
+          coords.forEach((coord) => bounds.extend(coord));
+        }
+      });
 
-    mapInstance.fitBounds(bounds, { padding: 50 });
+      mapInstance.fitBounds(bounds, { padding: 50 });
 
-    // ✅ Reset filters to show all farms again
-    mapInstance.setFilter("farms-layer", ["==", "type", "farm"]);
-    mapInstance.setFilter("fields-layer", ["==", "type", "none"]);
+      // ✅ Reset filters to show all farms again
+      mapInstance.setFilter("farms-layer", ["==", "type", "farm"]);
+      mapInstance.setFilter("fields-layer", ["==", "type", "none"]);
 
-    console.log("🔄 Recentered to all farms");
-  } else {
-    console.log("⚠️ No farm data available for recentering");
-  }
-};
-
+      console.log("🔄 Recentered to all farms");
+    } else {
+      console.log("⚠️ No farm data available for recentering");
+    }
+  };
 
   // 🗺 Initialize map
   useEffect(() => {
@@ -152,11 +152,20 @@ const useMapViewModel = ({ locations = [] }) => {
       mapInstance.on("click", "farms-layer", (e) => {
         const farmName = e.features[0].properties.name;
         const coordinates = e.features[0].geometry.coordinates[0];
-        const bounds = new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]);
+        const bounds = new mapboxgl.LngLatBounds(
+          coordinates[0],
+          coordinates[0]
+        );
         for (const coord of coordinates) bounds.extend(coord);
         mapInstance.fitBounds(bounds, { padding: 20 });
         mapInstance.setFilter("fields-layer", ["==", "farm", farmName]);
         mapInstance.setFilter("farms-layer", ["==", "name", ""]);
+      });
+      
+      mapInstance.on("click", "fields-layer", (e) => {
+        const fieldId = e.features[0].properties.id;
+        console.log("🟢 Field clicked:", fieldId);
+        if (onFieldSelect) onFieldSelect(fieldId); // ✅ send to Dashboard
       });
 
       // 🟢 Popups (Farms)
