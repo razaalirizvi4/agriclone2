@@ -8,7 +8,7 @@ import { componentMapper } from "../components/componentMapper";
 
 function Home() {
   const dispatch = useDispatch();
-  const [_selectedFieldId, setSelectedFieldId] = useState(null);
+  const [selectedFieldId, setSelectedFieldId] = useState(null);
 
   const { locations, status, error } = useSelector((state) => state.locations);
   const { events } = useSelector((state) => state.eventStream);
@@ -30,15 +30,6 @@ function Home() {
     }
   }, [status, locations, error]);
 
-  const selectedCropId = useSelector((state) => state.crops.crop_id);
-  
-  // Log when selectedCropId changes
-  useEffect(() => {
-    if (selectedCropId) {
-      console.log("🟢 Selected crop ID updated:", selectedCropId);
-    }
-  }, [selectedCropId]);
-  
   // Callback to handle field selection
   const callbacks = {
     onFieldSelect: ({ fieldId, cropId }) => {
@@ -51,7 +42,7 @@ function Home() {
   };
 
   // Prepare data for schema functions
-  const data = { dloc: locations, dEv: events, crops: [crops] };
+   const data = { dloc: locations, dEv: events, crops: [crops] };
 
   // Sort schema by order
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
@@ -66,7 +57,7 @@ function Home() {
 
         // Generate props from schema
         const props = Object.entries(item.props).reduce((acc, [key, value]) => {
-          acc[key] = typeof value === "function" ? value(data) : value;
+          acc[key] = typeof value === "function" ? value(data,selectedFieldId) : value;
           return acc;
         }, {});
 

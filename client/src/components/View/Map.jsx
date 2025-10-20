@@ -8,8 +8,6 @@ const Map = ({ locations, onFieldSelect }) => {
   });
 
 
-
-
   return (
     <div style={{ position: "relative" }}>
       <div ref={mapContainer} className="map-container" />

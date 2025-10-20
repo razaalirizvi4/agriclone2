@@ -18,8 +18,10 @@ export const dashboardSchema = [
     key: "weather",
     component: "Weather",
     props: {
-      weather: (d) => {
-        return d.dloc[0] && d.dloc[0].weather;
+      weather: (d, selectedFieldId) => {
+        let found = d.dloc.find((loc) => loc._id === selectedFieldId);
+        // return d.dloc[0] && d.dloc[0].weather;
+        return found && found.weather;
       },
     }, // Pass the data source key
     colSpan: 4,
@@ -31,8 +33,11 @@ export const dashboardSchema = [
     component: "Timeline",
     props: {
       timelineName: "Event Time Line",
-      events: (d) => {
-        return d.dEv.map((event) => ({
+      events: (d, selectedFieldId) => {
+        let foundevents = d.dEv.filter(
+          (event) => event?.RelationIds?.Field_id === selectedFieldId
+        );
+        return foundevents.map((event) => ({
           date: event.Date,
           icon: event.Meta_Data.icon,
           details: event.Meta_Data.details,
@@ -44,10 +49,20 @@ export const dashboardSchema = [
     colSpan: 8,
     order: 3,
   },
-  {  
+  {
     key: "crop",
     component: "Crop",
-    props: { crop: (d)=>{return d.crops} }, // refers to your mock data from dataSources.js
+    props: {
+      crop: (d, selectedFieldId) => {
+        let locfound = d.dloc.find((loc) => loc._id === selectedFieldId);
+
+        let cropfound = d.crops.find(
+          (crop) => crop._id === locfound?.attributes?.crop_id
+        );
+
+        return cropfound;
+      },
+    }, // refers to your mock data from dataSources.js
     colSpan: 4, // width — adjust as needed
     order: 4, // controls vertical placement — higher number = lower position
   },
