@@ -18,11 +18,15 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         id: elem?._id,
         owner: elem?.owner?.name,
         size: elem?.attributes?.area,
-          // If it's a field, attach its cropId for downstream selection handling
-          cropId:
-            elem?.type?.toLowerCase() === "field"
-              ? (elem?.attributes?.cropId || elem?.attributes?.crop_id || elem?.attributes?.crop?.id || elem?.attributes?.crop?._id || null)
-              : null,
+        // If it's a field, attach its cropId for downstream selection handling
+        cropId:
+          elem?.type?.toLowerCase() === "field"
+            ? elem?.attributes?.cropId ||
+              elem?.attributes?.crop_id ||
+              elem?.attributes?.crop?.id ||
+              elem?.attributes?.crop?._id ||
+              null
+            : null,
         farm:
           elem?.type?.toLowerCase() === "field"
             ? locations.find((l) => l._id === elem.parentId)?.name
@@ -50,29 +54,38 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
 
   // ✅ Calculate map center only if data exists
   const calculateCenter = (geoJSON) => {
-    if (!geoJSON || !geoJSON.features?.length) return null;
+    if (
+      !geoJSON ||
+      !Array.isArray(geoJSON.features) ||
+      geoJSON.features.length === 0
+    )
+      return null;
 
-    let totalLng = 0,
-      totalLat = 0,
-      count = 0;
+    let totalLng = 0;
+    let totalLat = 0;
+    let count = 0;
 
     geoJSON.features.forEach((feature) => {
-      if (feature.geometry?.coordinates) {
-        const coords = feature.geometry.coordinates[0];
-        coords.forEach((coord) => {
-          totalLng += coord[0];
-          totalLat += coord[1];
+      if (
+        feature.geometry &&
+        feature.geometry.type === "Polygon" &&
+        Array.isArray(feature.geometry.coordinates)
+      ) {
+        // Take only the first ring (outer boundary)
+        const outerRing = feature.geometry.coordinates[0];
+
+        outerRing.forEach(([lng, lat]) => {
+          totalLng += lng;
+          totalLat += lat;
           count++;
         });
       }
     });
 
-    return count > 0 ? [totalLng / count, totalLat / count] : null;
-  };
+    if (count === 0) return null;
 
-  const centerFromData = calculateCenter(farmsGeoJSON);
-  const [initialCenter] = useState(centerFromData || [0, 0]); // fallback if empty
-  const [initialZoom] = useState(centerFromData ? 10 : 2); // zoom out if no data
+    return [totalLng / count, totalLat / count]; // [longitude, latitude]
+  };
 
   const handleRecenter = () => {
     if (!map.current) return;
@@ -103,18 +116,56 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
 
   // 🗺 Initialize map
   useEffect(() => {
-    if (map.current) return;
+    // wait until we have data and center
+    if (!locations.length || map.current) return;
 
+    const farmsGeoJSON = {
+      type: "FeatureCollection",
+      features: locations.map((elem) => ({
+        type: "Feature",
+        geometry: elem?.attributes?.geoJsonCords?.features?.[0]?.geometry,
+      })),
+    };
+
+    const centerFromData = calculateCenter(farmsGeoJSON);
+    if (!centerFromData) return;
+
+    // only create the map now — no 0,0 flicker
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v12",
-      center: initialCenter,
-      zoom: initialZoom,
+      center: centerFromData,
+      zoom: 10,
     });
 
     map.current.addControl(new mapboxgl.NavigationControl());
     map.current.on("load", () => setMapLoaded(true));
-  }, [initialCenter, initialZoom]);
+
+    console.log("✅ Map initialized directly at:", centerFromData);
+  }, [locations]);
+
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !locations.length) return;
+
+    const farmsGeoJSON = {
+      type: "FeatureCollection",
+      features: locations.map((elem) => ({
+        type: "Feature",
+        geometry: elem?.attributes?.geoJsonCords?.features?.[0]?.geometry,
+      })),
+    };
+
+    const centerFromData = calculateCenter(farmsGeoJSON);
+
+    if (centerFromData) {
+      map.current.flyTo({
+        center: centerFromData,
+        zoom: 10,
+        speed: 0.8,
+      });
+      console.log("✅ Center updated from data:", centerFromData);
+    }
+  }, [mapLoaded, locations]);
 
   // 🧩 Add data layers if DB data exists
   useEffect(() => {
@@ -166,7 +217,7 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         mapInstance.setFilter("fields-layer", ["==", "farm", farmName]);
         mapInstance.setFilter("farms-layer", ["==", "name", ""]);
       });
-      
+
       mapInstance.on("click", "fields-layer", (e) => {
         const props = e.features[0].properties;
         const fieldId = props.id;
@@ -224,7 +275,7 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         }
       });
     }
-  }, [onFieldSelect,mapLoaded, farmsGeoJSON]);
+  }, [onFieldSelect, mapLoaded, farmsGeoJSON]);
 
   return { mapContainer, handleRecenter };
 };

@@ -28,21 +28,29 @@ function Home() {
     } else if (status === "failed") {
       console.error("❌ Error fetching locations:", error);
     }
-  }, [status, locations, error]);
+let firstField=locations.find((loc)=>loc.type==="Field")
+  if (firstField && !selectedFieldId) {
+
+      setSelectedFieldId(firstField._id);}
+
+
+
+    
+  }, [selectedFieldId,status, locations, error]);
 
   // Callback to handle field selection
   const callbacks = {
     onFieldSelect: ({ fieldId, cropId }) => {
       console.log("🟢 Field selected:", fieldId);
       console.log("🟢 Crop selected:", cropId);
-      
+
       setSelectedFieldId(fieldId);
       dispatch(setSelectedCropId(cropId));
     },
   };
 
   // Prepare data for schema functions
-   const data = { dloc: locations, dEv: events, crops: crops };
+  const data = { dloc: locations, dEv: events, crops: crops };
 
   // Sort schema by order
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
@@ -57,7 +65,13 @@ function Home() {
 
         // Generate props from schema
         const props = Object.entries(item.props).reduce((acc, [key, value]) => {
-          acc[key] = typeof value === "function" ? value(data,selectedFieldId) : value;
+          acc[key] =
+            typeof value === "function"
+              ? value(
+                  data,
+                  selectedFieldId 
+                )
+              : value;
           return acc;
         }, {});
 
