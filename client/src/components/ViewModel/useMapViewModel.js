@@ -223,11 +223,8 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
           fieldPopup = null;
         }
       });
-       mapInstance.on("click", "fields-layer", (e) => {
-
-      });
     }
-  }, [mapLoaded, farmsGeoJSON]);
+  }, [onFieldSelect,mapLoaded, farmsGeoJSON]);
 
   return { mapContainer, handleRecenter };
 };

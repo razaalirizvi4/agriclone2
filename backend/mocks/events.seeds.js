@@ -113,6 +113,101 @@ const seedData = async () => {
         }
         
       },
+      {
+  Feature_Type: 'Land_Prep',
+  Module_Action: 'API_Fetch',
+  Date: new Date('2023-12-28'),
+  State: 'Completed',
+  Meta_Data: {
+    icon: 'https://cdn-icons-png.flaticon.com/512/815/815273.png',
+    details:
+      'Field plowed and leveled to prepare for next crop rotation. Soil moisture levels checked.',
+    color: '#795548',
+    name: 'Land Preparation',
+    equipmentUsed: 'Rotavator T100',
+    depth: '12 inches',
+  },
+  RelationIds: {
+    Field_id: field1._id,
+  },
+},
+{
+  Feature_Type: 'Disease',
+  Module_Action: 'Pesticide',
+  Date: new Date('2024-02-15'),
+  State: 'Completed',
+  Meta_Data: {
+    icon: 'https://cdn-icons-png.flaticon.com/512/619/619075.png',
+    details:
+      'Applied herbicide to manage weed growth before the crop reached maturity.',
+    color: '#8BC34A',
+    name: 'Weed Control',
+    herbicideUsed: 'WeedClear 1L',
+    method: 'Spray',
+    duration: '2 hours',
+  },
+  RelationIds: {
+    Field_id: field1._id,
+  },
+},
+{
+  Feature_Type: 'Irrigation',
+  Module_Action: 'Watering',
+  Date: new Date('2024-03-05'),
+  State: 'Completed',
+  Meta_Data: {
+    icon: 'https://cdn-icons-png.flaticon.com/512/2809/2809618.png',
+    details:
+      'Second irrigation round completed to maintain soil moisture before flowering stage.',
+    color: '#17a2b8',
+    name: 'Irrigation Cycle 2',
+    crop: 'Maize',
+    duration: '3 hours',
+    waterSource: 'Canal',
+    method: 'Sprinkler',
+  },
+  RelationIds: {
+    Field_id: field1._id,
+  },
+},
+{
+  Feature_Type: 'Fertilizer',
+  Module_Action: 'API_Fetch',
+  Date: new Date('2024-03-22'),
+  State: 'Completed',
+  Meta_Data: {
+    icon: 'https://cdn-icons-png.flaticon.com/512/3067/3067822.png',
+    details:
+      'Applied potassium-based fertilizer to enhance flowering and yield potential.',
+    color: '#2196F3',
+    name: 'Fertilization Round 2',
+    fertilizerType: 'Potash',
+    quantity: '35kg',
+    method: 'Top Dressing',
+  },
+  RelationIds: {
+    Field_id: field1._id,
+  },
+},
+{
+  Feature_Type: 'Harvesting',
+  Module_Action: 'Weedisite',
+  Date: new Date('2024-07-08'),
+  State: 'Completed',
+  Meta_Data: {
+    icon: 'https://cdn-icons-png.flaticon.com/512/476/476127.png',
+    details:
+      'Harvest completed successfully. Grain moisture within optimal range.',
+    color: '#FFC107',
+    name: 'Harvesting',
+    yield: '4.1 tons',
+    weather: 'Clear',
+    machine: 'Harvester Pro H500',
+  },
+  RelationIds: {
+    Field_id: field1._id,
+  },
+},
     ];
 
     // 💾 Insert mock data
