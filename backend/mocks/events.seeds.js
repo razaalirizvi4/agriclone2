@@ -31,9 +31,8 @@ const seedData = async () => {
           method: 'Seed Drill',
           equipmentUsed: 'Seeder X200',
         },
-        // RelationIds: [field1._id],
         RelationIds:{
-          "Field_id": field1._id,
+          "Field_id": field2._id,
         }
   
       },
@@ -51,7 +50,9 @@ const seedData = async () => {
           quantity: '40kg',
           method: 'Broadcast',
         },
-        RelationIds: null,
+         RelationIds:{
+          "Field_id": field2._id,
+        }
         
       },
       {
@@ -88,7 +89,9 @@ const seedData = async () => {
           pesticideUsed: 'RustGuard 250ml',
           severity: 'Medium',
         },
-        RelationIds: null,
+        RelationIds:{
+          "Field_id": field2._id,
+        }
        
       },
       {
@@ -105,7 +108,9 @@ const seedData = async () => {
           weather: 'Sunny',
           machine: 'Combine Harvester H350',
         },
-        RelationIds: null,
+         RelationIds:{
+          "Field_id": field2._id,
+        }
         
       },
     ];

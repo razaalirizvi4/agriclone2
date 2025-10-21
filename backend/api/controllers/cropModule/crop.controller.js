@@ -39,7 +39,7 @@ async function create(req, res) {
 async function list(req, res) {
     try {
         const crops = await service.listCrops({ name: req.query.name });
-        return res.json(success(crops));
+        res.status(200).json(crops)
     } catch (err) {
         return res.status(500).json(fail(err.message));
     }

@@ -1,6 +1,5 @@
 const useTimelineViewModel = (events = []) => {
   const defaultColor = '#cccccc'; // A default color for events without a specified color
-console.log("events in event timeline:",events)
   return events.map(event => {
     const color = event.color || defaultColor;
     const cardStyle = {

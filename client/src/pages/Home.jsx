@@ -42,7 +42,7 @@ function Home() {
   };
 
   // Prepare data for schema functions
-   const data = { dloc: locations, dEv: events, crops: [crops] };
+   const data = { dloc: locations, dEv: events, crops: crops };
 
   // Sort schema by order
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
