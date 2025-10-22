@@ -4,26 +4,26 @@ import mapboxgl from "mapbox-gl";
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const useMapViewModel = ({ locations = [], onFieldSelect }) => {
-  console.log("data from db:", locations);
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [selectedFieldId, setSelectedFieldId] = useState(null);
+  const [showFields, setShowFields] = useState(true);
 
-  // ✅ Only use DB data (no mock fallback)
+  // ✅ Build GeoJSON from DB
   let farmsGeoJSON = null;
-
-  if (locations && locations.length > 0) {
+  if (locations?.length > 0) {
     const features = locations.map((elem) => ({
       type: "Feature",
       properties: {
-        type: elem?.type?.toLowerCase(), // "farm" or "field"
+        type: elem?.type?.toLowerCase(),
         name: elem?.name,
         id: elem?._id,
         owner: elem?.owner?.name,
-        size: elem?.attributes?.area,
-        // If it's a field, attach its cropId for downstream selection handling
         cropId:
           elem?.type?.toLowerCase() === "field"
             ? elem?.attributes?.cropId ||
               elem?.attributes?.crop_id ||
-              elem?.attributes?.crop?.id ||
               elem?.attributes?.crop?._id ||
               null
             : null,
@@ -32,91 +32,49 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
             ? locations.find((l) => l._id === elem.parentId)?.name
             : elem?.name,
       },
-      geometry: {
-        type: elem?.attributes?.geoJsonCords?.features?.[0]?.geometry?.type,
-        coordinates:
-          elem?.attributes?.geoJsonCords?.features?.[0]?.geometry?.coordinates,
-      },
+      geometry: elem?.attributes?.geoJsonCords?.features?.[0]?.geometry,
     }));
 
-    farmsGeoJSON = {
-      type: "FeatureCollection",
-      features,
-    };
-    console.log("Using DB data:", farmsGeoJSON);
-  } else {
-    console.log("⚠️ No DB data found. Map will be empty.");
+    farmsGeoJSON = { type: "FeatureCollection", features };
   }
 
-  const mapContainer = useRef(null);
-  const map = useRef(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
+  // ✅ Utility to calculate map center
+  const calculateCenter = (geoJSON, selectedFieldId = null) => {
+    if (!geoJSON?.features?.length) return null;
 
-  // ✅ Calculate map center only if data exists
-  const calculateCenter = (geoJSON) => {
-    if (
-      !geoJSON ||
-      !Array.isArray(geoJSON.features) ||
-      geoJSON.features.length === 0
-    )
-      return null;
+    if (selectedFieldId) {
+      const selected = geoJSON.features.find(
+        (f) => f.properties?.id === selectedFieldId
+      );
+      if (selected?.geometry?.coordinates) {
+        const coords = selected.geometry.coordinates[0];
+        const lng =
+          coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+        const lat =
+          coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+        return [lng, lat];
+      }
+    }
 
-    let totalLng = 0;
-    let totalLat = 0;
-    let count = 0;
-
-    geoJSON.features.forEach((feature) => {
-      if (
-        feature.geometry &&
-        feature.geometry.type === "Polygon" &&
-        Array.isArray(feature.geometry.coordinates)
-      ) {
-        // Take only the first ring (outer boundary)
-        const outerRing = feature.geometry.coordinates[0];
-
-        outerRing.forEach(([lng, lat]) => {
+    // average center of all features
+    let totalLng = 0,
+      totalLat = 0,
+      count = 0;
+    geoJSON.features.forEach((f) => {
+      if (f.geometry?.coordinates) {
+        const ring = f.geometry.coordinates[0];
+        ring.forEach(([lng, lat]) => {
           totalLng += lng;
           totalLat += lat;
           count++;
         });
       }
     });
-
-    if (count === 0) return null;
-
-    return [totalLng / count, totalLat / count]; // [longitude, latitude]
+    return count ? [totalLng / count, totalLat / count] : null;
   };
 
-  const handleRecenter = () => {
-    if (!map.current) return;
-
-    const mapInstance = map.current;
-
-    if (farmsGeoJSON && farmsGeoJSON.features.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-
-      farmsGeoJSON.features.forEach((feature) => {
-        if (feature.geometry?.coordinates) {
-          const coords = feature.geometry.coordinates[0];
-          coords.forEach((coord) => bounds.extend(coord));
-        }
-      });
-
-      mapInstance.fitBounds(bounds, { padding: 50 });
-
-      // ✅ Reset filters to show all farms again
-      mapInstance.setFilter("farms-layer", ["==", "type", "farm"]);
-      mapInstance.setFilter("fields-layer", ["==", "type", "none"]);
-
-      console.log("🔄 Recentered to all farms");
-    } else {
-      console.log("⚠️ No farm data available for recentering");
-    }
-  };
-
-  // 🗺 Initialize map
+  // 🗺 Initialize map once
   useEffect(() => {
-    // wait until we have data and center
     if (!locations.length || map.current) return;
 
     const farmsGeoJSON = {
@@ -127,106 +85,95 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
       })),
     };
 
-    const centerFromData = calculateCenter(farmsGeoJSON);
-    if (!centerFromData) return;
+    const center = calculateCenter(farmsGeoJSON);
+    if (!center) return;
 
-    // only create the map now — no 0,0 flicker
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v12",
-      center: centerFromData,
-      zoom: 10,
+      center,
+      zoom: 12,
     });
 
     map.current.addControl(new mapboxgl.NavigationControl());
     map.current.on("load", () => setMapLoaded(true));
-
-    console.log("✅ Map initialized directly at:", centerFromData);
   }, [locations]);
 
+  // ✅ Auto-select first field when data loads
   useEffect(() => {
-    if (!map.current || !mapLoaded || !locations.length) return;
+    if (!locations.length || selectedFieldId) return;
 
-    const farmsGeoJSON = {
-      type: "FeatureCollection",
-      features: locations.map((elem) => ({
-        type: "Feature",
-        geometry: elem?.attributes?.geoJsonCords?.features?.[0]?.geometry,
-      })),
-    };
-
-    const centerFromData = calculateCenter(farmsGeoJSON);
-
-    if (centerFromData) {
-      map.current.flyTo({
-        center: centerFromData,
-        zoom: 10,
-        speed: 0.8,
-      });
-      console.log("✅ Center updated from data:", centerFromData);
+    const firstField = locations.find((l) => l.type === "Field");
+    if (firstField) {
+      setSelectedFieldId(firstField._id);
+      if (onFieldSelect)
+        onFieldSelect({
+          fieldId: firstField._id,
+          cropId:
+            firstField?.attributes?.cropId ||
+            firstField?.attributes?.crop_id ||
+            null,
+        });
     }
-  }, [mapLoaded, locations]);
+  }, [locations, selectedFieldId, onFieldSelect]);
 
-  // 🧩 Add data layers if DB data exists
+  // ✅ Add layers + click + hover logic
   useEffect(() => {
     if (!mapLoaded || !map.current || !farmsGeoJSON) return;
 
     const mapInstance = map.current;
-    const source = mapInstance.getSource("data");
 
-    if (source) {
-      source.setData(farmsGeoJSON);
-    } else {
-      mapInstance.addSource("data", {
-        type: "geojson",
-        data: farmsGeoJSON,
-      });
+    if (!mapInstance.getSource("data")) {
+      mapInstance.addSource("data", { type: "geojson", data: farmsGeoJSON });
 
+      // Farms
       mapInstance.addLayer({
         id: "farms-layer",
         type: "fill",
         source: "data",
-        paint: {
-          "fill-color": "#008000",
-          "fill-opacity": 0.5,
-        },
+        paint: { "fill-color": "#008000", "fill-opacity": 0.5 },
         filter: ["==", "type", "farm"],
       });
 
+      // Fields
       mapInstance.addLayer({
         id: "fields-layer",
         type: "fill",
         source: "data",
         paint: {
-          "fill-color": "#FFA500",
-          "fill-opacity": 0.5,
+          "fill-color": [
+            "case",
+            ["==", ["get", "id"], selectedFieldId],
+            "#0047AB",
+            "#FFA500",
+          ],
+          "fill-opacity": 0.6,
         },
-        filter: ["==", "type", "none"],
+        filter: ["==", "type", "field"],
       });
 
-      // 🟢 Farm click logic
+      // --- 🟢 Click on farm: zoom to farm, show its fields ---
       mapInstance.on("click", "farms-layer", (e) => {
         const farmName = e.features[0].properties.name;
-        const coordinates = e.features[0].geometry.coordinates[0];
-        const bounds = new mapboxgl.LngLatBounds(
-          coordinates[0],
-          coordinates[0]
-        );
-        for (const coord of coordinates) bounds.extend(coord);
+        const coords = e.features[0].geometry.coordinates[0];
+        const bounds = new mapboxgl.LngLatBounds();
+        coords.forEach((c) => bounds.extend(c));
         mapInstance.fitBounds(bounds, { padding: 20 });
         mapInstance.setFilter("fields-layer", ["==", "farm", farmName]);
-        mapInstance.setFilter("farms-layer", ["==", "name", ""]);
+        setShowFields(true);
       });
 
+      // --- 🟠 Click on field: highlight + callback ---
       mapInstance.on("click", "fields-layer", (e) => {
         const props = e.features[0].properties;
         const fieldId = props.id;
         const cropId = props.cropId || null;
-        console.log("🟢 Field clicked:", { fieldId, cropId });
-        if (onFieldSelect) onFieldSelect({ fieldId, cropId }); // ✅ send both IDs to Dashboard
+
+        setSelectedFieldId(fieldId);
+        if (onFieldSelect) onFieldSelect({ fieldId, cropId });
       });
 
-      // 🟢 Popups (Farms)
+      // --- 🟣 Hover popup for farms ---
       let farmPopup = null;
       mapInstance.on("mouseenter", "farms-layer", (e) => {
         mapInstance.getCanvas().style.cursor = "pointer";
@@ -235,7 +182,11 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         for (const key in props)
           content += `<strong>${key}:</strong> ${props[key]}<br>`;
         content += "</div>";
-        farmPopup = new mapboxgl.Popup()
+
+        farmPopup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+        })
           .setLngLat(e.lngLat)
           .setHTML(content)
           .addTo(mapInstance);
@@ -248,7 +199,7 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         }
       });
 
-      // 🟡 Popups (Fields)
+      // --- 🟠 Hover popup for fields ---
       let fieldPopup = null;
       mapInstance.on("mouseenter", "fields-layer", (e) => {
         mapInstance.getCanvas().style.cursor = "pointer";
@@ -257,16 +208,15 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         for (const key in props)
           content += `<strong>${key}:</strong> ${props[key]}<br>`;
         content += "</div>";
-        fieldPopup = new mapboxgl.Popup()
+
+        fieldPopup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+        })
           .setLngLat(e.lngLat)
           .setHTML(content)
           .addTo(mapInstance);
       });
-
-      mapInstance.on("click", "fields-layer", (e) => {
-        console.log("field clicked", e.features[0].properties);
-      });
-
       mapInstance.on("mouseleave", "fields-layer", () => {
         mapInstance.getCanvas().style.cursor = "";
         if (fieldPopup) {
@@ -275,7 +225,43 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         }
       });
     }
-  }, [onFieldSelect, mapLoaded, farmsGeoJSON]);
+
+    // Update data + field highlight dynamically
+    if (mapInstance.getSource("data"))
+      mapInstance.getSource("data").setData(farmsGeoJSON);
+
+    if (mapInstance.getLayer("fields-layer")) {
+      mapInstance.setPaintProperty("fields-layer", "fill-color", [
+        "case",
+        ["==", ["get", "id"], selectedFieldId],
+        "#0047AB", // selected
+        "#FFA500", // normal
+      ]);
+      mapInstance.setLayoutProperty(
+        "fields-layer",
+        "visibility",
+        showFields ? "visible" : "none"
+      );
+    }
+  }, [mapLoaded, farmsGeoJSON, selectedFieldId, showFields, onFieldSelect]);
+
+  // ✅ Recenter logic (hide fields)
+  const handleRecenter = () => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    if (farmsGeoJSON?.features?.length) {
+      const bounds = new mapboxgl.LngLatBounds();
+      farmsGeoJSON.features
+        .filter((f) => f.properties?.type === "farm")
+        .forEach((f) => {
+          const coords = f.geometry?.coordinates?.[0] || [];
+          coords.forEach((c) => bounds.extend(c));
+        });
+      mapInstance.fitBounds(bounds, { padding: 50 });
+      setShowFields(false); // hide fields
+    }
+  };
 
   return { mapContainer, handleRecenter };
 };

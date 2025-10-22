@@ -78,6 +78,7 @@ let firstField=locations.find((loc)=>loc.type==="Field")
         // ✅ Inject callback only into map
         if (item.key === "map") {
           props.onFieldSelect = callbacks.onFieldSelect;
+          props.selectedFieldId = selectedFieldId;
         }
 
         const gridStyle = { gridColumn: `span ${item.colSpan}` };
