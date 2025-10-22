@@ -8,7 +8,7 @@ const LoginPage = () => {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {h
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await authService.login(email, password);
