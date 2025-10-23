@@ -22,10 +22,7 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         owner: elem?.owner?.name,
         cropId:
           elem?.type?.toLowerCase() === "field"
-            ? elem?.attributes?.cropId ||
-              elem?.attributes?.crop_id ||
-              elem?.attributes?.crop?._id ||
-              null
+            ?elem?.attributes?.crop_id
             : null,
         farm:
           elem?.type?.toLowerCase() === "field"

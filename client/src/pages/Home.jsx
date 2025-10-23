@@ -10,43 +10,72 @@ function Home() {
   const dispatch = useDispatch();
   const [selectedFieldId, setSelectedFieldId] = useState(null);
 
-  const { locations, status, error } = useSelector((state) => state.locations);
+  const { locations, status } = useSelector((state) => state.locations);
   const { events } = useSelector((state) => state.eventStream);
   const { crops } = useSelector((state) => state.crops);
 
   // Fetch data
   useEffect(() => {
-    dispatch(getEvents());
+     dispatch(getEvents());
     dispatch(getLocations());
-    dispatch(getCrops());
-  }, [dispatch]);
+    //  dispatch(getCrops());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Log locations status
   useEffect(() => {
-    if (status === "succeeded") {
-      console.log("✅ Fetched locations:", locations);
-    } else if (status === "failed") {
-      console.error("❌ Error fetching locations:", error);
+    if (status === "succeeded" && locations.length > 0) {
+      const fields = locations.filter((loc) => loc.type === "Field");
+      if (fields.length > 0) {
+        const fieldIds = fields.map((f) => f._id);
+        const cropIds = fields.map((f) => f.attributes.crop_id).filter(Boolean);
+
+        console.log("Field Id's",fieldIds) //remove this after sending fieldIds in dispatch.
+          // dispatch(getEvents(fieldIds));
+          dispatch(getCrops(cropIds));
+
+        // Set default field
+        if (!selectedFieldId) {
+          const firstField = fields[0];
+          setSelectedFieldId(firstField._id);
+
+          // Trigger same logic as manual selection
+          handleFieldSelect(firstField._id, firstField.crop_id);
+        }
+      }
     }
-let firstField=locations.find((loc)=>loc.type==="Field")
-  if (firstField && !selectedFieldId) {
 
-      setSelectedFieldId(firstField._id);}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFieldId, status, locations]);
 
+  const handleFieldSelect = (fieldId, cropId) => {
+    console.log("🟢 Field selected:", fieldId);
+    console.log("🟢 Crop selected:", cropId);
 
+    setSelectedFieldId(fieldId);
+    dispatch(setSelectedCropId(cropId));
 
-    
-  }, [selectedFieldId,status, locations, error]);
+    // Filter events for this field
+    const filteredEvents = events.filter((ev) => ev.field_id === fieldId);
+
+    // Filter crop object for this field
+    const selectedCrop = crops.find((c) => c._id === cropId);
+
+    // Prepare weather object from selected field
+    const selectedField = locations.find((f) => f._id === fieldId);
+    const weather = selectedField?.weather || {};
+
+    console.log("🌾 Selected crop:", selectedCrop);
+    console.log("📅 Filtered events:", filteredEvents);
+    console.log("☀️ Weather:", weather);
+
+    // You can now store this filtered data in local state or
+    // directly pass it to dashboard components
+  };
 
   // Callback to handle field selection
   const callbacks = {
-    onFieldSelect: ({ fieldId, cropId }) => {
-      console.log("🟢 Field selected:", fieldId);
-      console.log("🟢 Crop selected:", cropId);
-
-      setSelectedFieldId(fieldId);
-      dispatch(setSelectedCropId(cropId));
-    },
+    onFieldSelect: ({ fieldId, cropId }) => handleFieldSelect(fieldId, cropId),
   };
 
   // Prepare data for schema functions
@@ -66,12 +95,7 @@ let firstField=locations.find((loc)=>loc.type==="Field")
         // Generate props from schema
         const props = Object.entries(item.props).reduce((acc, [key, value]) => {
           acc[key] =
-            typeof value === "function"
-              ? value(
-                  data,
-                  selectedFieldId 
-                )
-              : value;
+            typeof value === "function" ? value(data, selectedFieldId) : value;
           return acc;
         }, {});
 
