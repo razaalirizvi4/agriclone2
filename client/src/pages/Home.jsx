@@ -6,9 +6,23 @@ import { getCrops, setSelectedCropId } from "../features/cropModule/crop.slice";
 import { dashboardSchema } from "../data/dashboardSchema";
 import { componentMapper } from "../components/componentMapper";
 
+// prepare ids for events and crops
+// 1. first filter location for field:
+// 1.1 prepare fieldIds through looping
+// 1.1.1 prepare cropsIds
+// 1.2 getEvents(Fieldids=id1,id2)
+// 1.3 getCrops(ids=id1,id2)
+
+// 2. set first for selected field
+// 2.1. field[0] -> store in function (setSelectedField)
+// 2.2. selected field -> onclik eventlistner get field id
+// 2.2. according to that field id the crops and events will change
 function Home() {
   const dispatch = useDispatch();
   const [selectedFieldId, setSelectedFieldId] = useState(null);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [selectedCrop, setSelectedCrop] = useState(null);
+  const [weather, setWeather] = useState({});
 
   const { locations, status } = useSelector((state) => state.locations);
   const { events } = useSelector((state) => state.eventStream);
@@ -16,10 +30,7 @@ function Home() {
 
   // Fetch data
   useEffect(() => {
-     dispatch(getEvents());
     dispatch(getLocations());
-    //  dispatch(getCrops());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Log locations status
@@ -30,47 +41,34 @@ function Home() {
         const fieldIds = fields.map((f) => f._id);
         const cropIds = fields.map((f) => f.attributes.crop_id).filter(Boolean);
 
-        console.log("Field Id's",fieldIds) //remove this after sending fieldIds in dispatch.
-          // dispatch(getEvents(fieldIds));
-          dispatch(getCrops(cropIds));
+        dispatch(getEvents({ field_Ids: fieldIds.join(",") }));
+        dispatch(getCrops({ ids: cropIds.join(",") }));
 
         // Set default field
         if (!selectedFieldId) {
           const firstField = fields[0];
           setSelectedFieldId(firstField._id);
-
-          // Trigger same logic as manual selection
           handleFieldSelect(firstField._id, firstField.crop_id);
         }
       }
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFieldId, status, locations]);
 
   const handleFieldSelect = (fieldId, cropId) => {
-    console.log("🟢 Field selected:", fieldId);
-    console.log("🟢 Crop selected:", cropId);
-
     setSelectedFieldId(fieldId);
     dispatch(setSelectedCropId(cropId));
 
     // Filter events for this field
-    const filteredEvents = events.filter((ev) => ev.field_id === fieldId);
+    const eventsForField = events.filter((ev) => ev.field_id === fieldId);
+    setFilteredEvents(eventsForField);
 
-    // Filter crop object for this field
-    const selectedCrop = crops.find((c) => c._id === cropId);
+    // Find crop for this field
+    const cropForField = crops.find((c) => c._id === cropId);
+    setSelectedCrop(cropForField);
 
-    // Prepare weather object from selected field
+    // Get weather from selected field
     const selectedField = locations.find((f) => f._id === fieldId);
-    const weather = selectedField?.weather || {};
-
-    console.log("🌾 Selected crop:", selectedCrop);
-    console.log("📅 Filtered events:", filteredEvents);
-    console.log("☀️ Weather:", weather);
-
-    // You can now store this filtered data in local state or
-    // directly pass it to dashboard components
+    setWeather(selectedField?.weather || {});
   };
 
   // Callback to handle field selection
@@ -79,7 +77,12 @@ function Home() {
   };
 
   // Prepare data for schema functions
-  const data = { dloc: locations, dEv: events, crops: crops };
+  const data = {
+    dloc: locations,
+    dEv: filteredEvents.length ? filteredEvents : events,
+    crops: selectedCrop ? [selectedCrop] : crops,
+    weather,
+  };
 
   // Sort schema by order
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);

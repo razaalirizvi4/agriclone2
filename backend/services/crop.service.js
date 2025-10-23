@@ -7,9 +7,17 @@ async function createCrop(input) {
 
 async function listCrops(filter = {}) {
     const query = {};
+
     if (filter.name) {
         query.name = { $regex: filter.name, $options: 'i' };
     }
+
+    // ✅ New query for ?ids=id1,id2
+    if (filter.ids) {
+        const idArray = filter.ids.split(',').map(id => id.trim());
+        query._id = { $in: idArray };
+    }
+
     return Crop.find(query).sort({ createdAt: -1 });
 }
 

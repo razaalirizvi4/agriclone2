@@ -1,14 +1,25 @@
+const mongoose = require("mongoose");
 const EventStream = require('../models/eventStream/eventStream.model.js');
 
 // ✅ Fetch events (with optional ?ids=id1,id2 support)
 const getEvents = async (queryParams) => {
-  const { ids, ...filters } = queryParams;
+  const { ids, field_Ids, ...filters } = queryParams;
 
   if (ids) {
     const idArray = ids.split(',').map(id => id.trim());
     return await EventStream.find({ _id: { $in: idArray } }); // ✅ returns full data now
   }
 
+if (field_Ids) {
+    const fieldIdArray = field_Ids.split(",").map((id) => new mongoose.Types.ObjectId(id.trim()));
+    console.log("Fetching by field IDs:", fieldIdArray);
+
+    return await EventStream.find({
+      "RelationIds.Field_id": { $in: fieldIdArray },
+    });
+  }
+
+  // Default: fetch all events
   return await EventStream.find(filters);
 };
 

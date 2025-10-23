@@ -20,7 +20,7 @@ const seedData = async () => {
         Feature_Type: 'Seeding',
         Module_Action: 'API_Fetch',
         Date: new Date('2023-01-15'),
-        State: 'Completed',
+        State: 'Pending',
         Meta_Data: {
           icon: 'https://cdn-icons-png.flaticon.com/512/3074/3074366.png',
           details: 'Planted the new batch of wheat seeds for the spring season.',
@@ -40,7 +40,7 @@ const seedData = async () => {
         Feature_Type: 'Fertilizer',
         Module_Action: 'API_Fetch',
         Date: new Date('2024-03-20'),
-        State: 'Completed',
+        State: 'Pending',
         Meta_Data: {
           icon: 'https://cdn-icons-png.flaticon.com/512/3067/3067822.png',
           details: 'Applied high-nitrogen fertilizer (Urea) to North and West Fields. Monitor soil absorption.',
@@ -135,7 +135,7 @@ const seedData = async () => {
   Feature_Type: 'Disease',
   Module_Action: 'Pesticide',
   Date: new Date('2024-02-15'),
-  State: 'Completed',
+  State: 'Pending',
   Meta_Data: {
     icon: 'https://cdn-icons-png.flaticon.com/512/619/619075.png',
     details:
