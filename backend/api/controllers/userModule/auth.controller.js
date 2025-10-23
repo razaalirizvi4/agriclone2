@@ -76,8 +76,7 @@ const loginUser = async (req, res) => {
 
 // Generate JWT
 const generateToken = (id) => {
-  const config = require('../../../serverSetup/config');
-  return jwt.sign({ userId: id }, config.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ userId: id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 };
 
 module.exports = {
