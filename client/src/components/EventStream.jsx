@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getEvents, updateEventStatus } from '../features/eventStream/eventStream.slice';
+import { formatDateYYYYMMDD } from '../utils/date';
 
 const EventStream = () => {
   const dispatch = useDispatch();
@@ -29,7 +30,7 @@ const EventStream = () => {
         <div key={event._id} style={{ border: '1px solid #ccc', margin: '10px', padding: '10px' }}>
           <h3>{event.Feature_Type} - {event.Module_Action}</h3>
           <p>State: {event.State}</p>
-          <p>Date: {new Date(event.Date).toLocaleString()}</p>
+          <p>Date: {formatDateYYYYMMDD(event.Date)}</p>
           <div>
             <h4>Related Users:</h4>
             <ul>

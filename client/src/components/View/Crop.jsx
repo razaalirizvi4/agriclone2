@@ -1,4 +1,5 @@
 import React from "react";
+import { formatDateYYYYMMDD } from "../../utils/date";
 import "./Crop.css";
 
 const Crop = (props) => {
@@ -19,13 +20,13 @@ const Crop = (props) => {
           <div className="crop-details">
             <p>
               <strong>Seeding Period:</strong>{" "}
-              {new Date(data.seedDateRangeStart).toLocaleDateString()} -{" "}
-              {new Date(data.seedDateRangeEnd).toLocaleDateString()}
+              {formatDateYYYYMMDD(data.seedDateRangeStart)} -{" "}
+              {formatDateYYYYMMDD(data.seedDateRangeEnd)}
             </p>
             <p>
               <strong>Harvest Period:</strong>{" "}
-              {new Date(data.harvestDateRangeStart).toLocaleDateString()} -{" "}
-              {new Date(data.harvestDateRangeEnd).toLocaleDateString()}
+              {formatDateYYYYMMDD(data.harvestDateRangeStart)} -{" "}
+              {formatDateYYYYMMDD(data.harvestDateRangeEnd)}
             </p>
             <p>
               <strong>Temperature Range:</strong> {data.tempRangeStart}°C -{" "}

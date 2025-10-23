@@ -43,6 +43,7 @@ export const dashboardSchema = [
           details: event.Meta_Data.details,
           name: event.Meta_Data.name,
           color: event.Meta_Data.color,
+          State: event.State, // Add State field for timeline circle colors
         }));
       },
     },

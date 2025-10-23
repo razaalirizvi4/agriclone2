@@ -7,7 +7,19 @@ const Timeline = ({ timelineName, events }) => {
 
   return (
     <div className="timeline-container">
-      <h2>{timelineName}</h2>
+      <div className="timeline-header">
+        <h2>{timelineName}</h2>
+        <div className="timeline-legend">
+          <div className="legend-item">
+            <div className="legend-circle completed"></div>
+            <span>Completed</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-circle pending"></div>
+            <span>Pending</span>
+          </div>
+        </div>
+      </div>
       <div className="timeline">
         {processedEvents.map((event, index) => (
           <div className="timeline-event" key={index}>

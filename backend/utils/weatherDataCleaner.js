@@ -1,3 +1,5 @@
+const { formatDateYYYYMMDD } = require('./date');
+
 function cleanWeatherData(data) {
   const { current, forecast } = data;
 
@@ -29,12 +31,12 @@ function cleanWeatherData(data) {
         condition: normalizeCondition(current.condition.text),
         maxTemp: `${forecast.forecastday[0].day.maxtemp_c}°C`,
         minTemp: `${forecast.forecastday[0].day.mintemp_c}°C`,
-        date: new Date(current.last_updated_epoch * 1000).toISOString(),
+        date: formatDateYYYYMMDD(new Date(current.last_updated_epoch * 1000)),
       },
       forecast: forecast.forecastday.map((day) => ({
         maxTemp: `${day.day.maxtemp_c}°C`,
         minTemp: `${day.day.mintemp_c}°C`,
-        date: new Date(day.date_epoch * 1000).toLocaleDateString(),
+        date: formatDateYYYYMMDD(new Date(day.date_epoch * 1000)),
         condition: normalizeCondition(day.day.condition.text),
       })),
     },

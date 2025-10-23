@@ -5,13 +5,53 @@
     box-sizing: border-box;
 }
 
+/* --- Timeline Header with Legend --- */
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
 .timeline-container h2,
 .bottom-section h2 {
     font-size: 18px;
     font-weight: 600;
     color: #333333;
-    margin-bottom: 5px;
+    margin: 0;
     text-align: left;
+}
+
+/* --- Timeline Legend --- */
+.timeline-legend {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #666666;
+}
+
+.legend-circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid;
+}
+
+.legend-circle.completed {
+    background-color: #FFFFFF;
+    border-color: #999999;
+}
+
+.legend-circle.pending {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
 }
 
 .timeline-container > p,
@@ -27,7 +67,7 @@
     position: relative;
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: flex-end; /* Align cards to bottom for consistent circle positioning */
     justify-content: flex-start; /* Align cards with heading */
     overflow-x: auto;
     overflow-y: hidden;
@@ -43,7 +83,7 @@
     flex-direction: column;
     align-items: center;
     min-width: 125px;
-    max-width: 145px;
+    max-width: 200px; /* Increased max-width to allow for longer content */
     flex-shrink: 0;
 }
 
@@ -57,6 +97,7 @@
     height: 2px;
     background-color: #e0e0e0;
     z-index: 1;
+    top: auto; /* Ensure it's positioned from bottom */
 }
 
 /* --- Timeline Card --- */
@@ -65,12 +106,15 @@
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     padding: 10px 8px 10px 8px;
-    min-height: 100px;
+    height: 120px; /* Fixed height for consistent alignment */
     margin-bottom: 20px;
     width: 100%;
     border: 1px solid #e0e0e0;
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Distribute content evenly */
 }
 
 .timeline-card:hover {
@@ -103,12 +147,22 @@
 }
 
 /* --- Card Body --- */
+.card-body {
+    flex: 1; /* Take remaining space */
+    display: flex;
+    align-items: center; /* Center content vertically */
+}
+
 .card-body p {
     margin: 0;
     font-size: 12px;
     line-height: 1.4;
     color: #666666;
     word-wrap: break-word;
+    overflow: hidden; /* Hide overflow text */
+    display: -webkit-box;
+    -webkit-line-clamp: 4; /* Limit to 4 lines */
+    -webkit-box-orient: vertical;
 }
 
 /* --- Timeline Circle --- */
@@ -120,7 +174,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    border: 2px solid #ffffff;
+    border: 3px solid #ffffff; /* Increased border thickness for better visibility */
     background-color: #4caf50; /* Example color */
     z-index: 2;
 }
@@ -142,6 +196,16 @@
 
 /* --- Responsive (Mobile) --- */
 @media (max-width: 767px) {
+    .timeline-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .timeline-legend {
+        gap: 15px;
+    }
+    
     .timeline {
         padding-bottom: 20px;
         gap: 20px;
