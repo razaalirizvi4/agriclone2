@@ -54,6 +54,34 @@
     border-color: #4CAF50;
 }
 
+.legend-circle.all {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* Filter Button Styles */
+.filter-button {
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.filter-button:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+}
+
+.filter-button.active {
+    background-color: #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filter-button.active .legend-circle {
+    transform: scale(1.1);
+}
+
 .timeline-container > p,
 .bottom-section > p {
     font-size: 14px;

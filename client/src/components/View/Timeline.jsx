@@ -1,22 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import useTimelineViewModel from '../ViewModel/useTimelineViewModel';
 import './Timeline.css';
 
 const Timeline = ({ timelineName, events }) => {
-  const processedEvents = useTimelineViewModel(events);
+  const [filter, setFilter] = useState('All'); // 'All', 'Pending', 'Completed'
+  
+  // Filter events based on selected filter
+  const filteredEvents = events.filter(event => {
+    if (filter === 'All') return true;
+    return event.State === filter;
+  });
+  
+  const processedEvents = useTimelineViewModel(filteredEvents);
 
   return (
     <div className="timeline-container">
       <div className="timeline-header">
         <h2>{timelineName}</h2>
         <div className="timeline-legend">
-          <div className="legend-item">
-            <div className="legend-circle completed"></div>
-            <span>Completed</span>
+          <div 
+            className={`legend-item filter-button ${filter === 'All' ? 'active' : ''}`}
+            onClick={() => setFilter('All')}
+          >
+            <div className="legend-circle all"></div>
+            <span>Show All</span>
           </div>
-          <div className="legend-item">
+          <div 
+            className={`legend-item filter-button ${filter === 'Pending' ? 'active' : ''}`}
+            onClick={() => setFilter('Pending')}
+          >
             <div className="legend-circle pending"></div>
             <span>Pending</span>
+          </div>
+          <div 
+            className={`legend-item filter-button ${filter === 'Completed' ? 'active' : ''}`}
+            onClick={() => setFilter('Completed')}
+          >
+            <div className="legend-circle completed"></div>
+            <span>Completed</span>
           </div>
         </div>
       </div>
