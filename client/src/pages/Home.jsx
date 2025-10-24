@@ -20,9 +20,6 @@ import { componentMapper } from "../components/componentMapper";
 function Home() {
   const dispatch = useDispatch();
   const [selectedFieldId, setSelectedFieldId] = useState(null);
-  const [filteredEvents, setFilteredEvents] = useState([]);
-  const [selectedCrop, setSelectedCrop] = useState(null);
-  const [weather, setWeather] = useState({});
 
   const { locations, status } = useSelector((state) => state.locations);
   const { events } = useSelector((state) => state.eventStream);
@@ -47,28 +44,25 @@ function Home() {
         // Set default field
         if (!selectedFieldId) {
           const firstField = fields[0];
-          setSelectedFieldId(firstField._id);
-          handleFieldSelect(firstField._id, firstField.crop_id);
+          if (firstField) {
+            setSelectedFieldId(firstField._id);
+            handleFieldSelect(firstField._id, firstField.crop_id);
+          } else {
+            console.warn(
+              "Field does not exist. No default field will be selected."
+            );
+            setSelectedFieldId(null);
+          }
         }
       }
     }
   }, [selectedFieldId, status, locations]);
 
   const handleFieldSelect = (fieldId, cropId) => {
+    // Only handle field selection updates
     setSelectedFieldId(fieldId);
     dispatch(setSelectedCropId(cropId));
-
-    // Filter events for this field
-    const eventsForField = events.filter((ev) => ev.field_id === fieldId);
-    setFilteredEvents(eventsForField);
-
-    // Find crop for this field
-    const cropForField = crops.find((c) => c._id === cropId);
-    setSelectedCrop(cropForField);
-
-    // Get weather from selected field
-    const selectedField = locations.find((f) => f._id === fieldId);
-    setWeather(selectedField?.weather || {});
+    // Data filtering (events, crops, weather) is handling inside dashboardSchema
   };
 
   // Callback to handle field selection
@@ -79,9 +73,8 @@ function Home() {
   // Prepare data for schema functions
   const data = {
     dloc: locations,
-    dEv: filteredEvents.length ? filteredEvents : events,
-    crops: selectedCrop ? [selectedCrop] : crops,
-    weather,
+    dEv: events,
+    crops,
   };
 
   // Sort schema by order
