@@ -1,30 +1,16 @@
-// import { createStore, applyMiddleware } from 'redux';
-// import createSagaMiddleware from 'redux-saga';
-// import rootReducer from './rootReducer';
-// import rootSaga from './rootSaga';
-
-// const sagaMiddleware = createSagaMiddleware();
-
-// const store = createStore(
-//   rootReducer,
-//   applyMiddleware(sagaMiddleware)
-// );
-
-// sagaMiddleware.run(rootSaga);
-
-// export default store;
-import { createStore, applyMiddleware } from "redux";
+import { configureStore } from "@reduxjs/toolkit";
 import createSagaMiddleware from "redux-saga";
-import { thunk } from "redux-thunk"; // ✅ add this
 import rootReducer from "./rootReducer";
 import rootSaga from "./rootSaga";
 
 const sagaMiddleware = createSagaMiddleware();
 
-const store = createStore(
-  rootReducer,
-  applyMiddleware(thunk, sagaMiddleware) // ✅ thunk added before saga
-);
+export const store = configureStore({
+  reducer: rootReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({ thunk: true, serializableCheck: false }).concat(sagaMiddleware),
+  devTools: process.env.NODE_ENV !== "production", // enables DevTools
+});
 
 sagaMiddleware.run(rootSaga);
 
