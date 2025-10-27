@@ -44,12 +44,26 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         (f) => f.properties?.id === selectedFieldId
       );
       if (selected?.geometry?.coordinates) {
-        const coords = selected.geometry.coordinates[0];
-        const lng =
-          coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
-        const lat =
-          coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
-        return [lng, lat];
+        const geom = selected.geometry;
+        switch (geom.type) {
+          case "Polygon": {
+            const coords = geom.coordinates[0];
+            const lng =
+              coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+            const lat =
+              coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+            return [lng, lat];
+          }
+          case "LineString": {
+            const mid = Math.floor(geom.coordinates.length / 2);
+            return geom.coordinates[mid];
+          }
+          case "Point":
+            return geom.coordinates;
+
+          default:
+            return null;
+        }
       }
     }
 
@@ -58,13 +72,37 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
       totalLat = 0,
       count = 0;
     geoJSON.features.forEach((f) => {
-      if (f.geometry?.coordinates) {
-        const ring = f.geometry.coordinates[0];
-        ring.forEach(([lng, lat]) => {
+      const geom = f.geometry;
+      if (!geom?.coordinates) return;
+
+      switch (geom.type) {
+        case "Polygon": {
+          const ring = geom.coordinates[0];
+          ring.forEach(([lng, lat]) => {
+            totalLng += lng;
+            totalLat += lat;
+            count++;
+          });
+          break;
+        }
+
+        case "LineString": {
+          geom.coordinates.forEach(([lng, lat]) => {
+            totalLng += lng;
+            totalLat += lat;
+            count++;
+          });
+          break;
+        }
+        case "Point": {
+          const [lng, lat] = geom.coordinates;
           totalLng += lng;
           totalLat += lat;
           count++;
-        });
+          break;
+        }
+        default:
+          break;
       }
     });
     return count ? [totalLng / count, totalLat / count] : null;
@@ -129,7 +167,12 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         type: "fill",
         source: "data",
         paint: { "fill-color": "#008000", "fill-opacity": 0.5 },
-        filter: ["==", "type", "farm"],
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["get", "type"], "farm"], // ✅ ensure only farms
+        ],
+        layout: { visibility: "none" },
       });
 
       // Fields
@@ -146,21 +189,62 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
           ],
           "fill-opacity": 0.6,
         },
-        filter: ["==", "type", "field"],
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["get", "type"], "field"], // ✅ ensure only fields
+        ],
+        layout: { visibility: "visible" },
       });
 
-      // --- 🟢 Click on farm: zoom to farm, show its fields ---
+      // --- ROADS (LineString) ---
+      mapInstance.addLayer({
+        id: "roads-layer",
+        type: "line",
+        source: "data",
+        paint: { "line-color": "#444", "line-width": 3 },
+        filter: ["==", ["geometry-type"], "LineString"],
+      });
+
+      // --- POINTS (Point) ---
+      mapInstance.addLayer({
+        id: "points-layer",
+        type: "circle",
+        source: "data",
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "#FF0000",
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#fff",
+        },
+        filter: ["==", ["geometry-type"], "Point"],
+      });
+
+      // --- 🟢 Click on farm: zoom + show its fields ---
       mapInstance.on("click", "farms-layer", (e) => {
         const farmName = e.features[0].properties.name;
         const coords = e.features[0].geometry.coordinates[0];
         const bounds = new mapboxgl.LngLatBounds();
         coords.forEach((c) => bounds.extend(c));
         mapInstance.fitBounds(bounds, { padding: 20 });
-        mapInstance.setFilter("fields-layer", ["==", "farm", farmName]);
+
+        // ✅ Show fields of only this farm
+        mapInstance.setFilter("fields-layer", [
+          "all",
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["get", "type"], "field"],
+          ["==", ["get", "farm"], farmName],
+        ]);
+
+        // ✅ Hide farms
+        mapInstance.setLayoutProperty("farms-layer", "visibility", "none");
+
+        // ✅ Show fields
+        mapInstance.setLayoutProperty("fields-layer", "visibility", "visible");
         setShowFields(true);
       });
 
-      // --- 🟠 Click on field: highlight + callback ---
+      // --- 🟠 Click on field ---
       mapInstance.on("click", "fields-layer", (e) => {
         const props = e.features[0].properties;
         const fieldId = props.id;
@@ -170,74 +254,102 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         if (onFieldSelect) onFieldSelect({ fieldId, cropId });
       });
 
-      // --- 🟣 Hover popup for farms ---
-      let farmPopup = null;
-      mapInstance.on("mouseenter", "farms-layer", (e) => {
-        mapInstance.getCanvas().style.cursor = "pointer";
-        const props = e.features[0].properties;
-        let content = "<div>";
-        for (const key in props)
-          content += `<strong>${key}:</strong> ${props[key]}<br>`;
+      // --- 🔙 Click empty map: hide fields, show farms ---
+      mapInstance.on("click", (e) => {
+        const features = mapInstance.queryRenderedFeatures(e.point, {
+          layers: ["fields-layer", "farms-layer"],
+        });
+        if (!features.length) {
+          mapInstance.setLayoutProperty("fields-layer", "visibility", "none");
+          mapInstance.setLayoutProperty("farms-layer", "visibility", "visible");
+          setShowFields(false);
+        }
+      });
+
+      // --- Hover popup (unchanged) ---
+      let hoverPopup = null;
+      let activeLayer = null;
+      const showHoverPopup = (e, layerId) => {
+        const props = e.features[0].properties || {};
+        const geom = e.features[0].geometry || {};
+        const type = geom.type || props.type || "Unknown";
+
+        if (hoverPopup) {
+          hoverPopup.remove();
+          hoverPopup = null;
+        }
+        activeLayer = layerId;
+
+        let content = `<div style="font-size:13px; line-height:1.4;">`;
+        content += `<strong>Type:</strong> ${props.type || type}<br>`;
+        if (props.name) content += `<strong>Name:</strong> ${props.name}<br>`;
+        if (props.owner)
+          content += `<strong>Owner:</strong> ${props.owner}<br>`;
+        if (props.farm) content += `<strong>Farm:</strong> ${props.farm}<br>`;
+        if (props.cropId)
+          content += `<strong>Crop ID:</strong> ${props.cropId}<br>`;
         content += "</div>";
 
-        farmPopup = new mapboxgl.Popup({
+        hoverPopup = new mapboxgl.Popup({
           closeButton: false,
           closeOnClick: false,
         })
           .setLngLat(e.lngLat)
           .setHTML(content)
           .addTo(mapInstance);
-      });
-      mapInstance.on("mouseleave", "farms-layer", () => {
-        mapInstance.getCanvas().style.cursor = "";
-        if (farmPopup) {
-          farmPopup.remove();
-          farmPopup = null;
-        }
-      });
+      };
 
-      // --- 🟠 Hover popup for fields ---
-      let fieldPopup = null;
-      mapInstance.on("mouseenter", "fields-layer", (e) => {
-        mapInstance.getCanvas().style.cursor = "pointer";
-        const props = e.features[0].properties;
-        let content = "<div>";
-        for (const key in props)
-          content += `<strong>${key}:</strong> ${props[key]}<br>`;
-        content += "</div>";
-
-        fieldPopup = new mapboxgl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-        })
-          .setLngLat(e.lngLat)
-          .setHTML(content)
-          .addTo(mapInstance);
-      });
-      mapInstance.on("mouseleave", "fields-layer", () => {
-        mapInstance.getCanvas().style.cursor = "";
-        if (fieldPopup) {
-          fieldPopup.remove();
-          fieldPopup = null;
+      const hideHoverPopup = (layerId) => {
+        if (activeLayer === layerId) {
+          mapInstance.getCanvas().style.cursor = "";
+          if (hoverPopup) {
+            hoverPopup.remove();
+            hoverPopup = null;
+          }
+          activeLayer = null;
         }
-      });
+      };
+
+      ["farms-layer", "fields-layer", "roads-layer", "points-layer"].forEach(
+        (layerId) => {
+          if (mapInstance.getLayer(layerId)) {
+            mapInstance.on("mouseenter", layerId, (e) => {
+              mapInstance.getCanvas().style.cursor = "pointer";
+              showHoverPopup(e, layerId);
+            });
+            mapInstance.on("mouseleave", layerId, () =>
+              hideHoverPopup(layerId)
+            );
+          }
+        }
+      );
     }
 
-    // Update data + field highlight dynamically
+    // --- Update dynamic data ---
     if (mapInstance.getSource("data"))
       mapInstance.getSource("data").setData(farmsGeoJSON);
 
+    // --- Highlight field + visibility sync ---
     if (mapInstance.getLayer("fields-layer")) {
       mapInstance.setPaintProperty("fields-layer", "fill-color", [
         "case",
         ["==", ["get", "id"], selectedFieldId],
-        "#0047AB", // selected
-        "#FFA500", // normal
+        "#0047AB",
+        "#FFA500",
       ]);
       mapInstance.setLayoutProperty(
         "fields-layer",
         "visibility",
         showFields ? "visible" : "none"
+      );
+    }
+
+    // ✅ Hide farms when fields visible, show otherwise
+    if (mapInstance.getLayer("farms-layer")) {
+      mapInstance.setLayoutProperty(
+        "farms-layer",
+        "visibility",
+        showFields ? "none" : "visible"
       );
     }
   }, [mapLoaded, farmsGeoJSON, selectedFieldId, showFields, onFieldSelect]);
@@ -249,14 +361,33 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
 
     if (farmsGeoJSON?.features?.length) {
       const bounds = new mapboxgl.LngLatBounds();
+
       farmsGeoJSON.features
         .filter((f) => f.properties?.type === "farm")
         .forEach((f) => {
           const coords = f.geometry?.coordinates?.[0] || [];
           coords.forEach((c) => bounds.extend(c));
         });
+
       mapInstance.fitBounds(bounds, { padding: 50 });
-      setShowFields(false); // hide fields
+
+      // ✅ Reset field filter so none show
+      if (mapInstance.getLayer("fields-layer")) {
+        mapInstance.setFilter("fields-layer", [
+          "all",
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["get", "type"], "field"],
+          ["==", ["get", "farm"], ""], // no match
+        ]);
+        mapInstance.setLayoutProperty("fields-layer", "visibility", "none");
+      }
+
+      // ✅ Show farms
+      if (mapInstance.getLayer("farms-layer")) {
+        mapInstance.setLayoutProperty("farms-layer", "visibility", "visible");
+      }
+
+      setShowFields(false);
     }
   };
 

@@ -4,6 +4,7 @@ export const dashboardSchema = [
     key: "map",
     component: "Map",
     props: {
+      componentName:"Map",
       locations: (d) => {
         return d.dloc;
       },
@@ -18,6 +19,7 @@ export const dashboardSchema = [
     key: "weather",
     component: "Weather",
     props: {
+      componentName:"Weather Details",
       weather: (d, selectedFieldId) => {
         let found = d.dloc.find((loc) => loc._id === selectedFieldId);
         // return d.dloc[0] && d.dloc[0].weather;
@@ -32,7 +34,7 @@ export const dashboardSchema = [
     key: "timeline",
     component: "Timeline",
     props: {
-      timelineName: "Event Time Line",
+      componentName: "Event Time Line",
       events: (d, selectedFieldId) => {
         let foundevents = d.dEv.filter(
           (event) => event?.RelationIds?.Field_id === selectedFieldId
@@ -54,6 +56,7 @@ export const dashboardSchema = [
     key: "crop",
     component: "Crop",
     props: {
+      componentName:"Crop Details",
       crop: (d, selectedFieldId) => {
         let locfound = d.dloc.find((loc) => loc._id === selectedFieldId);
 

@@ -4,6 +4,7 @@ import "./Crop.css";
 
 const Crop = (props) => {
   let data = props.crop;
+  let name=props.componentName;
 
   if (!data) {
     return <div>Loading crop data...</div>;
@@ -12,7 +13,8 @@ const Crop = (props) => {
  
     return (
       <div className="crop-wrapper">
-        <div className="crop-container">
+        <div className="container">
+          <h3>{name}</h3>
           <h2 className="crop-title">
             {data.icon} {data.name}
           </h2>
@@ -41,7 +43,7 @@ const Crop = (props) => {
             </p>
           </div>
         </div>
-      </div>
+       </div>
     );
 
 };

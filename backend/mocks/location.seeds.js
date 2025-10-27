@@ -4,7 +4,6 @@ const Location = require("../api/models/locationModule/location.model");
 const connectDB = require("../serverSetup/database");
 const User = require("../api/models/userModule/user.model");
 const Crop = require("../api/models/cropModule/crop.model");
-// const Events = require('../api/models/eventStream/eventStream.model')
 
 const seedData = async () => {
   await connectDB();
@@ -41,24 +40,24 @@ const seedData = async () => {
         lat: 71.64160189965244,
         lon: 31.722087042293893,
         geoJsonCords: {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "Polygon",
-              coordinates: [[
-                [71.64160189965244, 31.722087042293893],
-                [71.64160189965244, 31.70038220255566],
-                [71.6926322381434, 31.70038220255566],
-                [71.6926322381434, 31.722087042293893],
-                [71.64160189965244, 31.722087042293893]
-              ]]
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                    [71.64160189965244, 31.722087042293893],
+                    [71.64160189965244, 31.70038220255566],
+                    [71.6926322381434, 31.70038220255566],
+                    [71.6926322381434, 31.722087042293893],
+                    [71.64160189965244, 31.722087042293893],
+                  ]]
+              }
             }
-          }
-        ]
-      },
+          ]
+        },
         crop_id: null,
         lifecycle: "Active",
       },
@@ -108,24 +107,26 @@ const seedData = async () => {
       attributes: {
         area: "6 acres",
         geoJsonCords: {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "Polygon",
-              coordinates: [[
-                [71.64329040125813, 31.721147139837967],
-                [71.64329040125813, 31.70153614037976],
-                [71.66613032562233, 31.70153614037976],
-                [71.66613032562233, 31.721147139837967],
-                [71.64329040125813, 31.721147139837967]
-              ]]
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                    [71.6445, 31.7205],
+                    [71.645, 31.7108],
+                    [71.656, 31.7075],
+                    [71.6625, 31.713],
+                    [71.66, 31.719],
+                    [71.652, 31.721],
+                    [71.6445, 31.7205], // closing point
+                  ]]
+              }
             }
-          }
-        ]
-      },
+          ]
+        },
         crop_id: crops.find((c) => c.name === "Wheat")._id,
         lifecycle: "Seeding",
       },
@@ -174,24 +175,24 @@ const seedData = async () => {
       attributes: {
         area: "9 acres",
         geoJsonCords: {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "Polygon",
-              coordinates: [[
-                [71.66676968491757, 31.72096559415469],
-                [71.66676968491757, 31.70171776135676],
-                [71.69196016659328, 31.70171776135676],
-                [71.69196016659328, 31.72096559415469],
-                [71.66676968491757, 31.72096559415469]
-              ]]
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                    [71.66676968491757, 31.72096559415469],
+                    [71.66676968491757, 31.70171776135676],
+                    [71.69196016659328, 31.70171776135676],
+                    [71.69196016659328, 31.72096559415469],
+                    [71.66676968491757, 31.72096559415469],
+                  ]]
+              }
             }
-          }
-        ]
-      },
+          ]
+        },
         crop_id: crops.find((c) => c.name === "Rice")._id,
         lifecycle: "Growing",
       },

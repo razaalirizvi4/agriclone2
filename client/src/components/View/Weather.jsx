@@ -9,14 +9,15 @@ const Weather = (props) => {
     Rainy: "https://cdn-icons-png.flaticon.com/512/1163/1163624.png",
     Stormy: "https://cdn-icons-png.flaticon.com/512/1146/1146860.png",
   };
+  let name=props.componentName
 
   const { currentWeather, forecast } = useWeatherViewModel(props);
 
   if (!currentWeather || !forecast) return <div>Loading weather data...</div>;
 
   return (
-    <div className="weather-widget">
-      <h3 className="weather-title">Weather</h3>
+    <div className="container">
+      <h3>{name}</h3>
 
       {/* Current Weather */}
       <div className="current-weather">
