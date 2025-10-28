@@ -4,7 +4,7 @@ export const dashboardSchema = [
     key: "map",
     component: "Map",
     props: {
-      componentName:"Map",
+      componentName:"Areas/Zones",
       locations: (d) => {
         return d.dloc;
       },

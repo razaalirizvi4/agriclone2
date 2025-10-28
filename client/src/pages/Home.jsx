@@ -5,6 +5,7 @@ import { getEvents } from "../features/eventStream/eventStream.slice";
 import { getCrops, setSelectedCropId } from "../features/cropModule/crop.slice";
 import { dashboardSchema } from "../data/dashboardSchema";
 import { componentMapper } from "../components/componentMapper";
+// import "./Dashboard.css";
 
 // prepare ids for events and crops
 // 1. first filter location for field:

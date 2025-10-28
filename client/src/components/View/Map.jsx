@@ -1,5 +1,6 @@
 import React from "react";
 import useMapViewModel from "../ViewModel/useMapViewModel";
+// import "./Map.css"
 
 const Map = ({ componentName,locations, onFieldSelect }) => {
   const { mapContainer, handleRecenter } = useMapViewModel({

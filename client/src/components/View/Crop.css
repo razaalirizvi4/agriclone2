@@ -1,27 +1,117 @@
+/* ================================================= */
+/* CROP DETAILS COMPONENT (Crop.css) - COMPACT & FLEX STYLE */
+/* ================================================= */
+
+/* --- 1. Base Card and Title (Keeping overall size consistent) --- */
+
 .crop-wrapper {
-  width: 100%;
-  display: flex;
-  justify-content:flex-start; /* ✅ pushes the entire card to the right */
+    /* Main Card: Ensures the widget remains compact (Height fixed/minimized if needed) */
+    background-color: #ffffff;
+    border-radius: 16px;; 
+    padding: 2.5px 12.5px; /* Slightly reduced padding to save space */
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #2c3e50;
+    display: flex;
+    flex-direction: column;
+    /* You might add a max-height or min-height here if its container requires it */
+    height: 100%; 
 }
 
-.crop-container {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  height: 100%; /* ✅ fills parent height too */
-  box-sizing: border-box;
-  text-align: left;
+.container {
+    width: 100%;
 }
 
+h3 {
+    /* Component Title (e.g., "Crop Details") */
+    font-size: 1.2rem; /* Slightly smaller font */
+    font-weight: 700;
+    color: #4A5D23;
+    margin: 0 0 8px 0; /* Reduced margin */
+}
 
 .crop-title {
-  font-size: 1.5rem;
-  margin-bottom: 15px;
+    /* Crop Name (e.g., "🌾 Wheat") */
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #34495e; 
+    margin: 0 0 15px 0; /* Reduced margin */
+    padding-bottom: 10px;
+    border-bottom: 2px solid #ecf0f1; 
+}
+
+/* ================================================= */
+/* 2. Key Metric Display (Flex, Compact, Small Size) */
+/* ================================================= */
+
+.crop-details {
+    /* Uses Flexbox for single-line presentation across columns */
+    display: flex;
+    flex-wrap: wrap; /* Allows metrics to wrap if space runs out horizontally */
+    gap: 10px; /* Reduced gap between items for compaction */
+    margin-top: 5px;
 }
 
 .crop-details p {
-  margin: 8px 0;
-  font-size: 0.95rem;
+    /* Styling for each data point block: SMALLER SIZE, FLEX ALIGNMENT */
+    background: #f8faff; /* Clean white/blue background */
+    border-radius: 6px; /* Smaller radius */
+    padding: 8px 12px; /* Significantly reduced padding for small size */
+    margin: 0; 
+    font-size: 0.85rem; /* Small font size */
+    line-height: 1.2;
+    
+    /* Key Requirement: FLEX STYLE for single-line display */
+    display: flex;
+    flex-direction: row; 
+    align-items: center;
+    
+    /* Allows the item to grow/shrink but prefers content size */
+    flex: 1 1 auto; 
+    min-width: fit-content; /* Only take the space necessary */
+    
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Very light shadow */
+}
+
+.crop-details p:hover {
+    transform: none; /* Disable the lift-on-hover to avoid visual distraction in a tight space */
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+}
+
+.crop-details strong {
+    /* Label styling: compact and clear */
+    font-weight: 600;
+    color: #555; /* Darker, less vibrant label color for reading ease */
+    font-size: 0.85rem;
+    text-transform: capitalize; /* Use standard capitalization */
+    margin-bottom: 0; /* No space between label and value */
+    margin-right: 5px; /* Small separator space */
+    flex-shrink: 0;
+}
+
+/* --- Specific Value Highlighting for distinction --- */
+
+/* Highlight Dates (Seeding/Harvest) */
+.crop-details p:nth-child(1),
+.crop-details p:nth-child(2) {
+    border: 1px solid #cce5ff; /* Subtle blue border */
+    background-color: #f0f8ff;
+}
+
+/* Highlight Temperature/Humidity (Environmental Factors) */
+.crop-details p:nth-child(3),
+.crop-details p:nth-child(4) {
+    border: 1px solid #fceec5; /* Subtle orange/gold border */
+    background-color: #fffaf0;
+}
+
+/* Expected Yield - Most Prominent Metric (Still visually distinct) */
+.crop-details p:last-child { 
+    background: #fff8e1; 
+    border: 1px solid #ffd700; /* Gold border */
+    font-weight: 700;
+    color: #9c5c00; /* Darker gold/brown for value */
+}
+
+.crop-details p:last-child strong {
+    color: #6d4c41; /* Brown label */
 }

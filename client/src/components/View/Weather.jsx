@@ -54,8 +54,8 @@ const Weather = (props) => {
             </li>
           ))}
         </ul>
-      </div>
     </div>
+  </div>
   );
 };
 
