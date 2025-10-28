@@ -125,9 +125,11 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      // style: "mapbox://styles/mapbox/standard",
+  style: "mapbox://styles/mapbox/standard-satellite", 
+  // use this for satellite view
       center,
-      zoom: 12,
+      zoom: 15,
     });
 
     map.current.addControl(new mapboxgl.NavigationControl());
