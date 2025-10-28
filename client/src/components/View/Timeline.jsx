@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import useTimelineViewModel from '../ViewModel/useTimelineViewModel';
 import './Timeline.css';
+import { formatDateYYYYMMDD } from '../../utils/date';
 
 const Timeline = ({ componentName, events }) => {
   const [filter, setFilter] = useState('All'); // 'All', 'Pending', 'Completed'
@@ -47,7 +48,7 @@ return (
           <div className="timeline-circle" style={event.circleStyle}></div>
           <div className="timeline-card" style={event.cardStyle}>
             <div className="card-header">
-              <span>{event.date}</span>
+              <span>{formatDateYYYYMMDD(event.date)}</span>
               <img src={event.icon} alt="" className="card-icon" />
             </div>
             <div className="card-body">
