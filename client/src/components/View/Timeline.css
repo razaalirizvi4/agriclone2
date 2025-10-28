@@ -45,13 +45,13 @@
 }
 
 .legend-circle.completed {
-    background-color: #FFFFFF;
-    border-color: #999999;
+    background-color: #4CAF50;
+    border-color: #4CAF50;
 }
 
 .legend-circle.pending {
-    background-color: #4CAF50;
-    border-color: #4CAF50;
+    background-color: #FFFFFF;
+    border-color: #999999;
 }
 
 .legend-circle.all {

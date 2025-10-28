@@ -6,11 +6,11 @@ const useTimelineViewModel = (events = []) => {
     // Set circle colors based on State field
     let circleBackground, circleBorder;
     if (event.State === 'Pending') {
-      circleBackground = '#4CAF50'; // Green for pending
-      circleBorder = '#4CAF50';
+       circleBackground = '#FFFFFF'; // White for completed
+       circleBorder = '#999999';
     } else if (event.State === 'Completed') {
-      circleBackground = '#FFFFFF'; // White for completed
-      circleBorder = '#999999'; // Darker grey border for better visibility
+      circleBackground = '#4CAF50'; // Green for pending
+      circleBorder = '#4CAF50'; // Darker grey border for better visibility
     } else {
       // Fallback to original color logic
       circleBackground = `${color}33`;
