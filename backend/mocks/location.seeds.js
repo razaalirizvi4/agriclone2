@@ -97,7 +97,7 @@ const seedData = async () => {
     // 🌱 Create two fields under the farm
     const field1 = await Location.create({
       type: "Field",
-      name: "North Field",
+      name: "West Field",
       parentId: farm._id,
       owner: {
         id: user._id,
@@ -165,7 +165,7 @@ const seedData = async () => {
 
     const field2 = await Location.create({
       type: "Field",
-      name: "South Field",
+      name: "East Field",
       parentId: farm._id,
       owner: {
         id: user._id,

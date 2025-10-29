@@ -11,8 +11,8 @@ const seedData = async () => {
     // 🧹 Clear existing EventStream data
     await EventStream.deleteMany();
 
-    const field1 = await Location.findOne({ name: "North Field" });
-    const field2 = await Location.findOne({ name: "South Field" });
+    const field1 = await Location.findOne({ name: "West Field" });
+    const field2 = await Location.findOne({ name: "East Field" });
 
     // 📅 Events according to your schema
     const events = [
