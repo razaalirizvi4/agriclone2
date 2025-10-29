@@ -52,7 +52,7 @@ const Crop = (props) => {
             <div className="crop-info-box">
               <div className="crop-info-icon-small">Harvest Period</div>
               <div className="crop-info-label">
-                {formatShortDate(data.harvestDateRangeStart)} -{" "}
+                {formatShortDate(data.seedDateRangeStart)} -{" "}
                 {formatShortDate(data.harvestDateRangeEnd)}
               </div>
             </div>
