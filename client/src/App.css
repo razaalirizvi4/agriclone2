@@ -32,7 +32,12 @@ code {
   overflow: hidden;
   margin-top: 10px; /* 🟢 spacing below the title */
 }
-
+h3 {
+    /* Component Title (e.g., "Crop Details") */
+    font-size: 1.2rem; /* Slightly smaller font */
+    font-weight: 700;
+    color: #4A5D23;
+    margin: 0 0 8px 0; /* Reduced margin */}
 
 /* Recenter Button */
 .recenter-button {

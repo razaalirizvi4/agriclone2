@@ -22,7 +22,7 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         owner: elem?.owner?.name,
         cropId:
           elem?.type?.toLowerCase() === "field"
-            ?elem?.attributes?.crop_id
+            ? elem?.attributes?.crop_id
             : null,
         farm:
           elem?.type?.toLowerCase() === "field"
@@ -126,8 +126,8 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       // style: "mapbox://styles/mapbox/standard",
-  style: "mapbox://styles/mapbox/standard-satellite", 
-  // use this for satellite view
+      style: "mapbox://styles/mapbox/standard-satellite",
+      // use this for satellite view
       center,
       zoom: 15,
     });
@@ -198,6 +198,122 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         ],
         layout: { visibility: "visible" },
       });
+
+      // --- Farm outline ---
+      mapInstance.addLayer({
+        id: "farms-outline",
+        type: "line",
+        source: "data",
+        paint: {
+          "line-color": "#004d00", // dark green
+          "line-width": 2,
+        },
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["get", "type"], "farm"],
+        ],
+        layout: { visibility: "none" },
+      });
+      // --- 🏷️ Farm name labels ---
+      if (!mapInstance.getLayer("farms-labels")) {
+        mapInstance.addLayer({
+          id: "farms-labels",
+          type: "symbol",
+          source: "data",
+          layout: {
+            "text-field": ["get", "name"],
+            "text-size": 14,
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+            "text-offset": [0, 0],
+            "text-anchor": "center",
+            "text-allow-overlap": true, // ✅ always show, even when zoomed out
+            "symbol-placement": "point",
+            visibility: "visible",
+          },
+          paint: {
+            "text-color": "#FFFFFF", // white text
+            "text-halo-color": "#004d00", // dark green halo (same as farm border)
+            "text-halo-width": 3,
+            "text-halo-blur": 0.5,
+          },
+          filter: [
+            "all",
+            ["==", ["geometry-type"], "Polygon"],
+            ["==", ["get", "type"], "farm"],
+          ],
+        });
+      }
+
+      // --- Field outline ---
+      mapInstance.addLayer({
+        id: "fields-outline",
+        type: "line",
+        source: "data",
+        paint: {
+          "line-color": [
+            "case",
+            ["==", ["get", "id"], selectedFieldId],
+            "#0000FF", // blue border for selected
+            "#CC7000", // darker orange for others
+          ],
+          "line-width": [
+            "case",
+            ["==", ["get", "id"], selectedFieldId],
+            3, // thicker for selected
+            1.5,
+          ],
+        },
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["get", "type"], "field"],
+        ],
+        layout: { visibility: "visible" },
+      });
+
+      // --- 🏷️ Field name labels with boxes ---
+      if (!mapInstance.getLayer("fields-labels")) {
+        mapInstance.addLayer({
+          id: "fields-labels",
+          type: "symbol",
+          source: "data",
+          layout: {
+            "text-field": ["get", "name"],
+            "text-size": 12,
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+            "text-offset": [0, -1.2], // move label slightly above field center
+            "text-anchor": "bottom", // position label above polygon
+            "symbol-placement": "point",
+            "symbol-avoid-edges": false,
+            visibility: "visible",
+            "text-allow-overlap": true, // always show labels even when zoomed out
+          },
+          paint: {
+            // Label text color (white for selected)
+            "text-color": [
+              "case",
+              ["==", ["get", "id"], selectedFieldId],
+              "#ffffff",
+              "#000000",
+            ],
+            // Small colored box behind the text (halo looks like a box)
+            "text-halo-color": [
+              "case",
+              ["==", ["get", "id"], selectedFieldId],
+              "#0047AB", // blue background for selected field
+              "#ffffff", // white background for others
+            ],
+            "text-halo-width": 4,
+            "text-halo-blur": 1,
+          },
+          filter: [
+            "all",
+            ["==", ["geometry-type"], "Polygon"],
+            ["==", ["get", "type"], "field"],
+          ],
+        });
+      }
 
       // --- ROADS (LineString) ---
       mapInstance.addLayer({
@@ -288,9 +404,10 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         if (props.owner)
           content += `<strong>Owner:</strong> ${props.owner}<br>`;
         if (props.farm) content += `<strong>Farm:</strong> ${props.farm}<br>`;
-        if (props.cropId)
-          content += `<strong>Crop ID:</strong> ${props.cropId}<br>`;
-        content += "</div>";
+
+        // if (props.cropId)
+        //   content += `<strong>Crop ID:</strong> ${props.cropId}<br>`;
+        // content += "</div>";
 
         hoverPopup = new mapboxgl.Popup({
           closeButton: false,
@@ -354,6 +471,69 @@ const useMapViewModel = ({ locations = [], onFieldSelect }) => {
         showFields ? "none" : "visible"
       );
     }
+
+    // --- Update outlines dynamically ---
+    if (mapInstance.getLayer("fields-outline")) {
+      mapInstance.setPaintProperty("fields-outline", "line-color", [
+        "case",
+        ["==", ["get", "id"], selectedFieldId],
+        "#0000FF",
+        "#CC7000",
+      ]);
+      mapInstance.setPaintProperty("fields-outline", "line-width", [
+        "case",
+        ["==", ["get", "id"], selectedFieldId],
+        3,
+        1.5,
+      ]);
+      mapInstance.setLayoutProperty(
+        "fields-outline",
+        "visibility",
+        showFields ? "visible" : "none"
+      );
+    }
+
+    // --- Update label text color for selected field ---
+    // --- 🏷️ Field name labels ---
+    mapInstance.addLayer({
+      id: "fields-labels",
+      type: "symbol",
+      source: "data",
+      layout: {
+        "text-field": ["get", "name"],
+        "text-size": 13,
+        "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+        "text-offset": [0, 0],
+        "text-anchor": "center",
+        visibility: "visible",
+      },
+      paint: {
+        "text-color": "#FFFFFF", // ✅ always white text
+        "text-halo-color": "#000000", // ✅ black outline for contrast
+        "text-halo-width": 1.5,
+      },
+      filter: [
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        ["==", ["get", "type"], "field"],
+      ],
+    });
+
+    if (mapInstance.getLayer("fields-labels")) {
+      mapInstance.setLayoutProperty(
+        "fields-labels",
+        "visibility",
+        showFields ? "visible" : "none"
+      );
+    }
+    if (mapInstance.getLayer("farms-labels")) {
+  mapInstance.setLayoutProperty(
+    "farms-labels",
+    "visibility",
+    showFields ? "none" : "visible"
+  );
+}
+
   }, [mapLoaded, farmsGeoJSON, selectedFieldId, showFields, onFieldSelect]);
 
   // ✅ Recenter logic (hide fields)
