@@ -1,36 +1,23 @@
-const Crop = require('../api/models/cropModule/crop.model');
+const cropDataLayer = require('../api/dataLayer/crop.dataLayer');
 
 async function createCrop(input) {
-    const crop = await Crop.create(input);
-    return crop;
+    return cropDataLayer.createCrop(input);
 }
 
 async function listCrops(filter = {}) {
-    const query = {};
-
-    if (filter.name) {
-        query.name = { $regex: filter.name, $options: 'i' };
-    }
-
-    // ✅ New query for ?ids=id1,id2
-    if (filter.ids) {
-        const idArray = filter.ids.split(',').map(id => id.trim());
-        query._id = { $in: idArray };
-    }
-
-    return Crop.find(query).sort({ createdAt: -1 });
+    return cropDataLayer.listCrops(filter);
 }
 
 async function getCropById(id) {
-    return Crop.findById(id);
+    return cropDataLayer.getCropById(id);
 }
 
 async function updateCropById(id, update) {
-    return Crop.findByIdAndUpdate(id, update, { new: true });
+    return cropDataLayer.updateCropById(id, update);
 }
 
 async function deleteCropById(id) {
-    return Crop.findByIdAndDelete(id);
+    return cropDataLayer.deleteCropById(id);
 }
 
 module.exports = {

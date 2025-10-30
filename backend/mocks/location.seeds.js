@@ -5,26 +5,31 @@ const connectDB = require("../serverSetup/database");
 const User = require("../api/models/userModule/user.model");
 const Crop = require("../api/models/cropModule/crop.model");
 
+const seedCropData = require("./crops.seed"); // crop seeder
+const seedEventData = require("./events.seeds"); // event seeder
 const seedData = async () => {
   await connectDB();
 
   try {
-    // 🧹 Clear existing data
-    await Location.deleteMany();
+  // 🌾 Seed crops if none exist
+  if (await Crop.countDocuments() === 0) {
+    console.log("🌱 No crops found — seeding crops first...");
+    await seedCropData();
+    await connectDB(); // reconnect after seed
+  }
 
-    // 👤 Get real user from DB
-    const user = await User.findOne();
-    if (!user) {
-      console.error("❌ No user found in DB. Please create one first.");
-      return mongoose.connection.close();
-    }
+  // 🧹 Reset locations
+  await Location.deleteMany();
 
-    // 🌾 Get crops from DB
-    const crops = await Crop.find();
-    if (crops.length === 0) {
-      console.error("❌ No crops found! Run crop.seed.js first.");
-      return mongoose.connection.close();
-    }
+  // 👤 Ensure at least one user exists
+  const user = await User.findOne();
+  if (!user) {
+    console.error("❌ No user found. Please create one first.");
+    return mongoose.connection.close();
+  }
+
+  // 🌾 Get all crops after possible seeding
+  const crops = await Crop.find();
 
     // 🌾 Create a farm
     const farm = await Location.create({
@@ -229,8 +234,11 @@ const seedData = async () => {
       },
     });
 
-    console.log("✅ Seed Data Inserted Successfully!");
-    console.log({ farm, field1, field2 });
+    console.log("✅ Locations seeded successfully!");
+
+    // 🌾 Finally: Seed Events (after locations done)
+    console.log("📅 Seeding events now...");
+    await seedEventData();
   } catch (error) {
     console.error("❌ Error seeding data:", error);
   } finally {

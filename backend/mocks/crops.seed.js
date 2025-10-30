@@ -82,5 +82,4 @@ const seedCropData = async () => {
   }
 };
 
-// Run the seed function
-seedCropData();
+module.exports = seedCropData;

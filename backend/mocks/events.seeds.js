@@ -241,4 +241,5 @@ const seedData = async () => {
   }
 };
 
-seedData();
+module.exports = seedData;
+
