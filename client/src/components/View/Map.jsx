@@ -2,10 +2,12 @@ import React from "react";
 import useMapViewModel from "../ViewModel/useMapViewModel";
 // import "./Map.css"
 
-const Map = ({ componentName,locations, onFieldSelect }) => {
+const Map = ({ componentName,locations,crops, onFieldSelect,selectedFieldId  }) => {
   const { mapContainer, handleRecenter } = useMapViewModel({
     locations,
+    crops,
     onFieldSelect, // ✅ forward callback
+    selectedFieldId,
   });
 
 

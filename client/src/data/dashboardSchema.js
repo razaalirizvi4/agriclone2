@@ -8,6 +8,11 @@ export const dashboardSchema = [
       locations: (d) => {
         return d.dloc;
       },
+            crops: (d) => {
+        return d.crops;
+      },
+      selectedFieldId: (d) => d.selectedFieldId, // ✅ add this line
+
       // (d) => {
       //   return d.dloc.filter((lc) => lc.type === "field");
       // },
