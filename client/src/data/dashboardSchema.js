@@ -48,7 +48,7 @@ export const dashboardSchema = [
           date: event.Date,
           icon: event.Meta_Data.icon,
           details: event.Meta_Data.details,
-          name: event.Meta_Data.name,
+          name: event.Feature_Type,
           color: event.Meta_Data.color,
           State: event.State, // Add State field for timeline circle colors
         }));
