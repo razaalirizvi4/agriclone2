@@ -28,6 +28,8 @@ const seedData = async () => {
     return mongoose.connection.close();
   }
 
+  const userRole = user.isAdmin ? "Admin" : "Owner";
+
   // 🌾 Get all crops after possible seeding
   const crops = await Crop.find();
 
@@ -39,6 +41,7 @@ const seedData = async () => {
         id: user._id,
         email: user.email,
         name: user.name,
+        role: userRole,
       },
       attributes: {
         area: "15 acres",
