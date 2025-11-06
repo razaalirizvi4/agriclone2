@@ -42,7 +42,7 @@ h3 {
 /* Recenter Button */
 .recenter-button {
   position: absolute;
-  top: 50%;
+  top: 60%;
   right: 20px;
   transform: translateY(-50%);
   z-index: 2;

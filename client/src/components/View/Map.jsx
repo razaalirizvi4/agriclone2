@@ -3,7 +3,7 @@ import useMapViewModel from "../ViewModel/useMapViewModel";
 // import "./Map.css"
 
 const Map = ({ componentName,locations,crops, onFieldSelect,selectedFieldId  }) => {
-  const { mapContainer, handleRecenter } = useMapViewModel({
+  const { mapContainer, handleRecenter,area } = useMapViewModel({
     locations,
     crops,
     onFieldSelect, // ✅ forward callback
@@ -18,6 +18,7 @@ return (
     <button onClick={handleRecenter} className="recenter-button">
       Recenter
     </button>
+    <div>area is {area}</div>
   </div>
 );
 };

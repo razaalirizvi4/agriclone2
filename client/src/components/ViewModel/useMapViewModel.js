@@ -1,5 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
+import * as turf from "@turf/turf";
+import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -289,6 +292,11 @@ const useMapViewModel = ({
   const [selectedFieldId, setSelectedFieldId] = useState(
     externalSelectedFieldId || null
   );
+  const [area, setArea] = useState(null);
+  const farmsGeoJSON = buildGeoJSON(locations);
+  const [isWizardView, setIsWizardView] = useState(true);
+
+
 
   // Sync external selectedFieldId from parent whenever it changes
   useEffect(() => {
@@ -300,7 +308,6 @@ const useMapViewModel = ({
     }
   }, [externalSelectedFieldId]);
 
-  const farmsGeoJSON = buildGeoJSON(locations);
 
   // MAP INITIALIZATION
   useEffect(() => {
@@ -414,7 +421,6 @@ const useMapViewModel = ({
 
   // LAYER SETUP & UPDATES
   useEffect(() => {
-    console.log(farmsGeoJSON);
 
     if (!mapLoaded || !map.current || !farmsGeoJSON) return;
 
@@ -529,6 +535,49 @@ const useMapViewModel = ({
     showHoverPopup,
     hideHoverPopup,
   ]);
+  // --- MAPBOX DRAW & AREA MEASUREMENT ---
+useEffect(() => {
+  if (!mapLoaded || !map.current || !isWizardView) return;
+
+  const draw = new MapboxDraw({
+    displayControlsDefault: false,
+    controls: { polygon: true, trash: true },
+    defaultMode: "simple_select",
+  });
+  map.current.addControl(draw);
+
+  map.current.on("dblclick", () => {
+    if (draw.getMode && draw.getMode() === "draw_polygon") {
+      map.current.doubleClickZoom.disable();
+      draw.changeMode("simple_select");
+      setTimeout(() => map.current.doubleClickZoom.enable(), 200);
+    }
+  });
+
+const updateArea = () => {
+  const data = draw.getAll();
+  if (data.features.length > 0) {
+    const areaSqMeters = turf.area(data);
+    const areaAcres = areaSqMeters / 4046.8564224;
+    const rounded = Math.round(areaAcres * 100) / 100; // round to 2 decimals
+    setArea(`${rounded} acres`);
+  } else {
+    setArea(null);
+  }
+};
+
+
+  map.current.on("draw.create", updateArea);
+  map.current.on("draw.delete", updateArea);
+  map.current.on("draw.update", updateArea);
+
+  return () => {
+    map.current.off("draw.create", updateArea);
+    map.current.off("draw.delete", updateArea);
+    map.current.off("draw.update", updateArea);
+    map.current.removeControl(draw);
+  };
+}, [mapLoaded,isWizardView]);
 
   // RECENTER FUNCTION
   const handleRecenter = useCallback(() => {
@@ -565,7 +614,7 @@ const useMapViewModel = ({
     setShowFields(false);
   }, [farmsGeoJSON]);
 
-  return { mapContainer, handleRecenter };
+  return { mapContainer, handleRecenter, area };
 };
 
 export default useMapViewModel;
