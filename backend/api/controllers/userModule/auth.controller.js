@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-  const { name, email, password, contact } = req.body;
+  const { name, email, password, contact, role } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Please enter all required fields' });
@@ -18,14 +18,12 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: 'User already exists' });
   }
 
-  // Find the 'Farmer' role. If not found, create it.
-  let farmerRole = await UserRole.findOne({ role: 'Farmer' });
-  if (!farmerRole) {
-    farmerRole = await UserRole.create({
-      role: 'Farmer',
-      roleId: 'farmer', // A simple ID for the farmer role
-      permissions: [], // Farmers might have no special permissions initially
-    });
+  // Choose role (admin|owner), default to owner
+  const desiredRoleId = (role || 'owner').toLowerCase() === 'admin' ? 'admin' : 'owner';
+  let selectedRole = await UserRole.findOne({ roleId: desiredRoleId });
+  if (!selectedRole) {
+    // Fallback: create if missing (ensureRoles should have created already)
+    selectedRole = await UserRole.create({ role: desiredRoleId === 'admin' ? 'Admin' : 'Owner', roleId: desiredRoleId, permissions: [] });
   }
 
   // Create user
@@ -33,7 +31,7 @@ const registerUser = async (req, res) => {
     name,
     email,
     hashPassword: password, // The pre-save hook in the model will hash this
-    roleId: farmerRole._id,
+    roleId: selectedRole._id,
     permissions: [], // Will be populated from role later if needed
     contact,
   });
@@ -43,7 +41,7 @@ const registerUser = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: farmerRole.role,
+      role: selectedRole.role,
       token: generateToken(user._id),
     });
   } else {

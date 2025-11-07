@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const serviceRegistry = require('./services/serviceRegistry');
 const eventStreamService = require('./services/eventStream.service.js');
+const ensureRoles = require('./serverSetup/ensureRoles');
 
 serviceRegistry.register('eventStreamService', eventStreamService);
 const cors = require('cors');
@@ -17,6 +18,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Ensure base roles exist
+(async () => {
+    try { await ensureRoles(); } catch (e) { console.error('ensureRoles failed', e.message); }
+})();
 
 // API Routes
 app.use('/api/auth', require('./api/routes/userModule/auth.routes'));
