@@ -8,7 +8,7 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // CONSTANTS
 const MAP_CONFIG = {
-  style: "mapbox://styles/mapbox/standard-satellite",
+  style: "mapbox://styles/mapbox/satellite-v9",
   zoom: 15,
 };
 
@@ -281,6 +281,7 @@ const useMapViewModel = ({
   crops,
   onFieldSelect,
   selectedFieldId: externalSelectedFieldId,
+  mode = null,
 }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -294,8 +295,7 @@ const useMapViewModel = ({
   );
   const [area, setArea] = useState(null);
   const farmsGeoJSON = buildGeoJSON(locations);
-  const [isWizardView, setIsWizardView] = useState(true);
-
+  const [drawnData, setDrawnData] = useState(null);
 
 
   // Sync external selectedFieldId from parent whenever it changes
@@ -308,23 +308,87 @@ const useMapViewModel = ({
     }
   }, [externalSelectedFieldId]);
 
-
   // MAP INITIALIZATION
-  useEffect(() => {
-    if (!locations.length || map.current) return;
-    const center = calculateMapCenter(farmsGeoJSON);
-    if (!center) return;
+//  Dashboard mode — show farm boundaries
+useEffect(() => {
+  if (mode !== "dashboard") return; // ✅ Only run in dashboard
+  if (!locations.length || map.current) return;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: MAP_CONFIG.style,
-      center,
-      zoom: MAP_CONFIG.zoom,
-    });
+  const center = calculateMapCenter(farmsGeoJSON);
+  if (!center) return;
 
-    map.current.addControl(new mapboxgl.NavigationControl());
-    map.current.on("load", () => setMapLoaded(true));
-  }, [locations]);
+  map.current = new mapboxgl.Map({
+    container: mapContainer.current,
+    style: MAP_CONFIG.style,
+    center,
+    zoom: MAP_CONFIG.zoom,
+  });
+
+  map.current.addControl(new mapboxgl.NavigationControl());
+  map.current.on("load", () => setMapLoaded(true));
+}, [locations, mode]);
+//  Wizard mode — show default Pakistan view or polygons
+useEffect(() => {
+  if (mode !== "wizard") return; // ✅ Only run in wizard
+  if (map.current) return;
+
+  const defaultCenter = [69.3451, 30.3753];
+  const hasLocations = locations?.length > 0;
+
+  const center = hasLocations
+    ? calculateMapCenter({
+        type: "FeatureCollection",
+        features: locations,
+      })
+    : defaultCenter;
+
+  map.current = new mapboxgl.Map({
+    container: mapContainer.current,
+    style: MAP_CONFIG.style,
+    center,
+    zoom: MAP_CONFIG.zoom,
+  });
+
+  map.current.addControl(new mapboxgl.NavigationControl());
+  map.current.on("load", () => {
+    setMapLoaded(true);
+
+    // ✅ Add existing polygons if any
+    if (hasLocations) {
+      map.current.addSource("locations", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: locations,
+        },
+      });
+
+      map.current.addLayer({
+        id: "locations-fill",
+        type: "fill",
+        source: "locations",
+        paint: {
+          "fill-color": "#00ff66",
+          "fill-opacity": 0.4,
+        },
+      });
+
+      map.current.addLayer({
+        id: "locations-outline",
+        type: "line",
+        source: "locations",
+        paint: {
+          "line-color": "#007a33",
+          "line-width": 2,
+        },
+      });
+    }
+  });
+}, [locations, mode]);
+
+
+
+
 
   // HOVER POPUP HANDLERS
   const showHoverPopup = useCallback(
@@ -421,7 +485,6 @@ const useMapViewModel = ({
 
   // LAYER SETUP & UPDATES
   useEffect(() => {
-
     if (!mapLoaded || !map.current || !farmsGeoJSON) return;
 
     const mapInstance = map.current;
@@ -466,6 +529,8 @@ const useMapViewModel = ({
     // Update data source
     if (mapInstance.getSource("data")) {
       mapInstance.getSource("data").setData(farmsGeoJSON);
+          console.log(farmsGeoJSON)
+
     }
 
     // Update field colors based on selection
@@ -534,10 +599,11 @@ const useMapViewModel = ({
     handleMapClick,
     showHoverPopup,
     hideHoverPopup,
+    mode,
   ]);
   // --- MAPBOX DRAW & AREA MEASUREMENT ---
 useEffect(() => {
-  if (!mapLoaded || !map.current || !isWizardView) return;
+  if (!mapLoaded || !map.current || mode !== "wizard") return; // ✅ only for wizard
 
   const draw = new MapboxDraw({
     displayControlsDefault: false,
@@ -546,6 +612,7 @@ useEffect(() => {
   });
   map.current.addControl(draw);
 
+  // Prevent double-click zoom conflict
   map.current.on("dblclick", () => {
     if (draw.getMode && draw.getMode() === "draw_polygon") {
       map.current.doubleClickZoom.disable();
@@ -554,18 +621,27 @@ useEffect(() => {
     }
   });
 
-const updateArea = () => {
-  const data = draw.getAll();
-  if (data.features.length > 0) {
-    const areaSqMeters = turf.area(data);
-    const areaAcres = areaSqMeters / 4046.8564224;
-    const rounded = Math.round(areaAcres * 100) / 100; // round to 2 decimals
-    setArea(`${rounded} acres`);
-  } else {
-    setArea(null);
-  }
-};
+  const updateArea = () => {
+    const data = draw.getAll();
+    if (data.features.length > 0) {
+      const feature = data.features[data.features.length - 1];
+      feature.properties = {
+        ...feature.properties,
+        id: `${mode}-${Date.now()}`,
+        type: mode,
+      };
 
+      // Calculate in acres
+      const areaSqMeters = turf.area(feature);
+      const areaAcres = areaSqMeters / 4046.8564224;
+      const rounded = Math.round(areaAcres * 100) / 100;
+      setArea(`${rounded} acres`);
+      setDrawnData(data);
+    } else {
+      setArea(null);
+      setDrawnData(null);
+    }
+  };
 
   map.current.on("draw.create", updateArea);
   map.current.on("draw.delete", updateArea);
@@ -577,7 +653,7 @@ const updateArea = () => {
     map.current.off("draw.update", updateArea);
     map.current.removeControl(draw);
   };
-}, [mapLoaded,isWizardView]);
+}, [mapLoaded, mode]);
 
   // RECENTER FUNCTION
   const handleRecenter = useCallback(() => {
@@ -614,7 +690,9 @@ const updateArea = () => {
     setShowFields(false);
   }, [farmsGeoJSON]);
 
-  return { mapContainer, handleRecenter, area };
+
+
+  return { mapContainer, handleRecenter, area,drawnData };
 };
 
 export default useMapViewModel;

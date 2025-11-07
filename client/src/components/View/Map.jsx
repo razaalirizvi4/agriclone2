@@ -2,12 +2,13 @@ import React from "react";
 import useMapViewModel from "../ViewModel/useMapViewModel";
 // import "./Map.css"
 
-const Map = ({ componentName,locations,crops, onFieldSelect,selectedFieldId  }) => {
-  const { mapContainer, handleRecenter,area } = useMapViewModel({
+const Map = ({ componentName,locations,crops, onFieldSelect,selectedFieldId,mode = "dashboard"  }) => {
+  const { mapContainer, handleRecenter } = useMapViewModel({
     locations,
     crops,
     onFieldSelect, // ✅ forward callback
     selectedFieldId,
+    mode
   });
 
 
@@ -18,7 +19,6 @@ return (
     <button onClick={handleRecenter} className="recenter-button">
       Recenter
     </button>
-    <div>area is {area}</div>
   </div>
 );
 };

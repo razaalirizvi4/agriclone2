@@ -10,9 +10,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import EventStreamPage from './pages/EventStreamPage';
 import LocationPage from './pages/LocationPage';
+import MapPage from './pages/MapPage';
 import ProtectedRoute from './router/ProtectedRoute';
 import PublicRoute from './router/PublicRoute';
-import './index.css';
 import './App.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -31,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="about" element={<About />} />
               <Route path="event-stream" element={<EventStreamPage />} />
               <Route path="locations" element={<LocationPage />} />
+              <Route path="map" element={<MapPage />} />
             </Route>
           </Route>
         </Routes>

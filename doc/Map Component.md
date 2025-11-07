@@ -33,6 +33,7 @@ client/src/components/
 The GeoJSON data should be a `FeatureCollection`. Each feature should have a `properties` object that includes a `type` field to distinguish between 'farm' and 'field'. Fields should also have a `farmId` property to link them to a specific farm.
 
 **Example (`client/src/data/farms.js`):**
+
 ```javascript
 export const geoJsonData = {
   "type": "FeatureCollection",
@@ -77,20 +78,25 @@ export const geoJsonData = {
 This hook will manage all map logic.
 
 - **Initialization:**
+
   - Initialize the Mapbox map instance in a `useEffect` hook.
   - Use `useRef` to store the map container and the map instance itself.
 
   - Use `useState` to manage the `initialCenter` and `initialZoom` values.
 
   - Add the built-in `NavigationControl` to the map for user convenience.
+
 - **Data Loading:**
+
   - In the `map.on('load')` event:
+
     - Add a single GeoJSON source with the data passed via props.
     - Create a farms layer with the ID `farms-layer`. This layer will be styled with a green fill and filtered to only show features where the type property is `farm`.
 
   - Create a fields layer with the ID `fields-layer`. This layer will have an orange fill and an initial filter of [`==`, `type`, `none`], making it invisible when the map first loads.
 
 - **Farm Click Interaction:**
+
   - Attach a `click` event listener to the `farms-layer`.
   - When a farm is clicked, manually calculate the bounding box by iterating through the farm's geometry coordinates.
 
@@ -99,12 +105,16 @@ This hook will manage all map logic.
   - Dynamically apply a filter to the `fields-layer` to show only the fields whose farm property matches the name of the clicked farm.
 
   - Simultaneously, apply a filter to the `farms-layer` to hide the clicked farm.
+
 - **Popup on Hover:**
+
   - Attach `mouseenter` and `mouseleave` event listeners to both `farms-layer` and `fields-layer`.
   - On `mouseenter`, change the cursor to a pointer. Create a new mapboxgl.Popup, set its content by looping through the feature's properties, and add it to the map.
 
   - On `mouseleave`, remove the popup and reset the cursor.
+
 - **Recenter Functionality:**
+
   - A handleRecenter function will be created to reset the map's view.
 
   - This function will use map.flyTo() to return the map to its initialCenter and initialZoom.
@@ -115,17 +125,19 @@ This hook will manage all map logic.
 
 This component is responsible for rendering the map and its UI controls.
 
-
 - **Props:** It will accept the `geoJsonData` as a prop.
 - **ViewModel Hook:**
   -It calls the **useMapViewModel** hook, passing the **geoJSON** data, and receives the **mapContainer** ref and the **handleRecenter** function.
 - **Rendering:**
+
   - It renders a parent **div** with **style={{ position: `relative` }}** to correctly position child elements.
 
   - The map itself is rendered within a **div** that has a **ref** of **mapContainer** and the **className "map-container"**.
 
   - A "Recenter" button is rendered, which calls the **handleRecenter** function on click.
+
 - **Styling:** The implementation relies on external CSS to style the **.map-container** and **.recenter-button** classes to define their dimensions and appearance.
+
 ## 6. Integration
 
 - Import the `Map` component into a page component (e.g., `HomePage.jsx`).
@@ -134,8 +146,8 @@ This component is responsible for rendering the map and its UI controls.
 
 ```jsx
 // Example in a page component
-import Map from '../components/View/Map';
-import { geoJsonData } from '../data/farms';
+import Map from "../components/View/Map";
+import { geoJsonData } from "../data/farms";
 
 function MapPage() {
   return (
@@ -146,3 +158,62 @@ function MapPage() {
   );
 }
 ```
+
+------------------------Map draw locations and Selection----------------------
+
+## 7. Creating a New Page for the Map Component
+
+To integrate the `Map` component into a new page, follow these steps:
+
+1.  **Create a new page file:**
+    Create a new `.jsx` file in `client/src/pages/`, for example, `MapPage.jsx`.
+
+2.  **Import necessary components and data:**
+    In `MapPage.jsx`, import the `Map` component from `client/src/components/View/Map.jsx` and the `geoJsonData` from `client/src/data/farms.js`.
+
+3.  **Define the new page component:**
+    Create a functional React component for the new page. This component will render the `Map` component.
+
+    ```jsx
+    // client/src/pages/MapPage.jsx
+    import React from 'react';
+    import Map from '../components/View/Map';
+    import { geoJsonData } from '../data/farms'; // Assuming farms.js contains geoJsonData
+
+    const MapPage = () => {
+      return (
+        <div className="map-page-container">
+          <h1>Farm Map Overview</h1>
+          <Map geoJsonData={geoJsonData} />
+        </div>
+      );
+    };
+
+    export default MapPage;
+    ```
+
+4.  **Add a route for the new page:**
+    Update the routing configuration in `client\src\main.jsx` (or wherever your main routes are defined) to include the new `MapPage`.
+
+    ```jsx
+    // Example of adding a route (adjust according to your routing setup)
+    import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+    import MapPage from '../pages/MapPage';
+    // ... other imports
+
+    const router = createBrowserRouter([
+      // ... existing routes
+      {
+        path: '/map', // Choose an appropriate path for your map page
+        element: <MapPage />,
+      },
+    ]);
+
+    function AppRouter() {
+      return <RouterProvider router={router} />;
+    }
+
+    export default AppRouter;
+    ```
+
+These steps will create a dedicated page for displaying the `Map` component, allowing users to navigate to it and view the farm and field data.
