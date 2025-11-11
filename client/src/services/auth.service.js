@@ -1,12 +1,12 @@
 const API_URL = 'http://localhost:5000/api/auth/'; // Assuming your backend runs on port 5000
 
-const register = async (name, email, password, contact) => {
+const register = async (name, email, password, contact, role) => {
   const response = await fetch(API_URL + 'register', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ name, email, password, contact }),
+    body: JSON.stringify({ name, email, password, contact, role }),
   });
   const data = await response.json();
   if (!response.ok) {

@@ -81,6 +81,20 @@ function Home() {
   // Sort schema by order
   const sortedSchema = [...dashboardSchema].sort((a, b) => a.order - b.order);
 
+  // Show loading state
+  if (status === "loading") {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh'
+      }}>
+        <div style={{ fontSize: '18px', color: '#6c757d' }}>Loading dashboard...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-grid">
       {sortedSchema.map((item) => {
