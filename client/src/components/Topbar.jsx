@@ -74,11 +74,6 @@ const Topbar = ({ isLoggedIn }) => {
             className="user-img"
           />
           <span className="user-name">{currentUser.name}</span>
-          {currentUser.role ? (
-            <span className="user-role" style={{ marginLeft: 8, fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#eef', color: '#335' }}>
-              {currentUser.role}
-            </span>
-          ) : null}
           <button className="logout-btn" onClick={handleLogout}>
             Logout
           </button>
