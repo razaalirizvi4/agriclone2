@@ -1,7 +1,7 @@
 
 const locationDataLayer = require('../api/dataLayer/location.dataLayer');
 const Location = require('../api/models/locationModule/location.model');
-const eventStreamService = require('./eventStream.service'); // Assuming this service exists for event generation
+const eventStreamService = require('../services/eventStream.service'); // Assuming this service exists for event generation
 
 exports.createLocation = async (locationData) => {
   return await locationDataLayer.createLocation(locationData);

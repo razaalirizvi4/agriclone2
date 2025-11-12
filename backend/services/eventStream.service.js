@@ -17,7 +17,7 @@ const pushEvent = async (eventData) => {
   return await pushEventData(eventData);
 };
 
-exports.createFieldLifeCycleEvents = async (field, fieldEventsInfo) => {
+const createFieldLifeCycleEvents = async (field, fieldEventsInfo) => {
   // Example: Generate a 'Sowing' event
   const sowingEvent = new Event({
     locationId: field._id,
