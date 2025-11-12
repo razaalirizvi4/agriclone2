@@ -1,35 +1,20 @@
 const User = require('../models/userModule/user.model');
-const UserRole = require('../models/userModule/userRole.model');
-const Permission = require('../models/userModule/permission.model');
 
-const permissionCheck = (action, module) => async (req, res, next) => {
+const permission = (allowedRoles) => async (req, res, next) => {
   try {
-    // Assuming req.user is populated by an authentication middleware
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required.' });
     }
 
-    const user = await User.findById(req.user._id).populate({
-      path: 'roleId',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
+    const user = await User.findById(req.user._id).populate('roleId');
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+    if (!user || !user.roleId) {
+      return res.status(403).json({ message: 'Forbidden: User role not found.' });
     }
 
-    // Extract permissions from the user's role
-    const userPermissions = user.roleId.permissions;
+    const userRole = user.roleId.role.toLowerCase();
 
-    // Check if the user has the required permission
-    const hasPermission = userPermissions.some(
-      (perm) => perm.action === action && perm.module === module
-    );
-
-    if (hasPermission) {
+    if (allowedRoles.map(role => role.toLowerCase()).includes(userRole)) {
       next();
     } else {
       res.status(403).json({ message: 'Forbidden: You do not have the required permission.' });
@@ -39,4 +24,4 @@ const permissionCheck = (action, module) => async (req, res, next) => {
   }
 };
 
-module.exports = permissionCheck;
+module.exports = permission;

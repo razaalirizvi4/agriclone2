@@ -136,3 +136,15 @@ exports.deleteLocation = async (req, res) => {
     res.status(500).send({ message: error.message || 'Failed to delete location', error });
   }
 };
+
+const { apiResponse } = require('../../../utils/apiResponse');
+
+exports.farmWizard = async (req, res) => {
+  try {
+    const locations = req.body;
+    const result = await locationService.farmSetup(locations);
+    return apiResponse.success(res, result, 'Farm setup processed successfully');
+  } catch (error) {
+    return apiResponse.error(res, error.message, error.statusCode || 500);
+  }
+};

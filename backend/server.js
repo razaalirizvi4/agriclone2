@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const serviceRegistry = require('./services/serviceRegistry');
 const eventStreamService = require('./services/eventStream.service.js');
-const ensureRoles = require('./serverSetup/ensureRoles');
+const ensureRoles = require('./serverSetup/ensureRoles.js');
 
 serviceRegistry.register('eventStreamService', eventStreamService);
 const cors = require('cors');
