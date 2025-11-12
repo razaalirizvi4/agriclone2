@@ -1,15 +1,8 @@
-<<<<<<< HEAD
-require("dotenv").config();
-const express = require("express");
-const serviceRegistry = require("./services/serviceRegistry");
-const eventStreamService = require("./services/eventStream.service.js");
-=======
 require('dotenv').config();
 const express = require('express');
 const serviceRegistry = require('./services/serviceRegistry');
 const eventStreamService = require('./services/eventStream.service.js');
 const ensureRoles = require('./serverSetup/ensureRoles');
->>>>>>> fc223497fb6edc0cf9eb86004073d068dc2c3a7a
 
 serviceRegistry.register("eventStreamService", eventStreamService);
 const cors = require("cors");
