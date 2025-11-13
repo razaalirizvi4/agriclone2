@@ -143,8 +143,8 @@ exports.farmWizard = async (req, res) => {
   try {
     const locations = req.body;
     const result = await locationService.farmSetup(locations);
-    return apiResponse.success(res, result, 'Farm setup processed successfully');
+    res.status(200).send(result)
   } catch (error) {
-    return apiResponse.error(res, error.message, error.statusCode || 500);
+    res.status(500).send({message: error.message || 'Farm setup failed', error})
   }
 };
