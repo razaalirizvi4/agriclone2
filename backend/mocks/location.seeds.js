@@ -21,27 +21,29 @@ const seedData = async () => {
   // 🧹 Reset locations
   await Location.deleteMany();
 
-  // 👤 Ensure at least one user exists
-  const user = await User.findOne();
-  if (!user) {
-    console.error("❌ No user found. Please create one first.");
+  // 👤 Get specific owner users (John Doe and Jane Smith)
+  const user1 = await User.findOne({ email: 'john.doe@example.com' });
+  const user2 = await User.findOne({ email: 'jane.smith@example.com' });
+  
+  if (!user1 || !user2) {
+    console.error("❌ John Doe or Jane Smith not found. Please run user.seeds.js first.");
     return mongoose.connection.close();
   }
-
-  const userRole = user.isAdmin ? "Admin" : "Owner";
+  
+  console.log(`✅ Found user1: ${user1.name} (${user1.email})`);
+  console.log(`✅ Found user2: ${user2.name} (${user2.email})`);
 
   // 🌾 Get all crops after possible seeding
   const crops = await Crop.find();
 
-    // 🌾 Create a farm
+    // 🌾 Create first farm (owned by user1)
     const farm = await Location.create({
       type: "Farm",
       name: "Green Valley Farm",
       owner: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: userRole,
+        id: user1._id,
+        email: user1.email,
+        name: user1.name,
       },
       attributes: {
         area: "15 acres",
@@ -102,15 +104,15 @@ const seedData = async () => {
       },
     });
 
-    // 🌱 Create two fields under the farm
+    // 🌱 Create two fields under the first farm
     const field1 = await Location.create({
       type: "Field",
       name: "West Field",
       parentId: farm._id,
       owner: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
+        id: user1._id,
+        email: user1.email,
+        name: user1.name,
       },
       attributes: {
         area: "6 acres",
@@ -176,9 +178,9 @@ const seedData = async () => {
       name: "East Field",
       parentId: farm._id,
       owner: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
+        id: user1._id,
+        email: user1.email,
+        name: user1.name,
       },
       attributes: {
         area: "9 acres",
@@ -232,6 +234,143 @@ const seedData = async () => {
             minTemp: "21°C",
             date: "2025-10-13",
             condition: "Cloudy",
+          },
+        ],
+      },
+    });
+
+    // 🌾 Create second farm (owned by user2) with one field
+    const farm2 = await Location.create({
+      type: "Farm",
+      name: "Sunset Ridge Farm",
+      owner: {
+        id: user2._id,
+        email: user2.email,
+        name: user2.name,
+      },
+      attributes: {
+        area: "20 acres",
+        lat: 72.64160189965244,
+        lon: 32.722087042293893,
+        geoJsonCords: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                  [74.24515425583573, 31.659805811703293],
+                  [74.24514204121277, 31.65712645308942],
+                  [74.24856213550791, 31.657115945654795],
+                  [74.24856213550791, 31.6598373331272],
+                  [74.245157023844, 31.659812590820877],]
+                ],
+              },
+            },
+          ],
+        },
+        crop_id: null,
+        lifecycle: "Active",
+      },
+      weather: {
+        current: {
+          temp: "26°C",
+          humid: "68%",
+          precipitation: "3mm",
+          maxTemp: "28°C",
+          minTemp: "20°C",
+          date: "2025-10-10",
+          condition: "Partly Cloudy",
+        },
+        forecast: [
+          {
+            maxTemp: "28°C",
+            minTemp: "20°C",
+            date: "2025-10-11",
+            condition: "Sunny",
+          },
+          {
+            maxTemp: "27°C",
+            minTemp: "19°C",
+            date: "2025-10-12",
+            condition: "Cloudy",
+          },
+          {
+            maxTemp: "25°C",
+            minTemp: "18°C",
+            date: "2025-10-13",
+            condition: "Rainy",
+          },
+        ],
+      },
+    });
+
+    // 🌱 Create one field under the second farm
+    const field3 = await Location.create({
+      type: "Field",
+      name: "North Field",
+      parentId: farm2._id,
+      owner: {
+        id: user2._id,
+        email: user2.email,
+        name: user2.name,
+      },
+      attributes: {
+        area: "12 acres",
+        geoJsonCords: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                  [74.24545020768969, 31.659218868235],
+                  [74.24545020768969, 31.658184633083152],
+                  [74.24517189949643, 31.6581654804758],
+                  [74.24516076716964, 31.65762920593393],
+                  [74.24646324950987, 31.65762920593393],
+                  [74.24646324950987, 31.659218868235],
+                  [74.24546134001781, 31.659218868235],]
+                ],
+              },
+            },
+          ],
+        },
+        crop_id: crops.find((c) => c.name === "Corn")?._id || crops[0]._id,
+        lifecycle: "Growing",
+      },
+      weather: {
+        current: {
+          temp: "25°C",
+          humid: "72%",
+          precipitation: "2mm",
+          maxTemp: "27°C",
+          minTemp: "19°C",
+          date: "2025-10-10",
+          condition: "Cloudy",
+        },
+        forecast: [
+          {
+            maxTemp: "27°C",
+            minTemp: "19°C",
+            date: "2025-10-11",
+            condition: "Sunny",
+          },
+          {
+            maxTemp: "26°C",
+            minTemp: "18°C",
+            date: "2025-10-12",
+            condition: "Partly Cloudy",
+          },
+          {
+            maxTemp: "24°C",
+            minTemp: "17°C",
+            date: "2025-10-13",
+            condition: "Rainy",
           },
         ],
       },

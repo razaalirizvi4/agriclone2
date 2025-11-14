@@ -10,8 +10,8 @@ exports.createLocation = async (req, res) => {
   try {
     const locationData = { ...req.body };
     
-    // If user is an owner, automatically set owner.id to their user_id
-    if (req.isOwner && !req.isAdmin) {
+    // If user is an owner (not admin), automatically set owner.id to their user_id
+    if (req.isOwner) {
       locationData.owner = {
         ...locationData.owner,
         id: req.user._id,
@@ -55,7 +55,7 @@ exports.getLocationById = async (req, res) => {
     }
     
     // Check if owner has access (if not admin)
-    if (!req.isAdmin && req.isOwner) {
+    if (req.isOwner) {
       const locationOwnerId = location.owner?.id?.toString();
       const userId = req.user._id.toString();
       
@@ -85,7 +85,7 @@ exports.updateLocation = async (req, res) => {
     }
     
     // Check if owner has access (if not admin)
-    if (!req.isAdmin && req.isOwner) {
+    if (req.isOwner) {
       const locationOwnerId = existingLocation.owner?.id?.toString();
       const userId = req.user._id.toString();
       
@@ -121,7 +121,7 @@ exports.deleteLocation = async (req, res) => {
     }
     
     // Check if owner has access (if not admin)
-    if (!req.isAdmin && req.isOwner) {
+    if (req.isOwner) {
       const locationOwnerId = existingLocation.owner?.id?.toString();
       const userId = req.user._id.toString();
       

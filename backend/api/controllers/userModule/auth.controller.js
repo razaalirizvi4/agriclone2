@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-  const { name, email, password, contact, role } = req.body;
+  const { name, email, password, contact } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Please enter all required fields' });
@@ -18,21 +18,25 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: 'User already exists' });
   }
 
-  // Choose role (admin|owner), default to owner
-  const desiredRoleId = (role || 'owner').toLowerCase() === 'admin' ? 'admin' : 'owner';
-  let selectedRole = await UserRole.findOne({ roleId: desiredRoleId });
-  if (!selectedRole) {
+  // Prevent admin registration - all new users are owners
+  // Get owner role (all new registrations are owners)
+  let ownerRole = await UserRole.findOne({ roleId: 'owner' });
+  if (!ownerRole) {
     // Fallback: create if missing (ensureRoles should have created already)
-    selectedRole = await UserRole.create({ role: desiredRoleId === 'admin' ? 'Admin' : 'Owner', roleId: desiredRoleId, permissions: [] });
+    ownerRole = await UserRole.create({ role: 'Owner', roleId: 'owner', permissions: [] });
   }
 
-  // Create user
+  // Get owner permissions from role
+  const ownerPermissions = ownerRole.permissions || [];
+
+  // Create user with owner permissions and isAdmin = false
   const user = await User.create({
     name,
     email,
     hashPassword: password, // The pre-save hook in the model will hash this
-    roleId: selectedRole._id,
-    permissions: [], // Will be populated from role later if needed
+    roleId: ownerRole._id,
+    permissions: ownerPermissions, // Assign owner permissions
+    isAdmin: false, // All registered users are owners, not admins
     contact,
   });
 
@@ -41,7 +45,7 @@ const registerUser = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: selectedRole.role,
+      isAdmin: user.isAdmin,
       token: generateToken(user._id),
     });
   } else {
@@ -57,14 +61,14 @@ const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   // Check for user email
-  const user = await User.findOne({ email }).populate('roleId');
+  const user = await User.findOne({ email }).populate('roleId').populate('permissions');
 
   if (user && (await user.comparePassword(password))) {
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: user.roleId.role,
+      isAdmin: user.isAdmin,
       token: generateToken(user._id),
     });
   } else {
