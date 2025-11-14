@@ -30,6 +30,7 @@ app.use('/api/eventstream', require('./api/routes/eventStream/eventStream.routes
 app.use('/api/weather', require('./api/routes/weather/weather.routes'));
 app.use('/api/locations', require('./api/routes/locationModule/location.routes.js'));
 app.use('/api/crops', require('./api/routes/cropModule/crop.routes.js'));
+app.use('/api/types', require('./api/routes/typeModule/type.routes.js'));
 
 app.get('/', (req, res) => {
     res.send('API is running...');

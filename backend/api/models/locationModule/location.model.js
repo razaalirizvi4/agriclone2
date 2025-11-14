@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const locationSchema = new mongoose.Schema({
+  // type: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: 'Type', // Reference to your dynamic Type model
+  //   required: true,
+  // },
   type: {
     type: String,
     enum: ['Farm', 'Field', 'Building', 'Road', 'Truck'],
