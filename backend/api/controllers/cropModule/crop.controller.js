@@ -7,20 +7,105 @@ function parseDate(value) {
     return isNaN(d.getTime()) ? undefined : d;
 }
 
-function buildPayload(body) {
-    return {
-        name: body.name,
-        icon: body.icon,
+function toNumber(value) {
+    if (value === null || value === undefined || value === '') return undefined;
+    const num = Number(value);
+    return Number.isNaN(num) ? undefined : num;
+}
+
+function buildRange(minVal, maxVal) {
+    const min = toNumber(minVal);
+    const max = toNumber(maxVal);
+    if (min === undefined && max === undefined) return undefined;
+    return { min, max };
+}
+
+function buildTemporalConstraints(body) {
+    const temporal = {
         seedDateRangeStart: parseDate(body.seedDateRangeStart),
         seedDateRangeEnd: parseDate(body.seedDateRangeEnd),
         harvestDateRangeStart: parseDate(body.harvestDateRangeStart),
-        harvestDateRangeEnd: parseDate(body.harvestDateRangeEnd),
-        tempRangeStart: body.tempRangeStart,
-        tempRangeEnd: body.tempRangeEnd,
-        humidRangeStart: body.humidRangeStart,
-        humidRangeEnd: body.humidRangeEnd,
-        yield: body.yield
+        harvestDateRangeEnd: parseDate(body.harvestDateRangeEnd)
     };
+    return Object.values(temporal).every(v => v === undefined) ? undefined : temporal;
+}
+
+function buildEnvironmentalConditions(body) {
+    const temperature = buildRange(body.tempRangeStart, body.tempRangeEnd);
+    const humidity = buildRange(body.humidRangeStart, body.humidRangeEnd);
+
+    if (!temperature && !humidity) return undefined;
+
+    return {
+        temperature,
+        humidity
+    };
+}
+
+function buildExpectedYield(body) {
+    const value = toNumber(body.yield ?? body.expectedYieldValue);
+    if (value === undefined) return undefined;
+    return {
+        value,
+        unit: body.expectedYieldUnit,
+        areaBasis: body.expectedYieldAreaBasis,
+        notes: body.expectedYieldNotes
+    };
+}
+
+function buildLegacyRecipe(body) {
+    const recipeInfo = {
+        description: body.recipeDescription,
+        createdBy: body.recipeCreatedBy,
+        createdAt: parseDate(body.recipeCreatedAt),
+        updatedAt: parseDate(body.recipeUpdatedAt),
+        expectedYield: buildExpectedYield(body)
+    };
+
+    const recipeRules = {
+        temporalConstraints: buildTemporalConstraints(body),
+        environmentalConditions: buildEnvironmentalConditions(body)
+    };
+
+    const cleanedRecipeInfo = Object.fromEntries(
+        Object.entries(recipeInfo).filter(([_, v]) => v !== undefined)
+    );
+
+    if (Object.keys(cleanedRecipeInfo).length === 0 && Object.values(recipeRules).every(v => v === undefined)) {
+        return undefined;
+    }
+
+    return {
+        id: body.recipeId || 'default-recipe',
+        recipeInfo: cleanedRecipeInfo,
+        recipeRules: Object.fromEntries(
+            Object.entries(recipeRules).filter(([_, v]) => v !== undefined)
+        ),
+        recipeWorkflows: Array.isArray(body.recipeWorkflows) ? body.recipeWorkflows : []
+    };
+}
+
+function buildPayload(body) {
+    const payload = {
+        name: body.name,
+        icon: body.icon,
+        actualYield: toNumber(body.actualYield)
+    };
+
+    if (Array.isArray(body.recipes)) {
+        payload.recipes = body.recipes;
+    } else {
+        const legacyRecipe = buildLegacyRecipe(body);
+        if (legacyRecipe) {
+            payload.recipes = [legacyRecipe];
+        }
+    }
+
+    if (payload.actualYield === undefined) {
+        delete payload.actualYield;
+    }
+
+    return payload;
 }
 
 async function create(req, res) {
