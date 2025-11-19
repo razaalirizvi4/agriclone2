@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import MapWizard from "../components/View/MapWizard";
 
-const MapPage = () => {
+const WizardPage = () => {
   const [locations, setLocations] = useState(null); // will hold drawn data
 
   const handleDrawComplete = (data) => {
@@ -11,7 +11,7 @@ const MapPage = () => {
 
   return (
     <div className="map-page-container">
-      <h1>Farm Map Overview</h1>
+      <h1>Registration Wizard</h1>
       <MapWizard
         mode="wizard"
         locations={locations}      // 👈 pass the stored data
@@ -21,4 +21,4 @@ const MapPage = () => {
   );
 };
 
-export default MapPage;
+export default WizardPage;
