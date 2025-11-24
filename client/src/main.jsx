@@ -11,6 +11,7 @@ import RegisterPage from './pages/RegisterPage';
 import EventStreamPage from './pages/EventStreamPage';
 import LocationPage from './pages/LocationPage';
 import MapPage from './pages/MapPage';
+import RecipeWizard from './pages/RecipeWizard';
 import ProtectedRoute from './router/ProtectedRoute';
 import PublicRoute from './router/PublicRoute';
 import './App.css';
@@ -32,6 +33,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="event-stream" element={<EventStreamPage />} />
               <Route path="locations" element={<LocationPage />} />
               <Route path="map" element={<MapPage />} />
+              <Route path="recipe-wizard" element={<RecipeWizard />} />
             </Route>
           </Route>
         </Routes>

@@ -8,8 +8,12 @@ const getAuthHeader = () => {
   return user?.token ? { Authorization: `Bearer ${user.token}` } : {};
 };
 
-const getCrops = () => {
-  return axios.get(API_URL,{ headers: getAuthHeader() });
+const getCrops = (params = {}) => {
+  return axios.get(API_URL, { params, headers: getAuthHeader() });
+};
+
+const getCropByName = (name) => {
+  return getCrops({ name });
 };
 
 const createCrop = (cropData) => {
@@ -26,6 +30,7 @@ const deleteCrop = (id) => {
 
 export default {
   getCrops,
+  getCropByName,
   createCrop,
   updateCrop,
   deleteCrop,
