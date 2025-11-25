@@ -46,6 +46,17 @@ const createInitialFormState = () => ({
   workflows: [initialWorkflowStep()],
 });
 
+const buildFormState = (cropName = "") => {
+  const base = createInitialFormState();
+  return {
+    ...base,
+    recipe: {
+      ...base.recipe,
+      cropName,
+    },
+  };
+};
+
 const stepsMeta = [
   "Recipe Info",
   "Temporal",
@@ -317,6 +328,19 @@ const useRecipeFormViewModel = () => {
     });
   }, [buildRecipeEntry, form.recipe.cropName, form.recipe.icon]);
 
+  const resetStatus = useCallback(() => {
+    setStatus({
+      saving: false,
+      success: false,
+      error: null,
+    });
+  }, []);
+
+  const initializeForm = useCallback((cropName = "") => {
+    setForm(() => buildFormState(cropName));
+    setStep(0);
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     const cropName = form.recipe.cropName?.trim();
     const recipeEntry = buildRecipeEntry();
@@ -354,9 +378,8 @@ const useRecipeFormViewModel = () => {
         await cropService.createCrop(createPayload);
       }
 
+      initializeForm(form.recipe.cropName);
       setStatus({ saving: false, success: true, error: null });
-      setForm(createInitialFormState());
-      setStep(0);
     } catch (err) {
       setStatus({
         saving: false,
@@ -364,7 +387,7 @@ const useRecipeFormViewModel = () => {
         error: err?.response?.data?.message || err.message,
       });
     }
-  }, [buildCreatePayload, buildRecipeEntry, form.recipe.cropName]);
+  }, [buildCreatePayload, buildRecipeEntry, form.recipe.cropName, initializeForm]);
 
   const reviewSummary = useMemo(() => {
     const { recipe, temporal, environment, history, workflows } = form;
@@ -394,6 +417,8 @@ const useRecipeFormViewModel = () => {
     previousStep,
     goToStep,
     handleSubmit,
+    initializeForm,
+    resetStatus,
     reviewSummary,
   };
 };

@@ -192,6 +192,75 @@ h3 {
   box-sizing: border-box;
 }
 
+.wizard-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 360px) 1fr;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.crop-card,
+.recipe-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 12px 30px rgba(57, 73, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.crop-form label,
+.recipe-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  color: #4b5737;
+}
+
+.recipe-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.recipe-add-trigger {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: #4f7c2c;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recipe-add-trigger:disabled {
+  background: #9aac91;
+  cursor: not-allowed;
+}
+
+.recipe-add-trigger:not(:disabled):hover {
+  transform: scale(1.05);
+  background: #456d26;
+}
+
+.recipe-placeholder {
+  border: 2px dashed #dfe6cc;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  color: #6b7254;
+  font-weight: 600;
+  background: #fbfcf6;
+}
+
 .recipe-wizard-hero {
   background: #ffffff;
   border-radius: 20px;
@@ -719,6 +788,10 @@ textarea {
 }
 
 @media (max-width: 768px) {
+  .wizard-layout {
+    grid-template-columns: 1fr;
+  }
+
   .recipe-wizard-hero {
     flex-direction: column;
   }

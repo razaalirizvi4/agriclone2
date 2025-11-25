@@ -47,7 +47,7 @@ const soilTypeOptions = [
   "Calcareous",
 ];
 
-const RecipeForm = () => {
+const RecipeForm = ({ selectedCropName }) => {
   const {
     form,
     step,
@@ -65,6 +65,8 @@ const RecipeForm = () => {
     previousStep,
     goToStep,
     handleSubmit,
+    initializeForm,
+    resetStatus,
     reviewSummary,
   } = useRecipeFormViewModel();
   const [validationError, setValidationError] = useState(null);
@@ -155,6 +157,13 @@ const RecipeForm = () => {
 
     return <span>{`${value}`}</span>;
   };
+
+  useEffect(() => {
+    if (!selectedCropName) return;
+    initializeForm(selectedCropName);
+    setValidationError(null);
+    resetStatus();
+  }, [initializeForm, resetStatus, selectedCropName]);
 
   const MultiSelectDropdown = ({
     label,
@@ -412,6 +421,7 @@ const RecipeForm = () => {
             value={form.recipe.cropName}
             onChange={(e) => updateSection("recipe", "cropName", e.target.value)}
             placeholder="e.g., Wheat"
+            disabled={Boolean(selectedCropName)}
           />
         </label>
         <label>
