@@ -10,7 +10,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import EventStreamPage from './pages/EventStreamPage';
 import LocationPage from './pages/LocationPage';
-import MapPage from './pages/MapPage';
+import WizardPage from './pages/WizardPage';
 import RecipeWizard from './pages/RecipeWizard';
 import ProtectedRoute from './router/ProtectedRoute';
 import PublicRoute from './router/PublicRoute';
@@ -32,7 +32,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="about" element={<About />} />
               <Route path="event-stream" element={<EventStreamPage />} />
               <Route path="locations" element={<LocationPage />} />
-              <Route path="map" element={<MapPage />} />
+              <Route path="wizard" element={<WizardPage />} />
               <Route path="recipe-wizard" element={<RecipeWizard />} />
             </Route>
           </Route>

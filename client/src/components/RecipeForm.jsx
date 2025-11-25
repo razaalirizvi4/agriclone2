@@ -47,7 +47,12 @@ const soilTypeOptions = [
   "Calcareous",
 ];
 
-const RecipeForm = ({ selectedCropName }) => {
+const RecipeForm = ({
+  selectedCropName,
+  initialRecipe = null,
+  onRecipeSaved,
+  onCancelEdit,
+}) => {
   const {
     form,
     step,
@@ -68,11 +73,12 @@ const RecipeForm = ({ selectedCropName }) => {
     initializeForm,
     resetStatus,
     reviewSummary,
+    loadRecipeForEditing,
+    cancelEditing,
+    isEditing,
+    validateStep,
   } = useRecipeFormViewModel();
   const [validationError, setValidationError] = useState(null);
-
-  const hasValue = (value) =>
-    value !== null && value !== undefined && `${value}`.trim() !== "";
 
   const parseMultiValue = (value) =>
     value
@@ -160,10 +166,20 @@ const RecipeForm = ({ selectedCropName }) => {
 
   useEffect(() => {
     if (!selectedCropName) return;
-    initializeForm(selectedCropName);
+    if (initialRecipe) {
+      loadRecipeForEditing(initialRecipe, selectedCropName);
+    } else {
+      initializeForm(selectedCropName);
+    }
     setValidationError(null);
     resetStatus();
-  }, [initializeForm, resetStatus, selectedCropName]);
+  }, [
+    initialRecipe,
+    initializeForm,
+    loadRecipeForEditing,
+    resetStatus,
+    selectedCropName,
+  ]);
 
   const MultiSelectDropdown = ({
     label,
@@ -244,120 +260,8 @@ const RecipeForm = ({ selectedCropName }) => {
   const getSelectValues = (event) =>
     Array.from(event.target.selectedOptions || []).map((option) => option.value);
 
-  const validateRecipeInfo = () => {
-    if (!hasValue(form.recipe.cropName)) return "Crop name is required.";
-    if (!hasValue(form.recipe.expectedYieldValue))
-      return "Expected yield is required.";
-    if (!hasValue(form.recipe.expectedYieldUnit)) return "Select a yield unit.";
-    if (!hasValue(form.recipe.expectedYieldAreaBasis))
-      return "Select an area basis.";
-    return null;
-  };
-
-  const validateTemporal = () => {
-    const fields = [
-      "seedDateRangeStart",
-      "seedDateRangeEnd",
-      "harvestDateRangeStart",
-      "harvestDateRangeEnd",
-    ];
-    for (const field of fields) {
-      if (!hasValue(form.temporal[field])) {
-        return "All temporal date fields are required.";
-      }
-    }
-    return null;
-  };
-
-  const validateEnvironment = () => {
-    const rangeFields = ["min", "max", "optimal"];
-    for (const key of rangeFields) {
-      if (!hasValue(form.environment.soilPH[key])) {
-        return "Please complete soil pH values.";
-      }
-    }
-    const groups = [
-      { key: "temperature", label: "temperature" },
-      { key: "humidity", label: "humidity" },
-      { key: "rainfall", label: "rainfall" },
-    ];
-    for (const group of groups) {
-      for (const field of rangeFields) {
-        if (!hasValue(form.environment[group.key][field])) {
-          return `Please complete ${group.label} ${field} value.`;
-        }
-      }
-    }
-    if (!hasValue(form.environment.soilType.allowed))
-      return "Allowed soil types are required.";
-    if (!hasValue(form.environment.soilType.preferred))
-      return "Preferred soil types are required.";
-    if (!hasValue(form.environment.soilType.excluded))
-      return "Excluded soil types are required.";
-    return null;
-  };
-
-  const validateHistory = () => {
-    const fields = [
-      "preferredPreviousCrops",
-      "avoidPreviousCrops",
-      "minRotationInterval",
-      "maxConsecutiveYears",
-      "fieldRestPeriod",
-      "minDaysBeforeSowing",
-      "maxDaysBeforeSowing",
-    ];
-    for (const field of fields) {
-      if (!hasValue(form.history[field])) {
-        return "All historical constraint fields are required.";
-      }
-    }
-    return null;
-  };
-
-  const validateWorkflow = () => {
-    if (!form.workflows.length) {
-      return "Add at least one workflow step.";
-    }
-    for (const [index, workflow] of form.workflows.entries()) {
-      if (!hasValue(workflow.stepName)) {
-        return `Workflow step ${index + 1} requires a name.`;
-      }
-      if (!hasValue(workflow.duration)) {
-        return `Workflow step ${index + 1} requires a duration.`;
-      }
-      for (const [eqIndex, equipment] of (
-        workflow.equipmentRequired || []
-      ).entries()) {
-        if (!hasValue(equipment.name) || !hasValue(equipment.quantity)) {
-          return `Equipment ${eqIndex + 1} in step ${
-            index + 1
-          } must include name and quantity.`;
-        }
-      }
-    }
-    return null;
-  };
-
-  const validateCurrentStep = () => {
-    switch (step) {
-      case 0:
-        return validateRecipeInfo();
-      case 1:
-        return validateTemporal();
-      case 2:
-        return validateEnvironment();
-      case 3:
-        return validateHistory();
-      case 4:
-        return validateWorkflow();
-      default:
-        return null;
-    }
-  };
-
   const handleNext = () => {
-    const error = validateCurrentStep();
+    const error = validateStep(step);
     if (error) {
       setValidationError(error);
       return;
@@ -367,12 +271,12 @@ const RecipeForm = ({ selectedCropName }) => {
   };
 
   const handleStepClick = (targetStep) => {
-    if (targetStep <= step) {
+    if (targetStep <= step || isEditing) {
       setValidationError(null);
       goToStep(targetStep);
       return;
     }
-    const error = validateCurrentStep();
+    const error = validateStep(step);
     if (error) {
       setValidationError(error);
       return;
@@ -380,6 +284,20 @@ const RecipeForm = ({ selectedCropName }) => {
     setValidationError(null);
     goToStep(targetStep);
   };
+
+  const handleCancelEditing = () => {
+    cancelEditing(selectedCropName);
+    setValidationError(null);
+    resetStatus();
+    onCancelEdit?.();
+  };
+
+  const handleSaveRecipe = () =>
+    handleSubmit({
+      onSuccess: () => {
+        onRecipeSaved?.();
+      },
+    });
 
   const reviewSections = [
     { key: "recipe", label: "Recipe Information", step: 0 },
@@ -839,7 +757,7 @@ const RecipeForm = ({ selectedCropName }) => {
       <button
         type="button"
         className="primary-btn"
-        onClick={handleSubmit}
+        onClick={handleSaveRecipe}
         disabled={status.saving}
       >
         {status.saving ? "Saving..." : "Save Recipe"}
@@ -867,6 +785,19 @@ const RecipeForm = ({ selectedCropName }) => {
 
   return (
     <div className="recipe-form-wrapper">
+      {isEditing && (
+        <div className="form-alert editing-alert">
+          <span>You are editing an existing recipe.</span>
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={handleCancelEditing}
+            disabled={status.saving}
+          >
+            Cancel Edit
+          </button>
+        </div>
+      )}
       {renderStepIndicators()}
       <form className="recipe-form" onSubmit={(e) => e.preventDefault()}>
         {renderCurrentStep()}
