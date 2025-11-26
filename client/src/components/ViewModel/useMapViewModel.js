@@ -3,277 +3,16 @@ import mapboxgl from "mapbox-gl";
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import * as turf from "@turf/turf";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
+import { MAP_CONFIG } from "../../utils/mapConstants";
+import { LAYER_IDS } from "../../utils/mapConstants";
+import { COLORS } from "../../utils/mapConstants";
+import { buildGeoJSON } from "../../utils/mapUtils";
+import { calculateMapCenter } from "../../utils/mapUtils";
+import { createFarmLayers } from "../../utils/mapLayers";
+import { createFieldLayers } from "../../utils/mapLayers";
+import { createGeometryLayers } from "../../utils/mapLayers";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-
-// CONSTANTS
-const MAP_CONFIG = {
-  style: "mapbox://styles/mapbox/satellite-v9",
-  zoom: 15,
-};
-
-const LAYER_IDS = {
-  FARMS: "farms-layer",
-  FARMS_OUTLINE: "farms-outline",
-  FARMS_LABELS: "farms-labels",
-  FIELDS: "fields-layer",
-  FIELDS_OUTLINE: "fields-outline",
-  FIELDS_LABELS: "fields-labels",
-  ROADS: "roads-layer",
-  POINTS: "points-layer",
-};
-
-const COLORS = {
-  FARM_FILL: "#008000",
-  FARM_OUTLINE: "#004d00",
-  FIELD_SELECTED: "#0047AB",
-  FIELD_DEFAULT: "#FFA500",
-  FIELD_OUTLINE_SELECTED: "#0000FF",
-  FIELD_OUTLINE_DEFAULT: "#CC7000",
-  ROAD: "#444",
-  POINT: "#FF0000",
-};
-
-// UTILITY FUNCTIONS
-const buildGeoJSON = (locations) => {
-  if (!locations?.length) return null;
-
-  const features = locations.map((elem) => ({
-    type: "Feature",
-    properties: {
-      type: elem?.type?.toLowerCase(),
-      name: elem?.name,
-      id: elem?._id,
-      owner: elem?.owner?.name,
-      cropId:
-        elem?.type?.toLowerCase() === "field"
-          ? elem?.attributes?.crop_id
-          : null,
-      area: elem?.attributes?.area || null,
-      farm:
-        elem?.type?.toLowerCase() === "field"
-          ? locations.find((l) => l._id === elem.parentId)?.name
-          : elem?.name,
-    },
-    geometry: elem?.attributes?.geoJsonCords?.features?.[0]?.geometry,
-  }));
-
-  return { type: "FeatureCollection", features };
-};
-
-const calculateGeometryCenter = (geometry) => {
-  if (!geometry?.coordinates) return null;
-
-  switch (geometry.type) {
-    case "Polygon": {
-      const coords = geometry.coordinates[0];
-      const lng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
-      const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
-      return [lng, lat];
-    }
-    case "LineString": {
-      const mid = Math.floor(geometry.coordinates.length / 2);
-      return geometry.coordinates[mid];
-    }
-    case "Point":
-      return geometry.coordinates;
-    default:
-      return null;
-  }
-};
-
-const calculateMapCenter = (geoJSON, selectedFieldId = null) => {
-  if (!geoJSON?.features?.length) return null;
-
-  // If field selected, center on it
-  if (selectedFieldId) {
-    const selected = geoJSON.features.find(
-      (f) => f.properties?.id === selectedFieldId
-    );
-    if (selected?.geometry) {
-      return calculateGeometryCenter(selected.geometry);
-    }
-  }
-
-  // Otherwise, calculate average center of all features
-  let totalLng = 0,
-    totalLat = 0,
-    count = 0;
-
-  geoJSON.features.forEach((f) => {
-    const geom = f.geometry;
-    if (!geom?.coordinates) return;
-
-    switch (geom.type) {
-      case "Polygon":
-        geom.coordinates[0].forEach(([lng, lat]) => {
-          totalLng += lng;
-          totalLat += lat;
-          count++;
-        });
-        break;
-      case "LineString":
-        geom.coordinates.forEach(([lng, lat]) => {
-          totalLng += lng;
-          totalLat += lat;
-          count++;
-        });
-        break;
-      case "Point": {
-        const [lng, lat] = geom.coordinates;
-        totalLng += lng;
-        totalLat += lat;
-        count++;
-        break;
-      }
-    }
-  });
-
-  return count ? [totalLng / count, totalLat / count] : null;
-};
-
-// LAYER DEFINITIONS
-const createFarmLayers = () => [
-  {
-    id: LAYER_IDS.FARMS,
-    type: "fill",
-    source: "data",
-    paint: { "fill-color": COLORS.FARM_FILL, "fill-opacity": 0.5 },
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["==", ["get", "type"], "farm"],
-    ],
-    layout: { visibility: "none" },
-  },
-  {
-    id: LAYER_IDS.FARMS_OUTLINE,
-    type: "line",
-    source: "data",
-    paint: { "line-color": COLORS.FARM_OUTLINE, "line-width": 2 },
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["==", ["get", "type"], "farm"],
-    ],
-    layout: { visibility: "none" },
-  },
-  {
-    id: LAYER_IDS.FARMS_LABELS,
-    type: "symbol",
-    source: "data",
-    layout: {
-      "text-field": ["get", "name"],
-      "text-size": 14,
-      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-      "text-offset": [0, 0],
-      "text-anchor": "center",
-      "text-allow-overlap": true,
-      "symbol-placement": "point",
-      visibility: "visible",
-    },
-    paint: {
-      "text-color": "#FFFFFF",
-      "text-halo-color": COLORS.FARM_OUTLINE,
-      "text-halo-width": 3,
-      "text-halo-blur": 0.5,
-    },
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["==", ["get", "type"], "farm"],
-    ],
-  },
-];
-
-const createFieldLayers = (selectedFieldId) => [
-  {
-    id: LAYER_IDS.FIELDS,
-    type: "fill",
-    source: "data",
-    paint: {
-      "fill-color": [
-        "case",
-        ["==", ["get", "id"], selectedFieldId],
-        COLORS.FIELD_SELECTED,
-        COLORS.FIELD_DEFAULT,
-      ],
-      "fill-opacity": 0.6,
-    },
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["==", ["get", "type"], "field"],
-    ],
-    layout: { visibility: "visible" },
-  },
-  {
-    id: LAYER_IDS.FIELDS_OUTLINE,
-    type: "line",
-    source: "data",
-    paint: {
-      "line-color": [
-        "case",
-        ["==", ["get", "id"], selectedFieldId],
-        COLORS.FIELD_OUTLINE_SELECTED,
-        COLORS.FIELD_OUTLINE_DEFAULT,
-      ],
-      "line-width": ["case", ["==", ["get", "id"], selectedFieldId], 3, 1.5],
-    },
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["==", ["get", "type"], "field"],
-    ],
-    layout: { visibility: "visible" },
-  },
-  {
-    id: LAYER_IDS.FIELDS_LABELS,
-    type: "symbol",
-    source: "data",
-    layout: {
-      "text-field": ["get", "name"],
-      "text-size": 13,
-      "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
-      "text-offset": [0, 0],
-      "text-anchor": "center",
-      "text-allow-overlap": true,
-      visibility: "visible",
-    },
-    paint: {
-      "text-color": "#FFFFFF",
-      "text-halo-color": "#000000",
-      "text-halo-width": 1.5,
-    },
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["==", ["get", "type"], "field"],
-    ],
-  },
-];
-
-const createGeometryLayers = () => [
-  {
-    id: LAYER_IDS.ROADS,
-    type: "line",
-    source: "data",
-    paint: { "line-color": COLORS.ROAD, "line-width": 3 },
-    filter: ["==", ["geometry-type"], "LineString"],
-  },
-  {
-    id: LAYER_IDS.POINTS,
-    type: "circle",
-    source: "data",
-    paint: {
-      "circle-radius": 6,
-      "circle-color": COLORS.POINT,
-      "circle-stroke-width": 1,
-      "circle-stroke-color": "#fff",
-    },
-    filter: ["==", ["geometry-type"], "Point"],
-  },
-];
 
 // MAIN HOOK
 const useMapViewModel = ({
@@ -282,113 +21,84 @@ const useMapViewModel = ({
   onFieldSelect,
   selectedFieldId: externalSelectedFieldId,
   mode = null,
+  shouldInitialize = true,
+  onAreaUpdate
 }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const hoverPopupRef = useRef(null);
   const activeLayerRef = useRef(null);
-
+  const drawRef = useRef(null);
+  
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showFields, setShowFields] = useState(true);
   const [selectedFieldId, setSelectedFieldId] = useState(
     externalSelectedFieldId || null
   );
-  const [area, setArea] = useState(null);
   const farmsGeoJSON = buildGeoJSON(locations);
   const [drawnData, setDrawnData] = useState(null);
 
-
   // Sync external selectedFieldId from parent whenever it changes
   useEffect(() => {
-    if (
-      externalSelectedFieldId &&
-      externalSelectedFieldId !== selectedFieldId
-    ) {
+    if (externalSelectedFieldId && externalSelectedFieldId !== selectedFieldId) {
       setSelectedFieldId(externalSelectedFieldId);
     }
   }, [externalSelectedFieldId]);
 
-  // MAP INITIALIZATION
-//  Dashboard mode — show farm boundaries
-useEffect(() => {
-  if (mode !== "dashboard") return; // ✅ Only run in dashboard
-  if (!locations.length || map.current) return;
+  // MAP INITIALIZATION - SINGLE UNIFIED EFFECT
+  useEffect(() => {
+    if (!shouldInitialize || map.current || !mapContainer.current) return;
 
-  const center = calculateMapCenter(farmsGeoJSON);
-  if (!center) return;
+    let center;
+    let zoom = MAP_CONFIG.zoom;
 
-  map.current = new mapboxgl.Map({
-    container: mapContainer.current,
-    style: MAP_CONFIG.style,
-    center,
-    zoom: MAP_CONFIG.zoom,
-  });
+    if (mode === "dashboard") {
+      if (locations.length) {
+        center = calculateMapCenter(farmsGeoJSON);
+      }
+      if (!center) {
+        center = [69.3451, 30.3753];
+      }
+    } else if (mode === "wizard") {
+      const hasLocations = locations?.length > 0;
+      center = hasLocations
+        ? calculateMapCenter({
+            type: "FeatureCollection",
+            features: locations,
+          })
+        : [69.3451, 30.3753];
+    } else {
+      center = [69.3451, 30.3753];
+    }
 
-  map.current.addControl(new mapboxgl.NavigationControl());
-  map.current.on("load", () => setMapLoaded(true));
-}, [locations, mode]);
-//  Wizard mode — show default Pakistan view or polygons
-useEffect(() => {
-  if (mode !== "wizard") return; // ✅ Only run in wizard
-  if (map.current) return;
-
-  const defaultCenter = [69.3451, 30.3753];
-  const hasLocations = locations?.length > 0;
-
-  const center = hasLocations
-    ? calculateMapCenter({
-        type: "FeatureCollection",
-        features: locations,
-      })
-    : defaultCenter;
-
-  map.current = new mapboxgl.Map({
-    container: mapContainer.current,
-    style: MAP_CONFIG.style,
-    center,
-    zoom: MAP_CONFIG.zoom,
-  });
-
-  map.current.addControl(new mapboxgl.NavigationControl());
-  map.current.on("load", () => {
-    setMapLoaded(true);
-
-    // ✅ Add existing polygons if any
-    if (hasLocations) {
-      map.current.addSource("locations", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: locations,
-        },
+    if (mapContainer.current) {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: MAP_CONFIG.style,
+        center: center || [69.3451, 30.3753],
+        zoom: zoom,
       });
 
-      map.current.addLayer({
-        id: "locations-fill",
-        type: "fill",
-        source: "locations",
-        paint: {
-          "fill-color": "#00ff66",
-          "fill-opacity": 0.4,
-        },
-      });
+      map.current.addControl(new mapboxgl.NavigationControl());
 
-      map.current.addLayer({
-        id: "locations-outline",
-        type: "line",
-        source: "locations",
-        paint: {
-          "line-color": "#007a33",
-          "line-width": 2,
-        },
+      map.current.on("load", () => {
+        setMapLoaded(true);
+        console.log("Map loaded in mode:", mode);
       });
     }
-  });
-}, [locations, mode]);
 
+  }, [locations, mode, farmsGeoJSON, shouldInitialize]);
 
-
-
+  // Function to set map center (for geocoding)
+  const setMapCenter = useCallback((lng, lat, zoom = 14) => {
+    if (map.current) {
+      map.current.flyTo({
+        center: [lng, lat],
+        zoom: zoom,
+        essential: true
+      });
+    }
+  }, []);
 
   // HOVER POPUP HANDLERS
   const showHoverPopup = useCallback(
@@ -438,6 +148,15 @@ useEffect(() => {
     }
   }, []);
 
+  // EXTRACTED FUNCTION TO SHOW FIELDS AND HIDE FARMS
+  const showFieldsAndHideFarms = useCallback(() => {
+    if (!map.current) return;
+
+    map.current.setLayoutProperty(LAYER_IDS.FARMS, "visibility", "none");
+    map.current.setLayoutProperty(LAYER_IDS.FIELDS, "visibility", "visible");
+    setShowFields(true);
+  }, []);
+
   // CLICK HANDLERS
   const handleFarmClick = useCallback((e) => {
     const farmName = e.features[0].properties.name;
@@ -454,10 +173,8 @@ useEffect(() => {
       ["==", ["get", "farm"], farmName],
     ]);
 
-    map.current.setLayoutProperty(LAYER_IDS.FARMS, "visibility", "none");
-    map.current.setLayoutProperty(LAYER_IDS.FIELDS, "visibility", "visible");
-    setShowFields(true);
-  }, []);
+    showFieldsAndHideFarms();
+  }, [showFieldsAndHideFarms]);
 
   const handleFieldClick = useCallback(
     (e) => {
@@ -485,12 +202,48 @@ useEffect(() => {
 
   // LAYER SETUP & UPDATES
   useEffect(() => {
-    if (!mapLoaded || !map.current || !farmsGeoJSON) return;
+    if (!mapLoaded || !map.current) return;
 
     const mapInstance = map.current;
 
-    // Add source if doesn't exist
-    if (!mapInstance.getSource("data")) {
+    // Add source for drawn data in wizard mode
+    if (mode === "wizard" && !mapInstance.getSource("drawn-data")) {
+      mapInstance.addSource("drawn-data", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: []
+        }
+      });
+
+      // Add layer for drawn farm boundaries
+      if (!mapInstance.getLayer("drawn-farm-fill")) {
+        mapInstance.addLayer({
+          id: "drawn-farm-fill",
+          type: "fill",
+          source: "drawn-data",
+          paint: {
+            "fill-color": "#4CAF50",
+            "fill-opacity": 0.5
+          }
+        });
+      }
+
+      if (!mapInstance.getLayer("drawn-farm-outline")) {
+        mapInstance.addLayer({
+          id: "drawn-farm-outline",
+          type: "line",
+          source: "drawn-data",
+          paint: {
+            "line-color": "#2E7D32",
+            "line-width": 2
+          }
+        });
+      }
+    }
+
+    // Add source for regular data if doesn't exist
+    if (!mapInstance.getSource("data") && farmsGeoJSON) {
       mapInstance.addSource("data", { type: "geojson", data: farmsGeoJSON });
 
       // Add all layers
@@ -527,10 +280,8 @@ useEffect(() => {
     }
 
     // Update data source
-    if (mapInstance.getSource("data")) {
+    if (mapInstance.getSource("data") && farmsGeoJSON) {
       mapInstance.getSource("data").setData(farmsGeoJSON);
-          console.log(farmsGeoJSON)
-
     }
 
     // Update field colors based on selection
@@ -601,16 +352,82 @@ useEffect(() => {
     hideHoverPopup,
     mode,
   ]);
-  // --- MAPBOX DRAW & AREA MEASUREMENT ---
-useEffect(() => {
-  if (!mapLoaded || !map.current || mode !== "wizard") return; // ✅ only for wizard
 
+  // Update drawn data source when drawnData changes
+  useEffect(() => {
+    if (!mapLoaded || !map.current || mode !== "wizard") return;
+
+    const mapInstance = map.current;
+    const drawnSource = mapInstance.getSource("drawn-data");
+
+    if (drawnSource && drawnData) {
+      drawnSource.setData(drawnData);
+    } else if (drawnSource) {
+      // Clear the drawn data
+      drawnSource.setData({
+        type: "FeatureCollection",
+        features: []
+      });
+    }
+  }, [drawnData, mapLoaded, mode]);
+
+// --- MAPBOX DRAW & AREA MEASUREMENT --- (Wizard mode only)
+useEffect(() => {
+  if (!mapLoaded || !map.current || mode !== "wizard") return;
+
+  // Remove existing draw control if it exists
+  if (drawRef.current) {
+    map.current.removeControl(drawRef.current);
+  }
+
+  // Create draw control with simple_select mode for edit functionality
   const draw = new MapboxDraw({
     displayControlsDefault: false,
-    controls: { polygon: true, trash: true },
-    defaultMode: "simple_select",
+    controls: { 
+      polygon: true, 
+      trash: true 
+    },
+    defaultMode: "simple_select", // This enables edit functionality
   });
+  
   map.current.addControl(draw);
+  drawRef.current = draw;
+
+  // Add source for drawn data if it doesn't exist
+  if (!map.current.getSource('drawn-data')) {
+    map.current.addSource('drawn-data', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: []
+      }
+    });
+  }
+
+  // Add layer for drawn polygon fill if it doesn't exist - USE CORRECT LAYER IDS
+  if (!map.current.getLayer('drawn-farm-fill')) {
+    map.current.addLayer({
+      id: 'drawn-farm-fill',
+      type: 'fill',
+      source: 'drawn-data',
+      paint: {
+        'fill-color': '#4CAF50',
+        'fill-opacity': 0.3
+      }
+    });
+  }
+
+  if (!map.current.getLayer('drawn-farm-outline')) {
+    map.current.addLayer({
+      id: 'drawn-farm-outline',
+      type: 'line',
+      source: 'drawn-data',
+      paint: {
+        'line-color': '#4CAF50',
+        'line-width': 2
+      }
+    });
+  }
 
   // Prevent double-click zoom conflict
   map.current.on("dblclick", () => {
@@ -623,37 +440,75 @@ useEffect(() => {
 
   const updateArea = () => {
     const data = draw.getAll();
+    
+    // Update the drawn data source to show on map
+    if (map.current.getSource('drawn-data')) {
+      map.current.getSource('drawn-data').setData(data);
+    }
+    
     if (data.features.length > 0) {
       const feature = data.features[data.features.length - 1];
-      feature.properties = {
-        ...feature.properties,
-        id: `${mode}-${Date.now()}`,
-        type: mode,
+      
+      // Calculate center coordinates for the farm
+      const center = turf.center(feature);
+      const centerCoordinates = {
+        lat: center.geometry.coordinates[1],
+        lng: center.geometry.coordinates[0]
       };
 
       // Calculate in acres
       const areaSqMeters = turf.area(feature);
       const areaAcres = areaSqMeters / 4046.8564224;
       const rounded = Math.round(areaAcres * 100) / 100;
-      setArea(`${rounded} acres`);
+      const calculatedArea = `${rounded} acres`;
+      
+      // Call the callback with both area and center coordinates
+      if (onAreaUpdate) {
+        onAreaUpdate(calculatedArea, centerCoordinates);
+      }
+      
       setDrawnData(data);
     } else {
-      setArea(null);
+      // Call the callback with null when no area
+      if (onAreaUpdate) {
+        onAreaUpdate(null, null);
+      }
       setDrawnData(null);
     }
   };
 
+  // Add event listeners
   map.current.on("draw.create", updateArea);
   map.current.on("draw.delete", updateArea);
   map.current.on("draw.update", updateArea);
 
   return () => {
-    map.current.off("draw.create", updateArea);
-    map.current.off("draw.delete", updateArea);
-    map.current.off("draw.update", updateArea);
-    map.current.removeControl(draw);
+    if (map.current) {
+      map.current.off("draw.create", updateArea);
+      map.current.off("draw.delete", updateArea);
+      map.current.off("draw.update", updateArea);
+      map.current.off("dblclick");
+      
+      // FIXED: Use the correct layer IDs that were actually added
+      if (map.current.getLayer('drawn-farm-fill')) {
+        map.current.removeLayer('drawn-farm-fill');
+      }
+      if (map.current.getLayer('drawn-farm-outline')) {
+        map.current.removeLayer('drawn-farm-outline');
+      }
+      if (map.current.getSource('drawn-data')) {
+        map.current.removeSource('drawn-data');
+      }
+      
+      // Remove draw control
+      if (drawRef.current) {
+        map.current.removeControl(drawRef.current);
+        drawRef.current = null;
+      }
+    }
   };
-}, [mapLoaded, mode]);
+}, [mapLoaded, mode, onAreaUpdate]);
+
 
   // RECENTER FUNCTION
   const handleRecenter = useCallback(() => {
@@ -691,8 +546,38 @@ useEffect(() => {
   }, [farmsGeoJSON]);
 
 
+// Add this function to programmatically set drawn data
+const setDrawnDataProgrammatically = useCallback((feature) => {
+  if (!map.current) return;
+  
+  const featureCollection = {
+    type: "FeatureCollection",
+    features: [feature]
+  };
+  
+  setDrawnData(featureCollection);
+  
+  // Also add to Mapbox Draw if in wizard mode
+  if (mode === "wizard" && drawRef.current) {
+    drawRef.current.deleteAll();
+    drawRef.current.add(featureCollection);
+  }
+}, [mode]);
 
-  return { mapContainer, handleRecenter, area,drawnData };
+
+
+
+
+
+  return { 
+    mapContainer, 
+    handleRecenter, 
+    showFieldsAndHideFarms, 
+    drawnData, 
+    mapLoaded, 
+    setMapCenter,
+    setDrawnDataProgrammatically
+  };
 };
 
 export default useMapViewModel;

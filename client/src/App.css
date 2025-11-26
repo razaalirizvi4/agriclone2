@@ -1,3 +1,4 @@
+/* Base Styles */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
@@ -11,6 +12,8 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+/* Common Components */
 .container {
   background: #fff;
   border-radius: 12px;
@@ -21,32 +24,33 @@ code {
   box-sizing: border-box;
   text-align: left;
   display: flex;
-  flex-direction: column; /* 🟢 make map fill below the title */
+  flex-direction: column;
 }
 
 .map-container {
-  flex: 1; /* 🟢 fill remaining vertical space inside container */
+  flex: 1;
   width: 100%;
   min-height: 350px;
   border-radius: 12px;
   overflow: hidden;
-  margin-top: 10px; /* 🟢 spacing below the title */
+  margin-top: 10px;
 }
-h3 {
-    /* Component Title (e.g., "Crop Details") */
-    font-size: 1.2rem; /* Slightly smaller font */
-    font-weight: 700;
-    color: #4A5D23;
-    margin: 0 0 8px 0; /* Reduced margin */}
 
-/* Recenter Button */
+h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #4A5D23;
+  margin: 0 0 8px 0;
+}
+
+/* Button Styles */
 .recenter-button {
   position: absolute;
   top: 60%;
   right: 20px;
   transform: translateY(-50%);
   z-index: 2;
-  background-color: #007bff; /* Prominent blue like Google Maps */
+  background-color: #007bff;
   color: white;
   border: none;
   border-radius: 25px;
@@ -70,52 +74,83 @@ h3 {
   transform: translateY(-50%) scale(0.98);
 }
 
-/* Responsive Adjustments */
-@media (max-width: 1024px) {
-  .map-container {
-    min-height: 300px;
-  }
-  .recenter-button {
-    right: 15px;
-    padding: 8px 14px;
-    font-size: 13px;
-  }
+.primary-button {
+  padding: 12px;
+  background: #4A5D23;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 20px;
 }
 
-@media (max-width: 768px) {
-  .map-container {
-    min-height: 250px;
-  }
-  .recenter-button {
-    top: auto;
-    bottom: 15px;
-    right: 15px;
-    transform: none; /* Place button at bottom right instead of center */
-    border-radius: 20px;
-  }
+.primary-button:hover {
+  background: #3b4c1c;
 }
 
-@media (max-width: 480px) {
-  .map-container {
-    min-height: 220px;
-  }
-  .recenter-button {
-    bottom: 10px;
-    right: 10px;
-    padding: 6px 12px;
-    font-size: 12px;
-  }
+.secondary-button {
+  padding: 10px;
+  background: #f3f6fa;
+  color: #4A5D23;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid #4A5D23;
+  cursor: pointer;
+  margin-top: 10px;
 }
 
+.secondary-button:hover {
+  background: #e6ecd9;
+}
 
+/* Form Styles */
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 5px 0;
+}
 
+.form-title {
+  margin-bottom: 10px;
+  color: #4A5D23;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
 
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
+.form-field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
 
-/* ============================= */
-/* Dashboard Layout (Home Page) */
-/* ============================= */
+.form-field input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 0.95rem;
+  outline: none;
+  transition: 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
 
+.form-field input:focus {
+  border-color: #4A5D23;
+  box-shadow: 0 0 4px rgba(74, 93, 35, 0.2);
+}
+
+/* Dashboard Layout */
 .dashboard {
   display: flex;
   flex-direction: column;
@@ -123,11 +158,17 @@ h3 {
   padding: 20px;
 }
 
-/* Top: Map + Weather */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
+  padding: 20px;
+}
+
 .top-section {
   display: flex;
   gap: 20px;
-  flex-wrap: wrap; /* responsive */
+  flex-wrap: wrap;
 }
 
 .map-section {
@@ -167,18 +208,9 @@ h3 {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Responsive Dashboard Adjustments */
-@media (max-width: 768px) {
-  .top-section {
-    flex-direction: column;
-  }
-}
-
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 20px;
-    padding: 20px;
+/* Wizard Layout */
+.wizard-wrapper {
+  padding: 20px;
   }
 
 /* ========================================= */
@@ -572,6 +604,7 @@ textarea {
   padding: 10px 20px;
   font-weight: 600;
   border: none;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -753,7 +786,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
+  }
 
 .workflow-review-item ul {
   margin: 4px 0 0 16px;
@@ -763,7 +796,7 @@ textarea {
 
 .workflow-review-item li {
   margin-bottom: 4px;
-}
+  }
 
 .muted-text {
   color: #8a9270;
@@ -775,12 +808,12 @@ textarea {
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
-}
+  }
 
 .form-error {
   color: #b63c2c;
   font-weight: 600;
-}
+  }
 
 .form-success {
   color: #2f7a3a;
@@ -791,11 +824,11 @@ textarea {
   .wizard-layout {
     grid-template-columns: 1fr;
   }
-
+  
   .recipe-wizard-hero {
     flex-direction: column;
   }
-
+  
   .wizard-badges {
     align-items: flex-start;
   }
@@ -803,7 +836,7 @@ textarea {
   .wizard-steps {
     flex-direction: column;
   }
-
+  
   .form-navigation {
     flex-direction: column;
     gap: 12px;
