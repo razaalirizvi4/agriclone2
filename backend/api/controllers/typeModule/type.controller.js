@@ -11,8 +11,8 @@ const createTypeController = async (req, res) => {
 
 const getTypesController = async (req, res) => {
   try {
-    const query = req.query.category ? { type: req.query.category } : {};
-    const types = await typeService.getTypes(query);
+    // Pass the entire query object (including ids or type)
+    const types = await typeService.getTypes(req.query);
     res.status(200).send(types);
   } catch (error) {
     res.status(400).send({ message: error.message || 'Failed to fetch types', error });

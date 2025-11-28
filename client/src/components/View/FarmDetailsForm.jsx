@@ -1,132 +1,98 @@
 // FarmDetailsForm.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { getTypes } from "../../features/type/type.slice";
 
-const FarmDetailsForm = ({ onSubmit }) => {
-  const [formData, setFormData] = useState({
-    name: "",
-    address: "",
-    owner: "",
-    size: "", // Farm size in acres
-    numberOfFields: "" // Add number of fields field
-  });
+const FarmDetailsForm = ({ onSubmit, geoJsonData }) => {
+  const dispatch = useDispatch();
+  const {
+    types = [],
+    loading = false,
+    error = null,
+  } = useSelector((state) => state.types || {});
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const [attributes, setAttributes] = useState([]);
+  const [formData, setFormData] = useState({});
+
+  // Fetch types from Redux store
+  useEffect(() => {
+    dispatch(getTypes({ type: "farm" }));
+  }, [dispatch]);
+
+  // Initialize attributes and formData when types are loaded
+  useEffect(() => {
+    if (types.length > 0) {
+      const farmType = types.find((t) => t.type === "farm");
+      const farmAttributes = farmType?.attributes || [];
+
+      // Separate Mapbox and non-Mapbox attributes
+      const mapboxAttributes = farmAttributes.filter(
+        (attr) => attr.modules && attr.modules.includes("mapbox")
+      );
+      const nonMapboxAttributes = farmAttributes.filter(
+        (attr) => !attr.modules || !attr.modules.includes("mapbox")
+      );
+
+      setAttributes(nonMapboxAttributes);
+
+      // Initialize formData
+      const initialFormData = {};
+      nonMapboxAttributes.forEach((attr) => {
+        initialFormData[attr.key] = "";
+      });
+
+      // Add geoJsonData for Mapbox attributes
+      if (geoJsonData) {
+        mapboxAttributes.forEach((attr) => {
+          initialFormData[attr.key] = geoJsonData;
+        });
+      }
+
+      setFormData(initialFormData);
+    }
+  }, [types, geoJsonData]);
+
+  const handleChange = (key, value) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.name && formData.address && formData.size && formData.numberOfFields) {
+
+    // Check required fields
+    const requiredFields = attributes.filter((attr) => attr.required);
+    const isFormValid = requiredFields.every((field) => formData[field.key]);
+
+    if (isFormValid) {
       onSubmit(formData);
     } else {
-      alert("Please fill all required fields including farm size and number of fields");
+      alert("Please fill all required fields");
     }
   };
 
-  // Get owner name from local storage
-  const getOwnerFromLocalStorage = () => {
-    // You can modify this based on how you store user data in your app
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        return user.name || user.username || "Farm Owner";
-      } catch (error) {
-        console.error("Error parsing user data from localStorage:", error);
-      }
-    }
-    return "Farm Owner";
-  };
-
-  // Set owner name from local storage when component mounts
-  React.useEffect(() => {
-    const ownerName = getOwnerFromLocalStorage();
-    setFormData(prev => ({
-      ...prev,
-      owner: ownerName
-    }));
-  }, []);
+  if (loading) return <div>Loading farm details...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
-    <div className="wizard-form-container">
-      <h3>Farm Details</h3>
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>Farm Name *</label>
+    <form onSubmit={handleSubmit}>
+      <h2>Farm Details</h2>
+      {attributes.map((attr) => (
+        <div key={attr.key}>
+          <label htmlFor={attr.key}>{attr.label}</label>
           <input
             type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Enter farm name"
-            required
+            id={attr.key}
+            {...{
+              value: formData[attr.key],
+              onChange: (e) => handleChange(attr.key, e.target.value),
+              required: attr.required,
+              placeholder: attr.inputHint || "",
+            }}
           />
         </div>
-
-        <div className="form-group">
-          <label>Address *</label>
-          <input
-            type="text"
-            name="address"
-            value={formData.address}
-            onChange={handleChange}
-            placeholder="Enter farm address"
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Owner Name</label>
-          <input
-            type="text"
-            name="owner"
-            value={formData.owner}
-            onChange={handleChange}
-            placeholder="Owner name"
-            readOnly // Make it read-only since we're getting it from localStorage
-            className="readonly-input"
-          />
-          <small className="input-hint">Automatically filled from your profile</small>
-        </div>
-
-        <div className="form-group">
-          <label>Farm Size (acres) *</label>
-          <input
-            type="number"
-            name="size"
-            value={formData.size}
-            onChange={handleChange}
-            placeholder="Enter farm size in acres"
-            min="1"
-            max="10000"
-            step="0.1"
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Number of Fields *</label>
-          <input
-            type="number"
-            name="numberOfFields"
-            value={formData.numberOfFields}
-            onChange={handleChange}
-            placeholder="How many fields in this farm?"
-            min="1"
-            max="50"
-            required
-          />
-          <small className="input-hint">Enter the total number of fields you want to create</small>
-        </div>
-
-        <button type="submit" className="btn-primary">
-          Save Farm Details & Continue
-        </button>
-      </form>
-    </div>
+      ))}
+      <button type="submit">Submit</button>
+    </form>
   );
 };
 
