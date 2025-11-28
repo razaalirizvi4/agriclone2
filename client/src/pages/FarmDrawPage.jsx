@@ -54,8 +54,20 @@ const FarmDrawPage = () => {
 
   // Handle farm details form submission and show map
   const handleFarmDetailsSubmit = (farmDetails) => {
-    onFarmDetailsSubmit(farmDetails);
-    setFarmSize(parseFloat(farmDetails.size));
+    const normalizedSize = farmDetails.size ?? farmDetails.area ?? "";
+    const normalizedNumberOfFields =
+      farmDetails.numberOfFields ?? farmDetails.fields ?? "";
+
+    const payload = {
+      ...farmDetails,
+      ...(normalizedSize && { size: normalizedSize, area: normalizedSize }),
+      ...(normalizedNumberOfFields && {
+        numberOfFields: normalizedNumberOfFields,
+      }),
+    };
+
+    onFarmDetailsSubmit(payload);
+    setFarmSize(parseFloat(normalizedSize));
     setShowMap(true);
   };
 

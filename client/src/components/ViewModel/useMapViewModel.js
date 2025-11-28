@@ -29,6 +29,9 @@ const useMapViewModel = ({
   const hoverPopupRef = useRef(null);
   const activeLayerRef = useRef(null);
   const drawRef = useRef(null);
+  const pendingDrawFeatureRef = useRef(null);
+  const lastDrawnFeatureRef = useRef(null);
+  const onAreaUpdateRef = useRef(onAreaUpdate);
   
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showFields, setShowFields] = useState(true);
@@ -37,6 +40,19 @@ const useMapViewModel = ({
   );
   const farmsGeoJSON = buildGeoJSON(locations);
   const [drawnData, setDrawnData] = useState(null);
+
+  useEffect(() => {
+    onAreaUpdateRef.current = onAreaUpdate;
+  }, [onAreaUpdate]);
+
+  useEffect(() => {
+    if (drawnData?.features?.length) {
+      lastDrawnFeatureRef.current =
+        drawnData.features[drawnData.features.length - 1];
+    } else {
+      lastDrawnFeatureRef.current = null;
+    }
+  }, [drawnData]);
 
   // Sync external selectedFieldId from parent whenever it changes
   useEffect(() => {
@@ -371,6 +387,35 @@ const useMapViewModel = ({
     }
   }, [drawnData, mapLoaded, mode]);
 
+  const syncDrawFeature = useCallback(
+    (feature) => {
+      if (!feature || mode !== "wizard" || !drawRef.current) return;
+
+      const normalizedFeature =
+        feature.type === "Feature"
+          ? feature
+          : feature.type === "FeatureCollection"
+          ? feature.features?.[0]
+          : null;
+
+      if (!normalizedFeature) return;
+
+      drawRef.current.deleteAll();
+      drawRef.current.add(normalizedFeature);
+      const currentFeatures = drawRef.current.getAll()?.features || [];
+      const addedFeature = currentFeatures[0];
+
+      if (addedFeature?.id) {
+        drawRef.current.changeMode("direct_select", {
+          featureId: addedFeature.id,
+        });
+      } else {
+        drawRef.current.changeMode("simple_select");
+      }
+    },
+    [mode]
+  );
+
 // --- MAPBOX DRAW & AREA MEASUREMENT --- (Wizard mode only)
 useEffect(() => {
   if (!mapLoaded || !map.current || mode !== "wizard") return;
@@ -463,19 +508,22 @@ useEffect(() => {
       const calculatedArea = `${rounded} acres`;
       
       // Call the callback with both area and center coordinates
-      if (onAreaUpdate) {
-        onAreaUpdate(calculatedArea, centerCoordinates);
-      }
+      onAreaUpdateRef.current?.(calculatedArea, centerCoordinates);
       
       setDrawnData(data);
     } else {
       // Call the callback with null when no area
-      if (onAreaUpdate) {
-        onAreaUpdate(null, null);
-      }
+      onAreaUpdateRef.current?.(null, null);
       setDrawnData(null);
     }
   };
+
+  const featureToRestore =
+    pendingDrawFeatureRef.current || lastDrawnFeatureRef.current;
+  if (featureToRestore) {
+    syncDrawFeature(featureToRestore);
+    pendingDrawFeatureRef.current = null;
+  }
 
   // Add event listeners
   map.current.on("draw.create", updateArea);
@@ -507,7 +555,7 @@ useEffect(() => {
       }
     }
   };
-}, [mapLoaded, mode, onAreaUpdate]);
+}, [mapLoaded, mode, syncDrawFeature]);
 
 
   // RECENTER FUNCTION
@@ -547,22 +595,34 @@ useEffect(() => {
 
 
 // Add this function to programmatically set drawn data
-const setDrawnDataProgrammatically = useCallback((feature) => {
-  if (!map.current) return;
-  
-  const featureCollection = {
-    type: "FeatureCollection",
-    features: [feature]
-  };
-  
-  setDrawnData(featureCollection);
-  
-  // Also add to Mapbox Draw if in wizard mode
-  if (mode === "wizard" && drawRef.current) {
-    drawRef.current.deleteAll();
-    drawRef.current.add(featureCollection);
-  }
-}, [mode]);
+const setDrawnDataProgrammatically = useCallback(
+  (feature) => {
+    if (!feature) return;
+
+    const normalizedFeature =
+      feature.type === "Feature"
+        ? feature
+        : feature.type === "FeatureCollection"
+        ? feature.features?.[0]
+        : null;
+
+    if (!normalizedFeature) return;
+
+    const featureCollection = {
+      type: "FeatureCollection",
+      features: [normalizedFeature],
+    };
+
+    setDrawnData(featureCollection);
+    pendingDrawFeatureRef.current = normalizedFeature;
+
+    if (mode === "wizard" && drawRef.current) {
+      syncDrawFeature(normalizedFeature);
+      pendingDrawFeatureRef.current = null;
+    }
+  },
+  [mode, syncDrawFeature]
+);
 
 
 
