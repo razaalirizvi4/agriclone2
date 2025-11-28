@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import useMapViewModel from "../components/ViewModel/useMapViewModel";
 import FarmDetailsForm from "../components/View/FarmDetailsForm";
+import { processFarmDivision,createFieldsInfo } from "../utils/fieldDivision";
 
 const FarmDrawPage = () => {
   const { 
@@ -9,7 +10,8 @@ const FarmDrawPage = () => {
     onFarmDetailsSubmit, 
     onFarmComplete,
     updateFarmArea,
-    onCreateDefaultSquare
+    onCreateDefaultSquare,
+    onFieldDivisionComplete
   } = useOutletContext();
   
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ const FarmDrawPage = () => {
   const [showMap, setShowMap] = useState(false);
   const [farmCenter, setFarmCenter] = useState(null);
   const [farmSize, setFarmSize] = useState(null);
+  const [fieldsGenerated, setFieldsGenerated] = useState(false);
 
   const { 
     mapContainer, 
@@ -41,6 +44,13 @@ const FarmDrawPage = () => {
       geocodeAddressAndCreatePolygon(wizardData.farmDetails.address, farmSize);
     }
   }, [wizardData.farmDetails?.address, showMap, farmSize]);
+
+  // Reset fields generated status when farm boundary changes
+  useEffect(() => {
+    if (drawnData && drawnData.features.length > 0) {
+      setFieldsGenerated(false);
+    }
+  }, [drawnData]);
 
   // Handle farm details form submission and show map
   const handleFarmDetailsSubmit = (farmDetails) => {
@@ -81,15 +91,74 @@ const FarmDrawPage = () => {
     }
   };
 
+  // Handle field generation
+const handleGenerateFields = () => {
+  if (!drawnData || drawnData.features.length === 0) {
+    alert("Please wait for the farm boundary to be created first!");
+    return;
+  }
+
+  if (!wizardData.numberOfFields || wizardData.numberOfFields <= 0) {
+    alert("Please specify the number of fields in the farm details form!");
+    return;
+  }
+
+  try {
+    console.log("=== FIELD GENERATION DEBUG ===");
+    console.log("1. Drawn Data:", JSON.stringify(drawnData, null, 2));
+    console.log("2. Number of Fields:", wizardData.numberOfFields);
+    console.log("3. Farm Details:", wizardData.farmDetails);
+
+    // Use the drawnData directly
+    const fieldsData = processFarmDivision(
+      drawnData,
+      wizardData.numberOfFields,
+      wizardData.farmDetails
+    );
+
+    console.log("4. Fields Data Result:", fieldsData);
+    console.log("5. Number of features created:", fieldsData.features.length);
+
+    const fieldsInfo = createFieldsInfo(fieldsData);
+
+    // Store the generated fields in wizard state
+    if (fieldsData && fieldsData.features && fieldsData.features.length > 0) {
+      const completeData = {
+        farmBoundaries: drawnData,
+        fieldsData: fieldsData,
+        fieldsInfo: fieldsInfo,
+        numberOfFields: wizardData.numberOfFields,
+        centerCoordinates: farmCenter
+      };
+      
+      onFieldDivisionComplete(completeData);
+      setFieldsGenerated(true);
+      
+      console.log(`✅ Generated ${fieldsData.features.length} fields successfully!`);
+      alert(`Successfully generated ${fieldsData.features.length} fields! You can now proceed to the next step.`);
+    } else {
+      console.error("❌ No fields were generated - this should not happen with fallback");
+      console.log("Fields data:", fieldsData);
+      alert("Unexpected error: Could not generate fields. Please try refreshing the page.");
+    }
+
+  } catch (error) {
+    console.error("❌ Error generating fields:", error);
+    alert("Error generating fields. Please check the console for details.");
+  }
+};
+
   const handleNext = () => {
     if (!drawnData || drawnData.features.length === 0) {
       alert("Please wait for the farm boundary to be created!");
       return;
     }
 
-    // Store farm boundaries in wizardPage
-    onFarmComplete(drawnData, 0, farmCenter);
-    
+    if (!fieldsGenerated) {
+      alert("Please generate fields first using the 'Generate Fields' button!");
+      return;
+    }
+
     // Navigate to fields management page
     navigate("/wizard/fields");
   };
@@ -109,8 +178,17 @@ const FarmDrawPage = () => {
                 <div><strong>Name:</strong> {wizardData.farmDetails.name}</div>
                 <div><strong>Address:</strong> {wizardData.farmDetails.address}</div>
                 <div><strong>Size:</strong> {wizardData.farmDetails.size} acres</div>
+                <div><strong>Number of Fields:</strong> {wizardData.farmDetails.numberOfFields}</div>
                 {farmCenter && (
                   <div><strong>Location:</strong> Lat: {farmCenter.lat.toFixed(6)}, Lng: {farmCenter.lng.toFixed(6)}</div>
+                )}
+                {wizardData.farmArea && wizardData.farmArea !== "0 acres" && (
+                  <div><strong>Calculated Area:</strong> {wizardData.farmArea}</div>
+                )}
+                {fieldsGenerated && wizardData.fieldsData && (
+                  <div className="status-success">
+                    <strong>✓ Fields Generated:</strong> {wizardData.fieldsData.features?.length || 0} fields created
+                  </div>
                 )}
               </div>
             </div>
@@ -146,15 +224,42 @@ const FarmDrawPage = () => {
                   A {farmSize}-acre farm boundary has been automatically created around your location.
                   You can adjust the boundary by dragging the corners.
                 </div>
+                {wizardData.farmArea && wizardData.farmArea !== "0 acres" && (
+                  <div className="status-success" style={{marginTop: '10px'}}>
+                    ✓ Current Area: {wizardData.farmArea}
+                  </div>
+                )}
+              </div>
+
+              {/* Generate Fields Button */}
+              <div className="control-section">
+                <div className="control-label">Field Generation</div>
+                <div className="instruction">
+                  Click the button below to automatically divide your farm into {wizardData.numberOfFields} fields.
+                  This will create the field boundaries that you can then customize in the next step.
+                </div>
+                <button 
+                  onClick={handleGenerateFields}
+                  disabled={!drawnData || drawnData.features.length === 0 || !wizardData.numberOfFields || isGeocoding}
+                  className="secondary-button"
+                  style={{width: '100%', marginTop: '10px'}}
+                >
+                  {fieldsGenerated ? '✓ Fields Generated' : `Generate ${wizardData.numberOfFields} Fields`}
+                </button>
+                {fieldsGenerated && wizardData.fieldsData && (
+                  <div className="status-success" style={{marginTop: '10px'}}>
+                    ✓ Ready to proceed! {wizardData.fieldsData.features?.length || 0} fields created.
+                  </div>
+                )}
               </div>
 
               {/* Next Button */}
               <button 
                 onClick={handleNext}
-                disabled={!drawnData || drawnData.features.length === 0 || isGeocoding}
+                disabled={!drawnData || drawnData.features.length === 0 || !fieldsGenerated || isGeocoding}
                 className="primary-button"
               >
-                Next: Draw Fields
+                Next: Customize {wizardData.numberOfFields} Fields
               </button>
             </div>
           )}

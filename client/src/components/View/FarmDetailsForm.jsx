@@ -6,7 +6,8 @@ const FarmDetailsForm = ({ onSubmit }) => {
     name: "",
     address: "",
     owner: "",
-    size: "" // Add size field
+    size: "", // Farm size in acres
+    numberOfFields: "" // Add number of fields field
   });
 
   const handleChange = (e) => {
@@ -18,12 +19,36 @@ const FarmDetailsForm = ({ onSubmit }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.name && formData.address && formData.size) {
+    if (formData.name && formData.address && formData.size && formData.numberOfFields) {
       onSubmit(formData);
     } else {
-      alert("Please fill all required fields including farm size");
+      alert("Please fill all required fields including farm size and number of fields");
     }
   };
+
+  // Get owner name from local storage
+  const getOwnerFromLocalStorage = () => {
+    // You can modify this based on how you store user data in your app
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        return user.name || user.username || "Farm Owner";
+      } catch (error) {
+        console.error("Error parsing user data from localStorage:", error);
+      }
+    }
+    return "Farm Owner";
+  };
+
+  // Set owner name from local storage when component mounts
+  React.useEffect(() => {
+    const ownerName = getOwnerFromLocalStorage();
+    setFormData(prev => ({
+      ...prev,
+      owner: ownerName
+    }));
+  }, []);
 
   return (
     <div className="wizard-form-container">
@@ -54,18 +79,19 @@ const FarmDetailsForm = ({ onSubmit }) => {
         </div>
 
         <div className="form-group">
-          <label>Owner Name *</label>
+          <label>Owner Name</label>
           <input
             type="text"
             name="owner"
             value={formData.owner}
             onChange={handleChange}
-            placeholder="Enter owner name"
-            required
+            placeholder="Owner name"
+            readOnly // Make it read-only since we're getting it from localStorage
+            className="readonly-input"
           />
+          <small className="input-hint">Automatically filled from your profile</small>
         </div>
 
-        {/* Add Farm Size Input */}
         <div className="form-group">
           <label>Farm Size (acres) *</label>
           <input
@@ -79,6 +105,21 @@ const FarmDetailsForm = ({ onSubmit }) => {
             step="0.1"
             required
           />
+        </div>
+
+        <div className="form-group">
+          <label>Number of Fields *</label>
+          <input
+            type="number"
+            name="numberOfFields"
+            value={formData.numberOfFields}
+            onChange={handleChange}
+            placeholder="How many fields in this farm?"
+            min="1"
+            max="50"
+            required
+          />
+          <small className="input-hint">Enter the total number of fields you want to create</small>
         </div>
 
         <button type="submit" className="btn-primary">
