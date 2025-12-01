@@ -14,6 +14,8 @@ import { createGeometryLayers } from "../../utils/mapLayers";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
+const FARM_OVERLAY_SOURCE = "farm-boundary-overlay-source";
+
 // MAIN HOOK
 const useMapViewModel = ({
   locations = [],
@@ -168,9 +170,32 @@ const useMapViewModel = ({
   const showFieldsAndHideFarms = useCallback(() => {
     if (!map.current) return;
 
-    map.current.setLayoutProperty(LAYER_IDS.FARMS, "visibility", "none");
-    map.current.setLayoutProperty(LAYER_IDS.FIELDS, "visibility", "visible");
-    setShowFields(true);
+    const mapInstance = map.current;
+    const applyVisibility = () => {
+      if (!mapInstance.getLayer) return;
+      if (mapInstance.getLayer(LAYER_IDS.FARMS)) {
+        mapInstance.setLayoutProperty(
+          LAYER_IDS.FARMS,
+          "visibility",
+          "none"
+        );
+      }
+      if (mapInstance.getLayer(LAYER_IDS.FIELDS)) {
+        mapInstance.setLayoutProperty(
+          LAYER_IDS.FIELDS,
+          "visibility",
+          "visible"
+        );
+      }
+      setShowFields(true);
+    };
+
+    if (!mapInstance.isStyleLoaded()) {
+      mapInstance.once("render", applyVisibility);
+      return;
+    }
+
+    applyVisibility();
   }, []);
 
   // CLICK HANDLERS
@@ -221,42 +246,6 @@ const useMapViewModel = ({
     if (!mapLoaded || !map.current) return;
 
     const mapInstance = map.current;
-
-    // Add source for drawn data in wizard mode
-    if (mode === "wizard" && !mapInstance.getSource("drawn-data")) {
-      mapInstance.addSource("drawn-data", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: []
-        }
-      });
-
-      // Add layer for drawn farm boundaries
-      if (!mapInstance.getLayer("drawn-farm-fill")) {
-        mapInstance.addLayer({
-          id: "drawn-farm-fill",
-          type: "fill",
-          source: "drawn-data",
-          paint: {
-            "fill-color": "#4CAF50",
-            "fill-opacity": 0.5
-          }
-        });
-      }
-
-      if (!mapInstance.getLayer("drawn-farm-outline")) {
-        mapInstance.addLayer({
-          id: "drawn-farm-outline",
-          type: "line",
-          source: "drawn-data",
-          paint: {
-            "line-color": "#2E7D32",
-            "line-width": 2
-          }
-        });
-      }
-    }
 
     // Add source for regular data if doesn't exist
     if (!mapInstance.getSource("data") && farmsGeoJSON) {
@@ -508,12 +497,12 @@ useEffect(() => {
       const calculatedArea = `${rounded} acres`;
       
       // Call the callback with both area and center coordinates
-      onAreaUpdateRef.current?.(calculatedArea, centerCoordinates);
+      onAreaUpdateRef.current?.(calculatedArea, centerCoordinates, feature);
       
       setDrawnData(data);
     } else {
       // Call the callback with null when no area
-      onAreaUpdateRef.current?.(null, null);
+      onAreaUpdateRef.current?.(null, null, null);
       setDrawnData(null);
     }
   };
@@ -597,7 +586,14 @@ useEffect(() => {
 // Add this function to programmatically set drawn data
 const setDrawnDataProgrammatically = useCallback(
   (feature) => {
-    if (!feature) return;
+    if (!feature) {
+      setDrawnData(null);
+      pendingDrawFeatureRef.current = null;
+      if (drawRef.current) {
+        drawRef.current.deleteAll();
+      }
+      return;
+    }
 
     const normalizedFeature =
       feature.type === "Feature"
@@ -629,6 +625,98 @@ const setDrawnDataProgrammatically = useCallback(
 
 
 
+  const focusOnFeature = useCallback((feature, options = {}) => {
+    if (!map.current || !feature?.geometry) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+    const addCoords = (coords) => {
+      coords.forEach((coord) => {
+        if (Array.isArray(coord[0])) {
+          addCoords(coord);
+        } else {
+          bounds.extend(coord);
+        }
+      });
+    };
+
+    switch (feature.geometry.type) {
+      case "Polygon":
+        addCoords([feature.geometry.coordinates[0]]);
+        break;
+      case "MultiPolygon":
+        addCoords(feature.geometry.coordinates.map((poly) => poly[0]));
+        break;
+      case "LineString":
+        addCoords([feature.geometry.coordinates]);
+        break;
+      case "Point":
+        bounds.extend(feature.geometry.coordinates);
+        break;
+      default:
+        return;
+    }
+
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds, {
+        padding: 40,
+        duration: 800,
+        ...options,
+      });
+    }
+  }, []);
+
+  const setFarmBoundaryOverlay = useCallback((feature) => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    const removeOverlay = () => {
+      if (mapInstance.getLayer(LAYER_IDS.FARM_BOUNDARY_OVERLAY)) {
+        mapInstance.removeLayer(LAYER_IDS.FARM_BOUNDARY_OVERLAY);
+      }
+      if (mapInstance.getSource(FARM_OVERLAY_SOURCE)) {
+        mapInstance.removeSource(FARM_OVERLAY_SOURCE);
+      }
+    };
+
+    if (!feature?.geometry) {
+      removeOverlay();
+      return;
+    }
+
+    const overlayData = {
+      type: "FeatureCollection",
+      features: [feature],
+    };
+
+    if (!mapInstance.getSource(FARM_OVERLAY_SOURCE)) {
+      mapInstance.addSource(FARM_OVERLAY_SOURCE, {
+        type: "geojson",
+        data: overlayData,
+      });
+    } else {
+      mapInstance.getSource(FARM_OVERLAY_SOURCE).setData(overlayData);
+    }
+
+    if (!mapInstance.getLayer(LAYER_IDS.FARM_BOUNDARY_OVERLAY)) {
+      mapInstance.addLayer({
+        id: LAYER_IDS.FARM_BOUNDARY_OVERLAY,
+        type: "line",
+        source: FARM_OVERLAY_SOURCE,
+        paint: {
+          "line-color": COLORS.FARM_OUTLINE,
+          "line-width": 2,
+          "line-dasharray": [1.2, 1.2],
+          "line-opacity": 0.9,
+        },
+        layout: {
+          "line-cap": "round",
+          "line-join": "round",
+          visibility: "visible",
+        },
+      });
+    }
+  }, []);
+
   return { 
     mapContainer, 
     handleRecenter, 
@@ -636,7 +724,9 @@ const setDrawnDataProgrammatically = useCallback(
     drawnData, 
     mapLoaded, 
     setMapCenter,
-    setDrawnDataProgrammatically
+    setDrawnDataProgrammatically,
+    focusOnFeature,
+    setFarmBoundaryOverlay
   };
 };
 

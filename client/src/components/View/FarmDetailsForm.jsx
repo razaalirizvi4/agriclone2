@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { getTypes } from "../../features/type/type.slice";
 
-const FarmDetailsForm = ({ onSubmit, geoJsonData }) => {
+const FarmDetailsForm = ({ onSubmit, geoJsonData, initialValues = {} }) => {
   const dispatch = useDispatch();
   const {
     types = [],
@@ -38,7 +38,8 @@ const FarmDetailsForm = ({ onSubmit, geoJsonData }) => {
       // Initialize formData
       const initialFormData = {};
       nonMapboxAttributes.forEach((attr) => {
-        initialFormData[attr.key] = "";
+        initialFormData[attr.key] =
+          initialValues[attr.key] !== undefined ? initialValues[attr.key] : "";
       });
 
       // Add geoJsonData for Mapbox attributes
@@ -50,7 +51,7 @@ const FarmDetailsForm = ({ onSubmit, geoJsonData }) => {
 
       setFormData(initialFormData);
     }
-  }, [types, geoJsonData]);
+  }, [types, geoJsonData, initialValues]);
 
   const handleChange = (key, value) => {
     setFormData((prev) => ({ ...prev, [key]: value }));

@@ -1,119 +1,148 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { getTypes } from "../../features/type/type.slice";
 import "../../App.css";
 
-const FieldDetailsForm = ({ field, onSubmit }) => {
-  const [form, setForm] = useState({
-    soilPH: "",
-    soilType: "",
-    fieldHistory: "",
-    area: ""
-  });
+const FieldDetailsForm = ({ field = {}, onSubmit }) => {
+  const dispatch = useDispatch();
+  const {
+    types = [],
+    loading = false,
+    error = null
+  } = useSelector((state) => state.types || {});
 
-  // Update form when field changes
+  const [attributes, setAttributes] = useState([]);
+  const [formData, setFormData] = useState({});
+
+  // Fetch field type metadata once on mount
   useEffect(() => {
-    if (field) {
-      setForm({
-        soilPH: field.soilPH || "",
-        soilType: field.soilType || "",
-        fieldHistory: field.fieldHistory || "",
-        area: field.area || ""
-      });
+    dispatch(getTypes({ type: "field" }));
+  }, [dispatch]);
+
+  // Memoize the currently selected field type definition
+  const fieldTypeDefinition = useMemo(
+    () => types.find((type) => type.type === "field"),
+    [types]
+  );
+
+  // Sync attributes + form data whenever metadata or field changes
+  useEffect(() => {
+    if (!fieldTypeDefinition) {
+      setAttributes([]);
+      setFormData({});
+      return;
     }
-  }, [field]);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const nonMapboxAttributes =
+      fieldTypeDefinition.attributes?.filter(
+        (attr) => !attr.modules || !attr.modules.includes("mapbox")
+      ) || [];
+
+    setAttributes(nonMapboxAttributes);
+
+    const initialFormValues = {};
+    nonMapboxAttributes.forEach((attr) => {
+      const existingValue =
+        field?.[attr.key] ??
+        field?.attributes?.[attr.key] ??
+        "";
+      initialFormValues[attr.key] = existingValue;
+    });
+
+    setFormData(initialFormValues);
+  }, [fieldTypeDefinition, field]);
+
+  const handleChange = (key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
-  const handleSubmit = () => {
-    onSubmit(form);
-    alert("Field details updated successfully!");
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!attributes.length) {
+      alert("No field attributes available to update.");
+      return;
+    }
+
+    const missingRequired = attributes
+      .filter((attr) => attr.required)
+      .some((attr) => {
+        const value = formData[attr.key];
+        return value === undefined || value === null || value === "";
+      });
+
+    if (missingRequired) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    onSubmit(formData);
   };
 
-  const soilTypes = [
-    "Sandy", "Clay", "Silt", "Loam", "Peaty", "Chalky", "Saline"
-  ];
+  const renderInput = (attr) => {
+    const commonProps = {
+      id: attr.key,
+      name: attr.key,
+      value: formData[attr.key] ?? "",
+      onChange: (e) => handleChange(attr.key, e.target.value),
+      required: attr.required,
+      placeholder: attr.inputHint || "",
+      style: {
+        width: "100%",
+        padding: "8px",
+        border: "1px solid #ccc",
+        borderRadius: "4px"
+      }
+    };
+
+    if (attr.valueType === "number") {
+      return <input type="number" step="any" {...commonProps} />;
+    }
+
+    if (attr.valueType === "textarea") {
+      return <textarea rows={3} {...commonProps} />;
+    }
+
+    return <input type="text" {...commonProps} />;
+  };
+
+  if (loading && !attributes.length) {
+    return <div>Loading field details...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading field attributes: {error}</div>;
+  }
+
+  if (!attributes.length) {
+    return <div>No field attributes configured yet.</div>;
+  }
 
   return (
-    <div className="field-form">
+    <form className="field-form" onSubmit={handleSubmit}>
       <h4 className="field-title">Field Details</h4>
 
-      <div className="field-group">
-        <label>Field Area (acres)</label>
-        <input
-          name="area"
-          type="number"
-          value={form.area}
-          onChange={handleChange}
-          placeholder="Automatically calculated"
-          step="0.1"
-          min="0"
-        />
-        <small style={{ color: '#666', fontSize: '12px' }}>
-          This will be auto-calculated from the field boundaries
-        </small>
-      </div>
+      {attributes.map((attr) => (
+        <div className="field-group" key={attr.key}>
+          <label htmlFor={attr.key}>
+            {attr.label}
+            {attr.required ? " *" : ""}
+          </label>
+          {renderInput(attr)}
+        </div>
+      ))}
 
-      <div className="field-group">
-        <label>Soil pH</label>
-        <input
-          name="soilPH"
-          type="number"
-          value={form.soilPH}
-          onChange={handleChange}
-          placeholder="e.g., 6.5"
-          step="0.1"
-          min="0"
-          max="14"
-        />
-      </div>
-
-      <div className="field-group">
-        <label>Soil Type</label>
-        <select
-          name="soilType"
-          value={form.soilType}
-          onChange={handleChange}
-          style={{
-            width: "100%",
-            padding: "8px",
-            border: "1px solid #ccc",
-            borderRadius: "4px"
-          }}
-        >
-          <option value="">Select soil type</option>
-          {soilTypes.map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="field-group">
-        <label>Field History</label>
-        <textarea
-          name="fieldHistory"
-          value={form.fieldHistory}
-          onChange={handleChange}
-          placeholder="Previous crops, treatments, notes..."
-          rows="3"
-          style={{
-            width: "100%",
-            padding: "8px",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            resize: "vertical"
-          }}
-        />
-      </div>
-
-      <button 
-        className="field-next-btn" 
-        onClick={handleSubmit}
+      <button
+        className="field-next-btn"
+        type="submit"
         style={{ marginTop: "15px" }}
       >
         Update Field Details
       </button>
-    </div>
+    </form>
   );
 };
 

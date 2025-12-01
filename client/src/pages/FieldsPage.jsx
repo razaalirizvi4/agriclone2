@@ -1,9 +1,8 @@
 // src/pages/FieldsPage.js
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import useMapViewModel from "../components/ViewModel/useMapViewModel";
 import FieldDetailsForm from "../components/View/FieldDetailsForm";
-import mapboxgl from "mapbox-gl";
+import MapWizard from "../components/View/MapWizard";
 
 const FieldsPage = () => {
   const { 
@@ -11,13 +10,90 @@ const FieldsPage = () => {
     onFieldSelect, 
     onFieldInfoUpdate, 
     onAddField,
-    onWizardComplete
+    onWizardComplete,
+    onFieldGeometryUpdate
   } = useOutletContext();
   
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("fields");
-  const [selectedField, setSelectedField] = useState(null);
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [selectedField, setSelectedField] = useState(
+    wizardData.selectedFieldId ||
+    wizardData.fieldsInfo?.[0]?.id ||
+    wizardData.fieldsData?.features?.[0]?.properties?.id ||
+    null
+  );
+  const [mapReady, setMapReady] = useState(false);
+  const mapApiRef = useRef(null);
+
+  const farmFeature = useMemo(() => {
+    const farmBoundaries = wizardData.farmBoundaries;
+    if (!farmBoundaries) return null;
+
+    const geoJson =
+      farmBoundaries?.attributes?.geoJsonCords ||
+      (farmBoundaries.type === "FeatureCollection" ? farmBoundaries : null);
+
+    const feature =
+      geoJson?.features?.[0] ||
+      farmBoundaries?.features?.[0];
+
+    if (!feature?.geometry) return null;
+
+    return {
+      ...feature,
+      properties: {
+        ...(feature.properties || {}),
+        id:
+          feature.properties?.id ||
+          farmBoundaries?._id ||
+          "farm-boundary",
+        type: "farm",
+        name:
+          wizardData.farmDetails?.name ||
+          farmBoundaries?.name ||
+          feature.properties?.name ||
+          "Farm",
+        area:
+          farmBoundaries?.attributes?.area ||
+          wizardData.farmArea ||
+          feature.properties?.area ||
+          "",
+      },
+    };
+  }, [wizardData.farmBoundaries, wizardData.farmDetails, wizardData.farmArea]);
+
+  const fieldFeatures = useMemo(() => {
+    return (wizardData.fieldsData?.features || []).map((feature) => ({
+      ...feature,
+      properties: {
+        ...(feature.properties || {}),
+        id: feature.properties?.id || feature.id,
+        type: "field",
+        farm:
+          wizardData.farmDetails?.name ||
+          feature.properties?.farm ||
+          wizardData.farmBoundaries?.name ||
+          "Farm",
+      },
+    }));
+  }, [wizardData.fieldsData, wizardData.farmDetails, wizardData.farmBoundaries]);
+
+  const mapGeoJSON = useMemo(() => {
+    const features = [];
+    if (farmFeature) features.push(farmFeature);
+    if (fieldFeatures.length) features.push(...fieldFeatures);
+    return features.length ? { type: "FeatureCollection", features } : null;
+  }, [farmFeature, fieldFeatures]);
+
+  const selectedFieldFeature = useMemo(() => {
+    if (!selectedField) return null;
+    return fieldFeatures.find(
+      (feature) => feature.properties?.id === selectedField
+    );
+  }, [fieldFeatures, selectedField]);
+
+  const selectedFieldArea =
+    selectedFieldFeature?.properties?.area || null;
 
   // Define handleFieldSelect BEFORE using it in useMapViewModel
   const handleFieldSelect = (fieldInfo) => {
@@ -26,26 +102,51 @@ const FieldsPage = () => {
     onFieldSelect(fieldId);
   };
 
-  // Use map view model for field drawing
-  const { 
-    mapContainer, 
-    drawnData,
-    setMapCenter
-  } = useMapViewModel({
-    locations: wizardData.fieldsData,
-    mode: "wizard",
-    shouldInitialize: true,
-    onAreaUpdate: (area) => {
-      // This will be used when creating new fields
-      if (drawnData && drawnData.features.length > 0 && isDrawingMode) {
-        const latestFeature = drawnData.features[drawnData.features.length - 1];
-        const fieldId = onAddField(latestFeature.geometry, area.replace(' acres', ''));
-        setSelectedField(fieldId);
-        setIsDrawingMode(false);
-      }
+  const handleMapAreaUpdate = useCallback(
+    (areaLabel, _center, feature) => {
+      if (!feature?.geometry) return;
+
+      const cleanedArea =
+        typeof areaLabel === "string"
+          ? areaLabel.replace(/ acres/i, "").trim()
+          : areaLabel?.toString() || "";
+
+      if (!selectedField) return;
+
+      const featureId = feature.properties?.id || selectedField;
+      if (featureId !== selectedField) return;
+
+      const updatedArea =
+        typeof areaLabel === "string" && areaLabel.length
+          ? areaLabel
+          : selectedFieldArea || "0 acres";
+
+      onFieldGeometryUpdate(
+        selectedField,
+        feature.geometry,
+        updatedArea
+      );
     },
-    onFieldSelect: handleFieldSelect // Use the function defined above
-  });
+    [
+      onAddField,
+      onFieldGeometryUpdate,
+      selectedField,
+      selectedFieldArea
+    ]
+  );
+
+  useEffect(() => {
+    if (!selectedField || !wizardData.selectedFieldId) return;
+    if (wizardData.selectedFieldId !== selectedField) {
+      setSelectedField(wizardData.selectedFieldId);
+    }
+  }, [wizardData.selectedFieldId, selectedField]);
+
+  useEffect(() => {
+    if (!mapReady || !selectedField || !selectedFieldFeature || !mapApiRef.current) return;
+    mapApiRef.current.showFieldsAndHideFarms();
+    mapApiRef.current.focusOnFeature(selectedFieldFeature);
+  }, [mapReady, selectedField, selectedFieldFeature]);
 
   const handleFieldInfoSubmit = (fieldData) => {
     if (selectedField) {
@@ -72,32 +173,23 @@ const FieldsPage = () => {
     navigate("/wizard");
   };
 
-  const handleStartDrawing = () => {
-    setIsDrawingMode(true);
-    // The drawing will be handled by the useMapViewModel hook
-  };
+  useEffect(() => {
+    if (!selectedFieldFeature || !mapApiRef.current) return;
+    mapApiRef.current.setDrawnDataProgrammatically(selectedFieldFeature);
+  }, [selectedFieldFeature]);
+
+  useEffect(() => {
+    if (!mapReady || !mapApiRef.current?.setFarmBoundaryOverlay) return;
+    mapApiRef.current.setFarmBoundaryOverlay(farmFeature);
+  }, [farmFeature, mapReady]);
 
   const centerMapOnField = (fieldId) => {
-    const fieldFeature = wizardData.fieldsData?.features.find(
-      feature => feature.properties.id === fieldId
+    const fieldFeature = fieldFeatures.find(
+      (feature) => feature.properties?.id === fieldId
     );
-    
-    if (fieldFeature && fieldFeature.geometry) {
-      const coordinates = fieldFeature.geometry.coordinates[0];
-      const bounds = new mapboxgl.LngLatBounds();
-      
-      coordinates.forEach(coord => {
-        bounds.extend([coord[0], coord[1]]);
-      });
-      
-      // We'll need to access the map instance - you might need to modify useMapViewModel to expose it
-      // For now, we'll use a simple approach
-      if (window.mapInstance) {
-        window.mapInstance.fitBounds(bounds, {
-          padding: 50,
-          duration: 1000
-        });
-      }
+
+    if (fieldFeature && mapApiRef.current) {
+      mapApiRef.current.focusOnFeature(fieldFeature);
     }
   };
 
@@ -131,39 +223,6 @@ const FieldsPage = () => {
           <p style={{ margin: "5px 0 0 0", color: "#666", fontSize: "12px" }}>
             Total Fields: {wizardData.fieldsInfo?.length || 0}
           </p>
-        </div>
-
-        {/* Drawing Controls */}
-        <div style={{ 
-          padding: "15px", 
-          borderBottom: "1px solid #e0e0e0",
-          background: "#e8f5e8"
-        }}>
-          <h4 style={{ margin: "0 0 10px 0" }}>Draw Fields</h4>
-          <div style={{ fontSize: "14px", color: "#666", marginBottom: "10px" }}>
-            Click the button below to start drawing fields on the map
-          </div>
-          <button 
-            onClick={handleStartDrawing}
-            disabled={isDrawingMode}
-            style={{
-              width: "100%",
-              padding: "10px",
-              background: isDrawingMode ? "#6c757d" : "#28a745",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: isDrawingMode ? "not-allowed" : "pointer",
-              fontSize: "14px"
-            }}
-          >
-            {isDrawingMode ? "Drawing Mode Active - Draw on Map" : "Start Drawing Fields"}
-          </button>
-          {isDrawingMode && (
-            <div style={{ fontSize: "12px", color: "#dc3545", marginTop: "8px" }}>
-              💡 Click the polygon tool on the map to draw fields
-            </div>
-          )}
         </div>
 
         {/* Tabs */}
@@ -465,11 +524,19 @@ const FieldsPage = () => {
 
       {/* Right Side - Map */}
       <div style={{ flex: 1, position: "relative" }}>
-        <div 
-          ref={mapContainer}
-          style={{ width: "100%", height: "100%" }}
+        <MapWizard
+          locations={mapGeoJSON}
+          mode="wizard"
+          shouldInitialize={true}
+          onAreaUpdate={handleMapAreaUpdate}
+          onFieldSelect={handleFieldSelect}
+          selectedFieldId={selectedField}
+          onMapReady={(api) => {
+            mapApiRef.current = api;
+            setMapReady(true);
+          }}
         />
-        
+
         {/* Map overlay */}
         <div style={{
           position: "absolute",
@@ -486,29 +553,6 @@ const FieldsPage = () => {
           Field Management
         </div>
 
-        {/* Drawing Instructions */}
-        {isDrawingMode && (
-          <div style={{
-            position: "absolute",
-            top: "50px",
-            left: "10px",
-            background: "#fff3cd",
-            padding: "10px",
-            borderRadius: "4px",
-            fontSize: "12px",
-            border: "1px solid #ffeaa7",
-            zIndex: 1000,
-            maxWidth: "300px"
-          }}>
-            <strong>Drawing Mode Active</strong>
-            <div style={{ marginTop: "5px" }}>
-              • Click the polygon tool on the map<br/>
-              • Draw your field boundary<br/>
-              • Double-click to complete<br/>
-              • Field will be automatically added
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ export const LAYER_IDS = {
   FARMS: "farms-layer",
   FARMS_OUTLINE: "farms-outline",
   FARMS_LABELS: "farms-labels",
+  FARM_BOUNDARY_OVERLAY: "farm-boundary-overlay",
   FIELDS: "fields-layer",
   FIELDS_OUTLINE: "fields-outline",
   FIELDS_LABELS: "fields-labels",

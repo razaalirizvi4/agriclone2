@@ -1,7 +1,6 @@
 // src/pages/WizardPage.js
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
-import { processFarmDivision } from "../utils/fieldDivision";
 
 const WizardPage = () => {
   const [wizardData, setWizardData] = useState({
@@ -21,11 +20,6 @@ const WizardPage = () => {
       { id: "crop5", name: "Sugarcane" }
     ]
   });
-
-  // Log wizard data whenever it changes
-  useEffect(() => {
-    console.log("🔄 Wizard Data Updated:", wizardData);
-  }, [wizardData]);
 
   // Handle farm details form submission
   const handleFarmDetailsSubmit = (farmDetails) => {
@@ -53,11 +47,6 @@ const WizardPage = () => {
       }
     };
 
-    console.log("✅ Farm Data Stored in Wizard (Form Submitted):");
-    console.log("Farm Details:", farmDetails);
-    console.log("Number of Fields:", farmDetails.numberOfFields);
-    console.log("Initial Farm Data:", JSON.stringify(initialFarmData, null, 2));
-
     setWizardData(prev => ({ 
       ...prev, 
       farmDetails,
@@ -72,40 +61,6 @@ const WizardPage = () => {
       ...prev,
       farmLocation: location
     }));
-    console.log("Location updated:", location);
-  };
-
-  // Handle farm boundaries drawing completion - UPDATED FORMAT
-  const handleFarmComplete = (farmBoundaries, centerCoordinates) => {
-    const farmData = {
-      type: "Farm",
-      name: wizardData.farmDetails?.name || "Unnamed Farm",
-      owner: {
-        id: {
-          $oid: "68d533bffb95086e8849fe0f"
-        },
-        email: "rabeetakbar0@gmail.com",
-        name: wizardData.farmDetails?.owner || "Rabeet"
-      },
-      attributes: {
-        area: wizardData.farmArea,
-        lat: centerCoordinates?.lat || 0,
-        lon: centerCoordinates?.lng || 0,
-        geoJsonCords: farmBoundaries,
-        crop_id: null,
-        lifecycle: "Active"
-      }
-    };
-
-    console.log("✅ Final Farm Data Stored in Wizard:");
-    console.log("Number of Fields:", wizardData.numberOfFields);
-    console.log("Farm Boundaries:", JSON.stringify(farmData, null, 2));
-
-    setWizardData(prev => ({
-      ...prev,
-      farmBoundaries: farmData
-      // numberOfFields is already stored from form submission
-    }));
   };
 
   // Function to update area
@@ -114,7 +69,6 @@ const WizardPage = () => {
       ...prev,
       farmArea: area
     }));
-    console.log("Farm area updated:", area, "Center:", centerCoordinates);
   };
 
   // Handle field selection
@@ -151,6 +105,42 @@ const WizardPage = () => {
       
       return {
         ...prev,
+        fieldsInfo: updatedFieldsInfo
+      };
+    });
+  };
+
+  const handleFieldGeometryUpdate = (fieldId, geometry, area) => {
+    setWizardData(prev => {
+      if (!prev.fieldsData?.features?.length) {
+        return prev;
+      }
+
+      const updatedFieldsData = {
+        ...prev.fieldsData,
+        features: prev.fieldsData.features.map(feature =>
+          feature.properties?.id === fieldId
+            ? {
+                ...feature,
+                geometry,
+                properties: {
+                  ...feature.properties,
+                  area: area || feature.properties?.area
+                }
+              }
+            : feature
+        )
+      };
+
+      const updatedFieldsInfo = prev.fieldsInfo.map(info =>
+        info.id === fieldId
+          ? { ...info, area: area || info.area }
+          : info
+      );
+
+      return {
+        ...prev,
+        fieldsData: updatedFieldsData,
         fieldsInfo: updatedFieldsInfo
       };
     });
@@ -193,11 +183,8 @@ const WizardPage = () => {
 
   // Handle wizard completion
   const handleWizardComplete = () => {
-    console.log("🎯 Wizard completed - Final data:", wizardData);
-    console.log("Total Fields Created:", wizardData.fieldsData.features.length);
-    console.log("Expected Fields:", wizardData.numberOfFields);
-    
     // Here you would send wizardData.farmBoundaries to your API
+    console.log("wizardData", wizardData);
     alert("Farm registration completed successfully!");
   };
 
@@ -257,7 +244,6 @@ const WizardPage = () => {
       farmBoundaries: featureCollection
     }));
     
-    console.log("✅ Default square created in WizardPage:", defaultSquare);
     return featureCollection;
   };
 
@@ -287,11 +273,6 @@ const handleFieldDivisionComplete = (completeData) => {
     }
   };
 
-  console.log("✅ Field Division Completed:");
-  console.log("- Farm Data:", farmData);
-  console.log("- Fields Data:", fieldsData);
-  console.log("- Fields Info:", fieldsInfo);
-
   setWizardData(prev => ({
     ...prev,
     farmBoundaries: farmData,
@@ -310,15 +291,15 @@ const handleFieldDivisionComplete = (completeData) => {
       wizardData,
       onFarmDetailsSubmit: handleFarmDetailsSubmit,
       onLocationUpdate: handleLocationUpdate,
-    onFarmComplete: handleFieldDivisionComplete, // Update this
+      onFarmComplete: handleFieldDivisionComplete,
       updateFarmArea: updateFarmArea,
       onFieldSelect: handleFieldSelect,
       onFieldInfoUpdate: handleFieldInfoUpdate,
       onAddField: handleAddField,
       onWizardComplete: handleWizardComplete,
       onCreateDefaultSquare: handleCreateDefaultSquare,
-          onFieldDivisionComplete: handleFieldDivisionComplete // Add this
-
+      onFieldDivisionComplete: handleFieldDivisionComplete,
+      onFieldGeometryUpdate: handleFieldGeometryUpdate
     }} />
   );
 };

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import useMapViewModel from "../components/ViewModel/useMapViewModel";
 import FarmDetailsForm from "../components/View/FarmDetailsForm";
-import { processFarmDivision,createFieldsInfo } from "../utils/fieldDivision";
+import MapWizard from "../components/View/MapWizard";
+import { processFarmDivision, createFieldsInfo } from "../utils/fieldDivision";
 
 const FarmDrawPage = () => {
   const { 
@@ -20,30 +20,100 @@ const FarmDrawPage = () => {
   const [farmCenter, setFarmCenter] = useState(null);
   const [farmSize, setFarmSize] = useState(null);
   const [fieldsGenerated, setFieldsGenerated] = useState(false);
+  const polygonInitializedRef = useRef(false);
+  const mapApiRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [drawnData, setDrawnData] = useState(null);
 
-  const { 
-    mapContainer, 
-    drawnData,
-    setMapCenter,
-    setDrawnDataProgrammatically
-  } = useMapViewModel({
-    locations: null,
-    mode: "wizard",
-    shouldInitialize: showMap,
-    onAreaUpdate: (area, centerCoordinates) => {
-      updateFarmArea(area);
-      if (centerCoordinates) {
-        setFarmCenter(centerCoordinates);
-      }
-    }
-  });
+  const savedBoundaryFeature =
+    wizardData.farmBoundaries?.type === "FeatureCollection"
+      ? wizardData.farmBoundaries.features?.[0]
+      : wizardData.farmBoundaries?.attributes?.geoJsonCords?.features?.[0];
+  const hasSavedBoundary = !!savedBoundaryFeature;
 
   // Geocode address and create polygon when farm details are submitted
   useEffect(() => {
-    if (wizardData.farmDetails?.address && showMap && farmSize) {
+    if (
+      wizardData.farmDetails?.address &&
+      showMap &&
+      farmSize &&
+      !hasSavedBoundary &&
+      !polygonInitializedRef.current &&
+      mapReady &&
+      mapApiRef.current
+    ) {
       geocodeAddressAndCreatePolygon(wizardData.farmDetails.address, farmSize);
+      polygonInitializedRef.current = true;
     }
-  }, [wizardData.farmDetails?.address, showMap, farmSize]);
+  }, [
+    wizardData.farmDetails?.address,
+    showMap,
+    farmSize,
+    hasSavedBoundary,
+    mapReady,
+  ]);
+
+  useEffect(() => {
+    if (wizardData.farmDetails) {
+      setShowMap(true);
+      if (!farmSize) {
+        const size = parseFloat(
+          wizardData.farmDetails.size ?? wizardData.farmDetails.area ?? ""
+        );
+        if (!Number.isNaN(size)) {
+          setFarmSize(size);
+        }
+      }
+    }
+  }, [wizardData.farmDetails, farmSize]);
+
+  useEffect(() => {
+    if (
+      !showMap ||
+      !hasSavedBoundary ||
+      polygonInitializedRef.current ||
+      !mapReady ||
+      !mapApiRef.current
+    )
+      return;
+
+    mapApiRef.current.setDrawnDataProgrammatically(savedBoundaryFeature);
+    polygonInitializedRef.current = true;
+
+    if (wizardData.fieldsData?.features?.length) {
+      setFieldsGenerated(true);
+    }
+
+    const savedLat =
+      wizardData.farmBoundaries?.attributes?.lat ??
+      wizardData.farmBoundaries?.centerCoordinates?.lat;
+    const savedLng =
+      wizardData.farmBoundaries?.attributes?.lon ??
+      wizardData.farmBoundaries?.centerCoordinates?.lng;
+
+    if (
+      typeof savedLat === "number" &&
+      typeof savedLng === "number" &&
+      !farmCenter
+    ) {
+      const center = { lat: savedLat, lng: savedLng };
+      setFarmCenter(center);
+      mapApiRef.current.setMapCenter(savedLng, savedLat);
+    }
+  }, [
+    showMap,
+    hasSavedBoundary,
+    savedBoundaryFeature,
+    wizardData.fieldsData,
+    farmCenter,
+    mapReady,
+  ]);
+
+  useEffect(() => {
+    if (wizardData.fieldsData?.features?.length && !fieldsGenerated) {
+      setFieldsGenerated(true);
+    }
+  }, [wizardData.fieldsData, fieldsGenerated]);
 
   // Reset fields generated status when farm boundary changes
   useEffect(() => {
@@ -69,6 +139,7 @@ const FarmDrawPage = () => {
     onFarmDetailsSubmit(payload);
     setFarmSize(parseFloat(normalizedSize));
     setShowMap(true);
+    polygonInitializedRef.current = false;
   };
 
   const geocodeAddressAndCreatePolygon = async (address, size) => {
@@ -83,14 +154,20 @@ const FarmDrawPage = () => {
       
       if (data.features && data.features.length > 0) {
         const [lng, lat] = data.features[0].center;
-        setMapCenter(lng, lat);
+        if (mapApiRef.current) {
+          mapApiRef.current.setMapCenter(lng, lat);
+        }
         setFarmCenter({ lat, lng });
         
         // Create default square polygon based on farm size
         const squareData = onCreateDefaultSquare([lng, lat], size);
         
         // Update the map with the created polygon
-        setDrawnDataProgrammatically(squareData.features[0]);
+        if (mapApiRef.current) {
+          mapApiRef.current.setDrawnDataProgrammatically(
+            squareData.features[0]
+          );
+        }
         
       } else {
         alert("Address not found. Please try a different address.");
@@ -103,84 +180,58 @@ const FarmDrawPage = () => {
     }
   };
 
-  // Handle field generation
-const handleGenerateFields = () => {
-  if (!drawnData || drawnData.features.length === 0) {
-    alert("Please wait for the farm boundary to be created first!");
-    return;
-  }
-
-  if (!wizardData.numberOfFields || wizardData.numberOfFields <= 0) {
-    alert("Please specify the number of fields in the farm details form!");
-    return;
-  }
-
-  try {
-    console.log("=== FIELD GENERATION DEBUG ===");
-    console.log("1. Drawn Data:", JSON.stringify(drawnData, null, 2));
-    console.log("2. Number of Fields:", wizardData.numberOfFields);
-    console.log("3. Farm Details:", wizardData.farmDetails);
-
-    // Use the drawnData directly
-    const fieldsData = processFarmDivision(
-      drawnData,
-      wizardData.numberOfFields,
-      wizardData.farmDetails
-    );
-
-    console.log("4. Fields Data Result:", fieldsData);
-    console.log("5. Number of features created:", fieldsData.features.length);
-
-    const fieldsInfo = createFieldsInfo(fieldsData);
-
-    // Store the generated fields in wizard state
-    if (fieldsData && fieldsData.features && fieldsData.features.length > 0) {
-      const completeData = {
-        farmBoundaries: drawnData,
-        fieldsData: fieldsData,
-        fieldsInfo: fieldsInfo,
-        numberOfFields: wizardData.numberOfFields,
-        centerCoordinates: farmCenter
-      };
-      
-      onFieldDivisionComplete(completeData);
-      setFieldsGenerated(true);
-      
-      console.log(`✅ Generated ${fieldsData.features.length} fields successfully!`);
-      alert(`Successfully generated ${fieldsData.features.length} fields! You can now proceed to the next step.`);
-    } else {
-      console.error("❌ No fields were generated - this should not happen with fallback");
-      console.log("Fields data:", fieldsData);
-      alert("Unexpected error: Could not generate fields. Please try refreshing the page.");
-    }
-
-  } catch (error) {
-    console.error("❌ Error generating fields:", error);
-    alert("Error generating fields. Please check the console for details.");
-  }
-};
-
-  const handleNext = () => {
+  // Handle field generation (uses drawnData captured from MapWizard)
+  const handleGenerateFields = () => {
     if (!drawnData || drawnData.features.length === 0) {
-      alert("Please wait for the farm boundary to be created!");
+      alert("Please wait for the farm boundary to be created first!");
       return;
     }
 
-    if (!fieldsGenerated) {
-      alert("Please generate fields first using the 'Generate Fields' button!");
+    if (!wizardData.numberOfFields || wizardData.numberOfFields <= 0) {
+      alert("Please specify the number of fields in the farm details form!");
       return;
     }
 
-    // Navigate to fields management page
-    navigate("/wizard/fields");
+    try {
+      const fieldsData = processFarmDivision(
+        drawnData,
+        wizardData.numberOfFields,
+        wizardData.farmDetails
+      );
+
+      const fieldsInfo = createFieldsInfo(fieldsData);
+
+      if (fieldsData && fieldsData.features && fieldsData.features.length > 0) {
+        const completeData = {
+          farmBoundaries: drawnData,
+          fieldsData,
+          fieldsInfo,
+          numberOfFields: wizardData.numberOfFields,
+          centerCoordinates: farmCenter
+        };
+        
+        onFieldDivisionComplete(completeData);
+        setFieldsGenerated(true);
+        navigate("/wizard/fields");
+      } else {
+        alert("Unexpected error: Could not generate fields. Please try refreshing the page.");
+      }
+    } catch (error) {
+      console.error("❌ Error generating fields:", error);
+      alert("Error generating fields. Please check the console for details.");
+    }
   };
+
 
   return (
     <div className="recipe-wizard-page">
       <div className="wizard-layout">
         {/* Left Side - Farm Details Form & Controls */}
         <div className="crop-card">
-          <FarmDetailsForm onSubmit={handleFarmDetailsSubmit} />
+          <FarmDetailsForm
+            onSubmit={handleFarmDetailsSubmit}
+            initialValues={wizardData.farmDetails || {}}
+          />
           
           {/* Farm Summary */}
           {wizardData.farmDetails && (
@@ -243,36 +294,21 @@ const handleGenerateFields = () => {
                 )}
               </div>
 
-              {/* Generate Fields Button */}
+              {/* Generate Fields and Navigate Button */}
               <div className="control-section">
                 <div className="control-label">Field Generation</div>
                 <div className="instruction">
-                  Click the button below to automatically divide your farm into {wizardData.numberOfFields} fields.
-                  This will create the field boundaries that you can then customize in the next step.
+                  Click the button below to automatically divide your farm into {wizardData.numberOfFields} fields and proceed to customization.
                 </div>
                 <button 
                   onClick={handleGenerateFields}
                   disabled={!drawnData || drawnData.features.length === 0 || !wizardData.numberOfFields || isGeocoding}
-                  className="secondary-button"
+                  className="primary-button"
                   style={{width: '100%', marginTop: '10px'}}
                 >
-                  {fieldsGenerated ? '✓ Fields Generated' : `Generate ${wizardData.numberOfFields} Fields`}
+                  Generate {wizardData.numberOfFields} Fields & Next
                 </button>
-                {fieldsGenerated && wizardData.fieldsData && (
-                  <div className="status-success" style={{marginTop: '10px'}}>
-                    ✓ Ready to proceed! {wizardData.fieldsData.features?.length || 0} fields created.
-                  </div>
-                )}
               </div>
-
-              {/* Next Button */}
-              <button 
-                onClick={handleNext}
-                disabled={!drawnData || drawnData.features.length === 0 || !fieldsGenerated || isGeocoding}
-                className="primary-button"
-              >
-                Next: Customize {wizardData.numberOfFields} Fields
-              </button>
             </div>
           )}
         </div>
@@ -280,11 +316,22 @@ const handleGenerateFields = () => {
         {/* Right Side - Map */}
         <div className="recipe-card">
           {showMap ? (
-            <div 
-              className="map-container" 
-              ref={mapContainer}
-              style={{ height: "400px", width: "100%" }}
-            ></div>
+            <MapWizard
+              locations={null}
+              mode="wizard"
+              shouldInitialize={showMap}
+              onAreaUpdate={(area, centerCoordinates) => {
+                updateFarmArea(area, centerCoordinates);
+                if (centerCoordinates) {
+                  setFarmCenter(centerCoordinates);
+                }
+              }}
+              onMapReady={(api) => {
+                mapApiRef.current = api;
+                setMapReady(true);
+              }}
+              onDrawnDataChange={setDrawnData}
+            />
           ) : (
             <div className="recipe-placeholder">
               <div className="wizard-placeholder-content">

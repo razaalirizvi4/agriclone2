@@ -1,6 +1,29 @@
 // UTILITY FUNCTIONS
 export const buildGeoJSON = (locations) => {
-  if (!locations?.length) return null;
+  if (!locations) return null;
+
+  if (locations.type === "FeatureCollection" && locations.features?.length) {
+    return {
+      type: "FeatureCollection",
+      features: locations.features.map((feature, index) => ({
+        type: "Feature",
+        properties: {
+          ...feature.properties,
+          id:
+            feature.properties?.id ||
+            feature.id ||
+            `feature-${index}`,
+          type:
+            feature.properties?.type ||
+            feature.geometry?.type?.toLowerCase() ||
+            "unknown",
+        },
+        geometry: feature.geometry,
+      })),
+    };
+  }
+
+  if (!locations.length) return null;
 
   const features = locations.map((elem) => ({
     type: "Feature",
