@@ -39,7 +39,7 @@ code {
 h3 {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #4A5D23;
+  color: #4a5d23;
   margin: 0 0 8px 0;
 }
 
@@ -76,7 +76,7 @@ h3 {
 
 .primary-button {
   padding: 12px;
-  background: #4A5D23;
+  background: #4a5d23;
   color: white;
   font-size: 16px;
   font-weight: 600;
@@ -94,11 +94,11 @@ h3 {
 .secondary-button {
   padding: 10px;
   background: #f3f6fa;
-  color: #4A5D23;
+  color: #4a5d23;
   font-size: 14px;
   font-weight: 600;
   border-radius: 8px;
-  border: 1px solid #4A5D23;
+  border: 1px solid #4a5d23;
   cursor: pointer;
   margin-top: 10px;
 }
@@ -117,7 +117,7 @@ h3 {
 
 .form-title {
   margin-bottom: 10px;
-  color: #4A5D23;
+  color: #4a5d23;
   font-size: 1.3rem;
   font-weight: 700;
 }
@@ -146,7 +146,7 @@ h3 {
 }
 
 .form-field input:focus {
-  border-color: #4A5D23;
+  border-color: #4a5d23;
   box-shadow: 0 0 4px rgba(74, 93, 35, 0.2);
 }
 
@@ -211,7 +211,7 @@ h3 {
 /* Wizard Layout */
 .wizard-wrapper {
   padding: 20px;
-  }
+}
 
 /* ========================================= */
 /* Recipe Wizard                             */
@@ -229,6 +229,249 @@ h3 {
   grid-template-columns: minmax(320px, 360px) 1fr;
   gap: 24px;
   align-items: flex-start;
+}
+
+.fields-panel {
+  padding: 0;
+}
+
+.fields-panel__header {
+  padding: 15px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.fields-panel__title {
+  margin: 0 0 6px 0;
+  font-size: 1.1rem;
+  color: #374223;
+}
+
+.fields-panel__subtitle {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.fields-panel__meta {
+  margin: 4px 0 0 0;
+  color: #777;
+  font-size: 0.8rem;
+}
+
+.fields-panel__tabs {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.fields-tab {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 500;
+  color: #4b5737;
+  transition: background 0.2s ease, border-bottom 0.2s ease;
+}
+
+.fields-tab--active {
+  background: #fff;
+  border-bottom: 2px solid #007bff;
+  font-weight: 700;
+  color: #2f3825;
+}
+
+.fields-panel__content {
+  flex: 1;
+  padding: 15px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fields-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fields-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fields-section__title {
+  margin: 0;
+  font-size: 1rem;
+  color: #374223;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fields-section__hint {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.fields-table {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.fields-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  gap: 12px;
+  transition: background 0.2s ease;
+}
+
+.fields-row:last-child {
+  border-bottom: none;
+}
+
+.fields-row:hover {
+  background: #f8f9fa;
+}
+
+.fields-row--selected {
+  background: #e3f2fd;
+}
+
+.fields-row__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fields-row__name {
+  font-weight: 600;
+  color: #2f3825;
+  font-size: 0.95rem;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.fields-row__pill {
+  color: #007bff;
+  font-size: 0.8rem;
+}
+
+.fields-row__meta {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.fields-row__indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+
+.fields-row__indicator--active {
+  background: #007bff;
+  border: 2px solid #0056b3;
+}
+
+.fields-empty-state {
+  text-align: center;
+  color: #666;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+.fields-empty-state__icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.fields-detail__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.fields-mini-button {
+  padding: 6px 12px;
+  background: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.fields-mini-button:hover {
+  background: #13879b;
+}
+
+.fields-select__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fields-select__label {
+  font-weight: 600;
+  color: #4b5737;
+}
+
+.fields-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.fields-select__status {
+  color: #28a745;
+  font-size: 0.9rem;
+}
+
+.fields-actions {
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 10px;
+}
+
+.fields-actions__row {
+  display: flex;
+  gap: 10px;
+}
+
+.fields-map-card {
+  padding: 0;
+  min-height: 600px;
+}
+
+.fields-map-wrapper {
+  min-height: 600px;
 }
 
 .crop-card,
@@ -786,7 +1029,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  }
+}
 
 .workflow-review-item ul {
   margin: 4px 0 0 16px;
@@ -796,7 +1039,7 @@ textarea {
 
 .workflow-review-item li {
   margin-bottom: 4px;
-  }
+}
 
 .muted-text {
   color: #8a9270;
@@ -808,12 +1051,12 @@ textarea {
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
-  }
+}
 
 .form-error {
   color: #b63c2c;
   font-weight: 600;
-  }
+}
 
 .form-success {
   color: #2f7a3a;
@@ -824,11 +1067,11 @@ textarea {
   .wizard-layout {
     grid-template-columns: 1fr;
   }
-  
+
   .recipe-wizard-hero {
     flex-direction: column;
   }
-  
+
   .wizard-badges {
     align-items: flex-start;
   }
@@ -836,7 +1079,7 @@ textarea {
   .wizard-steps {
     flex-direction: column;
   }
-  
+
   .form-navigation {
     flex-direction: column;
     gap: 12px;

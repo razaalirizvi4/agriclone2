@@ -1,6 +1,14 @@
 // src/pages/WizardPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
+
+const buildOwnerDetails = (details) => ({
+  id: {
+    $oid: details?.ownerId || ""
+  },
+  email: details?.ownerEmail || details?.contactEmail || "",
+  name: details?.ownerName || details?.owner || "Farm Owner"
+});
 
 const WizardPage = () => {
   const [wizardData, setWizardData] = useState({
@@ -27,13 +35,7 @@ const WizardPage = () => {
     const initialFarmData = {
       type: "Farm",
       name: farmDetails.name || "Unnamed Farm",
-      owner: {
-        id: {
-          $oid: "68d533bffb95086e8849fe0f"
-        },
-        email: "rabeetakbar0@gmail.com",
-        name: farmDetails.owner || "Rabeet"
-      },
+      owner: buildOwnerDetails(farmDetails),
       attributes: {
         area: "0 acres", // Initial area before polygon is created
         lat: 0,
@@ -64,7 +66,7 @@ const WizardPage = () => {
   };
 
   // Function to update area
-  const updateFarmArea = (area, centerCoordinates) => {
+  const updateFarmArea = (area) => {
     setWizardData(prev => ({
       ...prev,
       farmArea: area
@@ -256,13 +258,7 @@ const handleFieldDivisionComplete = (completeData) => {
   const farmData = {
     type: "Farm",
     name: wizardData.farmDetails?.name || "Unnamed Farm",
-    owner: {
-      id: {
-        $oid: "68d533bffb95086e8849fe0f"
-      },
-      email: "rabeetakbar0@gmail.com",
-      name: wizardData.farmDetails?.owner || "Rabeet"
-    },
+    owner: buildOwnerDetails(wizardData.farmDetails),
     attributes: {
       area: wizardData.farmArea,
       lat: completeData.centerCoordinates?.lat || 0,
@@ -284,8 +280,6 @@ const handleFieldDivisionComplete = (completeData) => {
 };
 
 
-
-
   return (
     <Outlet context={{
       wizardData,
@@ -295,7 +289,7 @@ const handleFieldDivisionComplete = (completeData) => {
       updateFarmArea: updateFarmArea,
       onFieldSelect: handleFieldSelect,
       onFieldInfoUpdate: handleFieldInfoUpdate,
-      onAddField: handleAddField,
+      onAddField: handleAddField, //not used can be removed after wizard completion
       onWizardComplete: handleWizardComplete,
       onCreateDefaultSquare: handleCreateDefaultSquare,
       onFieldDivisionComplete: handleFieldDivisionComplete,

@@ -8,7 +8,6 @@ const FarmDrawPage = () => {
   const { 
     wizardData, 
     onFarmDetailsSubmit, 
-    onFarmComplete,
     updateFarmArea,
     onCreateDefaultSquare,
     onFieldDivisionComplete

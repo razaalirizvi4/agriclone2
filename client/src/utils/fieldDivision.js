@@ -4,7 +4,11 @@ import * as turf from "@turf/turf";
 /**
  * Ultra-simple field division that always works
  */
-export const processFarmDivision = (farmData, numberOfFields, farmDetails = {}) => {
+export const processFarmDivision = (
+  farmData,
+  numberOfFields,
+  farmDetails = {}
+) => {
   console.log("🔄 Starting SIMPLE field division");
   console.log("Farm data:", farmData);
   console.log("Number of fields:", numberOfFields);
@@ -12,11 +16,15 @@ export const processFarmDivision = (farmData, numberOfFields, farmDetails = {}) 
   try {
     // Extract farm polygon - handle different data structures
     let farmPolygon;
-    
+
     if (farmData.features && farmData.features[0]) {
       // Direct FeatureCollection from drawnData
       farmPolygon = farmData.features[0];
-    } else if (farmData.geoJsonCords && farmData.geoJsonCords.features && farmData.geoJsonCords.features[0]) {
+    } else if (
+      farmData.geoJsonCords &&
+      farmData.geoJsonCords.features &&
+      farmData.geoJsonCords.features[0]
+    ) {
       // From WizardPage structure
       farmPolygon = farmData.geoJsonCords.features[0];
     } else {
@@ -25,7 +33,7 @@ export const processFarmDivision = (farmData, numberOfFields, farmDetails = {}) 
     }
 
     // Validate farm polygon
-    if (!farmPolygon.geometry || farmPolygon.geometry.type !== 'Polygon') {
+    if (!farmPolygon.geometry || farmPolygon.geometry.type !== "Polygon") {
       console.error("Invalid farm polygon geometry:", farmPolygon);
       return createFallbackFields(numberOfFields, farmDetails);
     }
@@ -35,57 +43,81 @@ export const processFarmDivision = (farmData, numberOfFields, farmDetails = {}) 
     const farmName = farmDetails.name || "Farm";
     const fieldFeatures = [];
 
-    // METHOD 1: Simple bounding box division (most reliable)
+    // METHOD: Strip slicing (parallel cuts)
     const farmBbox = turf.bbox(farmPolygon);
     console.log("Farm bbox:", farmBbox);
 
     const bboxWidth = farmBbox[2] - farmBbox[0];
     const bboxHeight = farmBbox[3] - farmBbox[1];
-    
-    // Create fields by dividing the bounding box
+
+    // Decide orientation:
+    // - If the farm is wider than tall -> create vertical strips (cuts along X)
+    // - Otherwise -> horizontal strips (cuts along Y)
+    const useVerticalStrips = bboxWidth >= bboxHeight;
+    console.log(
+      "Strip orientation:",
+      useVerticalStrips ? "vertical" : "horizontal"
+    );
+
+    // Create fields by dividing the bounding box into parallel strips
     for (let i = 0; i < numberOfFields; i++) {
       try {
-        // For 1-2 fields: split horizontally
-        // For 3+ fields: create grid
         let fieldBbox;
-        
-        if (numberOfFields === 1) {
-          fieldBbox = farmBbox;
-        } else if (numberOfFields === 2) {
-          // Split into left and right
-          const splitX = farmBbox[0] + (bboxWidth / 2);
-          if (i === 0) {
-            fieldBbox = [farmBbox[0], farmBbox[1], splitX, farmBbox[3]];
-          } else {
-            fieldBbox = [splitX, farmBbox[1], farmBbox[2], farmBbox[3]];
-          }
+
+        if (useVerticalStrips) {
+          // Vertical strips: we move along X
+          const stripWidth = bboxWidth / numberOfFields;
+          const minX = farmBbox[0] + i * stripWidth;
+          const maxX =
+            i === numberOfFields - 1
+              ? farmBbox[2] // ensure last strip reaches the end to avoid rounding gaps
+              : farmBbox[0] + (i + 1) * stripWidth;
+
+          fieldBbox = [minX, farmBbox[1], maxX, farmBbox[3]];
         } else {
-          // Grid division
-          const cols = Math.ceil(Math.sqrt(numberOfFields));
-          const rows = Math.ceil(numberOfFields / cols);
-          const col = i % cols;
-          const row = Math.floor(i / cols);
-          
-          const cellWidth = bboxWidth / cols;
-          const cellHeight = bboxHeight / rows;
-          
-          fieldBbox = [
-            farmBbox[0] + col * cellWidth,
-            farmBbox[1] + row * cellHeight,
-            farmBbox[0] + (col + 1) * cellWidth,
-            farmBbox[1] + (row + 1) * cellHeight
-          ];
+          // Horizontal strips: we move along Y
+          const stripHeight = bboxHeight / numberOfFields;
+          const minY = farmBbox[1] + i * stripHeight;
+          const maxY =
+            i === numberOfFields - 1
+              ? farmBbox[3]
+              : farmBbox[1] + (i + 1) * stripHeight;
+
+          fieldBbox = [farmBbox[0], minY, farmBbox[2], maxY];
         }
 
-        // Create field polygon from bbox
-        const fieldPolygon = turf.bboxPolygon(fieldBbox);
-        
-        // Calculate area
-        const areaSqMeters = turf.area(fieldPolygon);
+        // Clip the farm polygon to this strip's bbox so we only keep
+        // the part of the farm that lies inside the strip.
+        // This is effectively the same as intersecting with a strip,
+        // but bboxClip is usually more robust.
+        let clippedField = null;
+        try {
+          clippedField = turf.bboxClip(farmPolygon, fieldBbox);
+        } catch (clipError) {
+          console.warn(
+            `bboxClip failed for field ${i + 1}, skipping this strip:`,
+            clipError
+          );
+        }
+
+        // If clipping produced nothing meaningful, skip this strip
+        if (!clippedField || !clippedField.geometry) {
+          console.log(`No farm area in strip ${i + 1}, skipping.`);
+          continue;
+        }
+
+        const finalFieldGeometry = clippedField.geometry;
+
+        // Calculate area based on final geometry
+        const areaSqMeters = turf.area({
+          type: "Feature",
+          geometry: finalFieldGeometry,
+          properties: {},
+        });
         const areaAcres = areaSqMeters / 4046.8564224;
 
         const fieldId = `field-${Date.now()}-${i}`;
-        
+
         fieldFeatures.push({
           type: "Feature",
           properties: {
@@ -94,26 +126,32 @@ export const processFarmDivision = (farmData, numberOfFields, farmDetails = {}) 
             name: `Field ${i + 1}`,
             area: `${Math.round(areaAcres * 100) / 100} acres`,
             farm: farmName,
-            crop_id: null
+            crop_id: null,
           },
-          geometry: fieldPolygon.geometry
+          geometry: finalFieldGeometry,
         });
 
         console.log(`Created field ${i + 1}: ${areaAcres.toFixed(2)} acres`);
-
       } catch (error) {
-        console.warn(`Failed to create field ${i}, using fallback:`, error);
-        // Add a simple fallback field
-        fieldFeatures.push(createSimpleField(i, farmName, farmBbox));
+        console.warn(`Failed to create field ${i}, skipping:`, error);
       }
     }
 
     console.log(`✅ Successfully created ${fieldFeatures.length} fields`);
+
+    // If strip slicing produced no valid fields inside the farm,
+    // fall back to a single field covering the whole farm polygon.
+    if (!fieldFeatures.length) {
+      console.warn(
+        "No fields were generated from strip slicing, falling back to single farm field."
+      );
+      return createSingleFarmField(farmPolygon, farmName);
+    }
+
     return {
       type: "FeatureCollection",
-      features: fieldFeatures
+      features: fieldFeatures,
     };
-
   } catch (error) {
     console.error("❌ Field division failed, using fallback:", error);
     return createFallbackFields(numberOfFields, farmDetails);
@@ -123,19 +161,23 @@ export const processFarmDivision = (farmData, numberOfFields, farmDetails = {}) 
 /**
  * Create a simple field as fallback
  */
-const createSimpleField = (index, farmName, bbox = [73.1, 30.6, 73.2, 30.7]) => {
+const createSimpleField = (
+  index,
+  farmName,
+  bbox = [73.1, 30.6, 73.2, 30.7]
+) => {
   const width = (bbox[2] - bbox[0]) * 0.8;
   const height = (bbox[3] - bbox[1]) * 0.8;
   const centerX = bbox[0] + (bbox[2] - bbox[0]) / 2;
   const centerY = bbox[1] + (bbox[3] - bbox[1]) / 2;
-  
+
   const fieldBbox = [
-    centerX - width/2,
-    centerY - height/2,
-    centerX + width/2,
-    centerY + height/2
+    centerX - width / 2,
+    centerY - height / 2,
+    centerX + width / 2,
+    centerY + height / 2,
   ];
-  
+
   const fieldPolygon = turf.bboxPolygon(fieldBbox);
   const areaAcres = turf.area(fieldPolygon) / 4046.8564224;
 
@@ -147,9 +189,35 @@ const createSimpleField = (index, farmName, bbox = [73.1, 30.6, 73.2, 30.7]) => 
       name: `Field ${index + 1}`,
       area: `${Math.round(areaAcres * 100) / 100} acres`,
       farm: farmName,
-      crop_id: null
+      crop_id: null,
     },
-    geometry: fieldPolygon.geometry
+    geometry: fieldPolygon.geometry,
+  };
+};
+
+/**
+ * Create a single field that exactly matches the farm polygon.
+ * Used as a safe fallback that never leaves the farm boundary.
+ */
+const createSingleFarmField = (farmPolygon, farmName = "Farm") => {
+  const areaAcres = turf.area(farmPolygon) / 4046.8564224;
+
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {
+          id: `field-farm-${Date.now()}`,
+          type: "field",
+          name: "Field 1",
+          area: `${Math.round(areaAcres * 100) / 100} acres`,
+          farm: farmName,
+          crop_id: null,
+        },
+        geometry: farmPolygon.geometry,
+      },
+    ],
   };
 };
 
@@ -167,7 +235,7 @@ const createFallbackFields = (numberOfFields, farmDetails) => {
 
   return {
     type: "FeatureCollection",
-    features: fieldFeatures
+    features: fieldFeatures,
   };
 };
 
@@ -176,11 +244,11 @@ const createFallbackFields = (numberOfFields, farmDetails) => {
  */
 export const createFieldsInfo = (fieldsData) => {
   if (!fieldsData || !fieldsData.features) return [];
-  
-  return fieldsData.features.map(feature => ({
+
+  return fieldsData.features.map((feature) => ({
     id: feature.properties.id,
     name: feature.properties.name,
     area: feature.properties.area,
-    crop_id: feature.properties.crop_id
+    crop_id: feature.properties.crop_id,
   }));
 };
