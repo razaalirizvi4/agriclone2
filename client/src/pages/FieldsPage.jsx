@@ -15,7 +15,6 @@ const FieldsPage = () => {
     wizardData,
     onFieldSelect,
     onFieldInfoUpdate,
-    onWizardComplete,
     onFieldGeometryUpdate,
   } = useOutletContext();
 
@@ -172,6 +171,10 @@ const FieldsPage = () => {
     navigate("/wizard");
   };
 
+  const handleCompleteRegistration = () => {
+    navigate("/wizard/review");
+  };
+
   useEffect(() => {
     if (!selectedFieldFeature || !mapApiRef.current) return;
     mapApiRef.current.setDrawnDataProgrammatically(selectedFieldFeature);
@@ -201,7 +204,7 @@ const FieldsPage = () => {
         <div className="crop-card fields-panel">
           {/* Header */}
           <div className="fields-panel__header">
-            <h3 className="fields-panel__title">Farm Summary</h3>
+            <h3 className="fields-panel__title">Farm Overview</h3>
             <p className="fields-panel__subtitle">
               Farm Name: {wizardData.farmDetails?.name}
             </p>
@@ -209,7 +212,7 @@ const FieldsPage = () => {
               Address: {wizardData.farmDetails?.address}
             </p>
             <p className="fields-panel__subtitle">
-              Farm Size: {wizardData.farmDetails?.size} Acres
+              Farm Size: {wizardData.farmArea}
             </p>
             <p className="fields-panel__meta">
               Total Fields: {(wizardData.fieldsInfo || []).length || 0}
@@ -394,7 +397,7 @@ const FieldsPage = () => {
                 Back to Farm
               </button>
               <button
-                onClick={onWizardComplete}
+                onClick={handleCompleteRegistration}
                 disabled={(wizardData.fieldsInfo || []).length === 0}
                 className="primary-button"
                 style={{
@@ -406,7 +409,7 @@ const FieldsPage = () => {
                       : "pointer",
                 }}
               >
-                Complete Registration
+                Review Information
               </button>
             </div>
           </div>

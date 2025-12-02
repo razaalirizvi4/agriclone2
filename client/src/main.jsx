@@ -14,6 +14,7 @@ import WizardPage from "./pages/WizardPage";
 import RecipeWizard from "./pages/RecipeWizard";
 import FarmDrawPage from "./pages/FarmDrawPage";
 import FieldsPage from "./pages/FieldsPage";
+import ReviewPage from "./pages/ReviewPage";
 import ProtectedRoute from "./router/ProtectedRoute";
 import PublicRoute from "./router/PublicRoute";
 import "./App.css";
@@ -37,9 +38,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               <Route path="event-stream" element={<EventStreamPage />} />
               <Route path="locations" element={<LocationPage />} />
               <Route path="wizard" element={<WizardPage />}>
-                <Route index element={<FarmDrawPage />} />{" "}
-                {/* Default: wizard/FarmDraw */}
-                <Route path="fields" element={<FieldsPage />} />
+              <Route index element={<FarmDrawPage />} />{" "}
+              {/* Default: wizard/FarmDraw */}
+              <Route path="fields" element={<FieldsPage />} />
+              <Route path="review" element={<ReviewPage />} />
               </Route>
               <Route path="recipe-wizard" element={<RecipeWizard />} />
             </Route>

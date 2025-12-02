@@ -239,7 +239,7 @@ const FarmDrawPage = () => {
               <div className="wizard-farm-summary-content">
                 <div><strong>Name:</strong> {wizardData.farmDetails.name}</div>
                 <div><strong>Address:</strong> {wizardData.farmDetails.address}</div>
-                <div><strong>Size:</strong> {wizardData.farmDetails.size} acres</div>
+                <div><strong>Size:</strong> {wizardData.farmArea} acres</div>
                 <div><strong>Number of Fields:</strong> {wizardData.farmDetails.numberOfFields}</div>
                 {farmCenter && (
                   <div><strong>Location:</strong> Lat: {farmCenter.lat.toFixed(6)}, Lng: {farmCenter.lng.toFixed(6)}</div>

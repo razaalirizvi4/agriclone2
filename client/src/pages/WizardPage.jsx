@@ -4,10 +4,10 @@ import { Outlet } from "react-router-dom";
 
 const buildOwnerDetails = (details) => ({
   id: {
-    $oid: details?.ownerId || ""
+    $oid: details?.ownerId || "",
   },
   email: details?.ownerEmail || details?.contactEmail || "",
-  name: details?.ownerName || details?.owner || "Farm Owner"
+  name: details?.ownerName || details?.owner || "Farm Owner",
 });
 
 const WizardPage = () => {
@@ -25,8 +25,8 @@ const WizardPage = () => {
       { id: "crop2", name: "Rice" },
       { id: "crop3", name: "Corn" },
       { id: "crop4", name: "Cotton" },
-      { id: "crop5", name: "Sugarcane" }
-    ]
+      { id: "crop5", name: "Sugarcane" },
+    ],
   });
 
   // Handle farm details form submission
@@ -42,56 +42,59 @@ const WizardPage = () => {
         lon: 0,
         geoJsonCords: {
           type: "FeatureCollection",
-          features: []
+          features: [],
         },
         crop_id: null,
-        lifecycle: "Active"
-      }
+        lifecycle: "Active",
+      },
     };
 
-    setWizardData(prev => ({ 
-      ...prev, 
+    setWizardData((prev) => ({
+      ...prev,
       farmDetails,
       numberOfFields: parseInt(farmDetails.numberOfFields) || 1, // Store numberOfFields from form
-      farmBoundaries: initialFarmData // Store the API data structure
+      farmBoundaries: initialFarmData, // Store the API data structure
     }));
   };
 
   // Handle farm location coordinates
   const handleLocationUpdate = (location) => {
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
-      farmLocation: location
+      farmLocation: location,
     }));
   };
 
   // Function to update area
   const updateFarmArea = (area) => {
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
-      farmArea: area
+      farmArea: area,
     }));
   };
 
   // Handle field selection
   const handleFieldSelect = (fieldId) => {
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
-      selectedFieldId: fieldId
+      selectedFieldId: fieldId,
     }));
   };
 
   // Handle field info updates
   const handleFieldInfoUpdate = (fieldId, fieldData) => {
-    setWizardData(prev => {
-      const existingFieldIndex = prev.fieldsInfo.findIndex(f => f.id === fieldId);
+    setWizardData((prev) => {
+      const existingFieldIndex = prev.fieldsInfo.findIndex(
+        (f) => f.id === fieldId
+      );
       let updatedFieldsInfo;
-      
+      let updatedFieldsData = prev.fieldsData;
+
       if (existingFieldIndex >= 0) {
         updatedFieldsInfo = [...prev.fieldsInfo];
         updatedFieldsInfo[existingFieldIndex] = {
           ...updatedFieldsInfo[existingFieldIndex],
-          ...fieldData
+          ...fieldData,
         };
       } else {
         updatedFieldsInfo = [
@@ -100,50 +103,72 @@ const WizardPage = () => {
             id: fieldId,
             name: `Field ${prev.fieldsInfo.length + 1}`,
             area: "0 acres",
-            ...fieldData
-          }
+            ...fieldData,
+          },
         ];
       }
-      
+
+      // Also merge these details into the corresponding feature in fieldsData
+      if (prev.fieldsData?.features?.length) {
+        updatedFieldsData = {
+          ...prev.fieldsData,
+          features: prev.fieldsData.features.map((feature) => {
+            if (feature.properties?.id !== fieldId) return feature;
+
+            const existingAttributes = feature.properties?.attributes || {};
+
+            return {
+              ...feature,
+              properties: {
+                ...feature.properties,
+                attributes: {
+                  ...existingAttributes,
+                  ...fieldData,
+                },
+              },
+            };
+          }),
+        };
+      }
+
       return {
         ...prev,
-        fieldsInfo: updatedFieldsInfo
+        fieldsInfo: updatedFieldsInfo,
+        fieldsData: updatedFieldsData,
       };
     });
   };
 
   const handleFieldGeometryUpdate = (fieldId, geometry, area) => {
-    setWizardData(prev => {
+    setWizardData((prev) => {
       if (!prev.fieldsData?.features?.length) {
         return prev;
       }
 
       const updatedFieldsData = {
         ...prev.fieldsData,
-        features: prev.fieldsData.features.map(feature =>
+        features: prev.fieldsData.features.map((feature) =>
           feature.properties?.id === fieldId
             ? {
                 ...feature,
                 geometry,
                 properties: {
                   ...feature.properties,
-                  area: area || feature.properties?.area
-                }
+                  area: area || feature.properties?.area,
+                },
               }
             : feature
-        )
+        ),
       };
 
-      const updatedFieldsInfo = prev.fieldsInfo.map(info =>
-        info.id === fieldId
-          ? { ...info, area: area || info.area }
-          : info
+      const updatedFieldsInfo = prev.fieldsInfo.map((info) =>
+        info.id === fieldId ? { ...info, area: area || info.area } : info
       );
 
       return {
         ...prev,
         fieldsData: updatedFieldsData,
-        fieldsInfo: updatedFieldsInfo
+        fieldsInfo: updatedFieldsInfo,
       };
     });
   };
@@ -158,26 +183,26 @@ const WizardPage = () => {
         type: "field",
         name: `Field ${wizardData.fieldsData.features.length + 1}`,
         area: `${area} acres`,
-        farm: wizardData.farmDetails?.name || "Farm"
+        farm: wizardData.farmDetails?.name || "Farm",
       },
-      geometry: fieldGeometry
+      geometry: fieldGeometry,
     };
 
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
       fieldsData: {
         ...prev.fieldsData,
-        features: [...prev.fieldsData.features, newField]
+        features: [...prev.fieldsData.features, newField],
       },
       fieldsInfo: [
         ...prev.fieldsInfo,
         {
           id: fieldId,
           name: `Field ${prev.fieldsData.features.length + 1}`,
-          area: `${area} acres`
-        }
+          area: `${area} acres`,
+        },
       ],
-      selectedFieldId: fieldId
+      selectedFieldId: fieldId,
     }));
 
     return fieldId;
@@ -194,18 +219,18 @@ const WizardPage = () => {
   const createDefaultSquare = (center, sizeInAcres) => {
     // Convert acres to square meters
     const areaSqMeters = sizeInAcres * 4046.8564224;
-    
+
     // Calculate side length for a square (in meters)
     const sideLengthMeters = Math.sqrt(areaSqMeters);
-    
+
     // Convert meters to degrees (approximate)
     const lat = center[1];
     const metersPerDegreeLat = 111320; // meters per degree latitude
-    const metersPerDegreeLng = 111320 * Math.cos(lat * Math.PI / 180); // meters per degree longitude
-    
+    const metersPerDegreeLng = 111320 * Math.cos((lat * Math.PI) / 180); // meters per degree longitude
+
     const deltaLat = sideLengthMeters / (2 * metersPerDegreeLat);
     const deltaLng = sideLengthMeters / (2 * metersPerDegreeLng);
-    
+
     // Create square coordinates
     const coordinates = [
       [
@@ -213,88 +238,89 @@ const WizardPage = () => {
         [center[0] + deltaLng, center[1] - deltaLat], // southeast
         [center[0] + deltaLng, center[1] + deltaLat], // northeast
         [center[0] - deltaLng, center[1] + deltaLat], // northwest
-        [center[0] - deltaLng, center[1] - deltaLat]  // close polygon
-      ]
+        [center[0] - deltaLng, center[1] - deltaLat], // close polygon
+      ],
     ];
-    
+
     return {
       type: "Feature",
       geometry: {
         type: "Polygon",
-        coordinates: coordinates
+        coordinates: coordinates,
       },
       properties: {
         type: "farm",
         name: "Farm Boundary",
-        area: `${sizeInAcres} acres`
-      }
+        area: `${sizeInAcres} acres`,
+      },
     };
   };
 
   // Create default square and return feature collection
   const handleCreateDefaultSquare = (center, sizeInAcres) => {
     const defaultSquare = createDefaultSquare(center, sizeInAcres);
-    
+
     const featureCollection = {
       type: "FeatureCollection",
-      features: [defaultSquare]
+      features: [defaultSquare],
     };
-    
+
     // Update wizard data with the default square
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
-      farmBoundaries: featureCollection
+      farmBoundaries: featureCollection,
     }));
-    
+
     return featureCollection;
   };
 
+  // farm division utility
+  const handleFieldDivisionComplete = (completeData) => {
+    const { farmBoundaries, fieldsData, fieldsInfo, numberOfFields } =
+      completeData;
 
-// farm division utility
-const handleFieldDivisionComplete = (completeData) => {
-  const { farmBoundaries, fieldsData, fieldsInfo, numberOfFields } = completeData;
-  
-  // Prepare the final farm data
-  const farmData = {
-    type: "Farm",
-    name: wizardData.farmDetails?.name || "Unnamed Farm",
-    owner: buildOwnerDetails(wizardData.farmDetails),
-    attributes: {
-      area: wizardData.farmArea,
-      lat: completeData.centerCoordinates?.lat || 0,
-      lon: completeData.centerCoordinates?.lng || 0,
-      geoJsonCords: farmBoundaries,
-      crop_id: null,
-      lifecycle: "Active"
-    }
+    // Prepare the final farm data
+    const farmData = {
+      type: "Farm",
+      name: wizardData.farmDetails?.name || "Unnamed Farm",
+      owner: buildOwnerDetails(wizardData.farmDetails),
+      attributes: {
+        area: wizardData.farmArea,
+        lat: completeData.centerCoordinates?.lat || 0,
+        lon: completeData.centerCoordinates?.lng || 0,
+        geoJsonCords: farmBoundaries,
+        crop_id: null,
+        lifecycle: "Active",
+      },
+    };
+
+    setWizardData((prev) => ({
+      ...prev,
+      farmBoundaries: farmData,
+      fieldsData,
+      fieldsInfo,
+      numberOfFields: numberOfFields || prev.numberOfFields,
+      selectedFieldId: fieldsData.features[0]?.properties?.id || null,
+    }));
   };
 
-  setWizardData(prev => ({
-    ...prev,
-    farmBoundaries: farmData,
-    fieldsData,
-    fieldsInfo,
-    numberOfFields: numberOfFields || prev.numberOfFields,
-    selectedFieldId: fieldsData.features[0]?.properties?.id || null
-  }));
-};
-
-
   return (
-    <Outlet context={{
-      wizardData,
-      onFarmDetailsSubmit: handleFarmDetailsSubmit,
-      onLocationUpdate: handleLocationUpdate,
-      onFarmComplete: handleFieldDivisionComplete,
-      updateFarmArea: updateFarmArea,
-      onFieldSelect: handleFieldSelect,
-      onFieldInfoUpdate: handleFieldInfoUpdate,
-      onAddField: handleAddField, //not used can be removed after wizard completion
-      onWizardComplete: handleWizardComplete,
-      onCreateDefaultSquare: handleCreateDefaultSquare,
-      onFieldDivisionComplete: handleFieldDivisionComplete,
-      onFieldGeometryUpdate: handleFieldGeometryUpdate
-    }} />
+    <Outlet
+      context={{
+        wizardData,
+        onFarmDetailsSubmit: handleFarmDetailsSubmit,
+        onLocationUpdate: handleLocationUpdate,
+        onFarmComplete: handleFieldDivisionComplete,
+        updateFarmArea: updateFarmArea,
+        onFieldSelect: handleFieldSelect,
+        onFieldInfoUpdate: handleFieldInfoUpdate,
+        onAddField: handleAddField, //not used can be removed after wizard completion
+        onWizardComplete: handleWizardComplete,
+        onCreateDefaultSquare: handleCreateDefaultSquare,
+        onFieldDivisionComplete: handleFieldDivisionComplete,
+        onFieldGeometryUpdate: handleFieldGeometryUpdate,
+      }}
+    />
   );
 };
 
