@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { getLocations } from "../features/location/location.slice";
 import { getEvents } from "../features/eventStream/eventStream.slice";
 import { getCrops, setSelectedCropId } from "../features/cropModule/crop.slice";
@@ -30,6 +31,7 @@ const getLocationTypeName = (typeValue) => {
 
 function Home() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [selectedFieldId, setSelectedFieldId] = useState(null);
 
   const { locations, status } = useSelector((state) => state.locations);
@@ -107,8 +109,32 @@ function Home() {
     );
   }
 
+  const farm = locations.find(
+    (loc) => getLocationTypeName(loc.type) === "Farm"
+  );
+
   return (
     <div className="dashboard-grid">
+      {/* Edit Farm button at top of dashboard */}
+      <div style={{ gridColumn: "span 12", marginBottom: "8px" }}>
+        <button
+          type="button"
+          onClick={() => farm && navigate("/wizard", { state: { farmId: farm._id } })}
+          disabled={!farm}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: "none",
+            backgroundColor: farm ? "#4a5d23" : "#cbd5e1",
+            color: "#ffffff",
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: farm ? "pointer" : "not-allowed",
+          }}
+        >
+          {farm ? "Edit Farm in Wizard" : "No farm available to edit"}
+        </button>
+      </div>
       {sortedSchema.map((item) => {
         const Component = componentMapper[item.key];
         if (!Component) {

@@ -20,7 +20,6 @@ const Topbar = ({ isLoggedIn }) => {
     { name: "About", path: "/about" },
     { name: "Event Stream", path: "/event-stream" },
     { name: "Locations", path: "/locations" },
-    { name: "Wizard", path: "/wizard" },
     { name: "Recipe Wizard", path: "/recipe-wizard" },
   ];
 

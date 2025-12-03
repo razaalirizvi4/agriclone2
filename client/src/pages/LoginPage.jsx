@@ -11,8 +11,21 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await authService.login(email, password);
-      navigate('/');
+      const user = await authService.login(email, password);
+
+      // Determine user id from login response
+      const id =
+        user?._id || user?.id || user?.userId || user?.user?._id || null;
+
+      let redirectPath = '/';
+
+      if (id && typeof window !== 'undefined') {
+        const wizardKey = `farmWizardCompleted_${id}`;
+        const hasCompletedWizard = localStorage.getItem(wizardKey) === 'true';
+        redirectPath = hasCompletedWizard ? '/' : '/wizard';
+      }
+
+      navigate(redirectPath);
       window.location.reload(); // Reload to update Topbar/Sidebar state
     } catch (error) {
       setMessage(error.message);

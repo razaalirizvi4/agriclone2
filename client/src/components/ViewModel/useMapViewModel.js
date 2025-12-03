@@ -134,6 +134,9 @@ const useMapViewModel = ({
         const crop = crops.find((c) => c._id === props.cropId);
         cropName = crop?.name || null;
       }
+      if (!cropName && props.cropName) {
+        cropName = props.cropName;
+      }
 
       let content = `<div style="font-size:13px; line-height:1.4;">`;
       content += `<strong>Type:</strong> ${props.type || type}<br>`;

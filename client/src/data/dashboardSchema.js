@@ -41,16 +41,42 @@ export const dashboardSchema = [
     props: {
       componentName: "Event Time Line",
       events: (d, selectedFieldId) => {
-        let foundevents = d.dEv.filter(
+        const foundevents = d.dEv.filter(
           (event) => event?.RelationIds?.Field_id === selectedFieldId
         );
-        return foundevents.map((event) => ({
-          date: event.Date,
-          icon: event.Meta_Data.icon,
-          details: event.Meta_Data.details,
-          name: event.Feature_Type,
-          color: event.Meta_Data.color,
-          State: event.State, // Add State field for timeline circle colors
+
+        if (foundevents.length) {
+          return foundevents.map((event) => ({
+            date: event.Date,
+            icon: event.Meta_Data.icon,
+            details: event.Meta_Data.details,
+            name: event.Feature_Type,
+            color: event.Meta_Data.color,
+            State: event.State, // Add State field for timeline circle colors
+          }));
+        }
+
+        // Fallback for wizard-created fields: derive simple events from selectedRecipe
+        const loc = d.dloc.find((l) => l._id === selectedFieldId);
+        const workflows =
+          loc?.attributes?.selectedRecipe?.recipeWorkflows || [];
+
+        if (!workflows.length) {
+          return [];
+        }
+
+        const today = new Date();
+        return workflows.map((step, idx) => ({
+          date: new Date(
+            today.getTime() + (idx || 0) * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          icon: "", // let Timeline ViewModel/asset handle default icon
+          details: `${step.stepName || "Task"} • Duration: ${
+            step.duration ?? "N/A"
+          }`,
+          name: step.stepName || `Step ${idx + 1}`,
+          color: "#60a5fa",
+          State: "Pending",
         }));
       },
     },
@@ -63,13 +89,54 @@ export const dashboardSchema = [
     props: {
       componentName:"Crop Details",
       crop: (d, selectedFieldId) => {
-        let locfound = d.dloc.find((loc) => loc._id === selectedFieldId);
+        const locfound = d.dloc.find((loc) => loc._id === selectedFieldId);
+        if (!locfound) return null;
 
-        let cropfound = d.crops.find(
-          (crop) => crop._id === locfound?.attributes?.crop_id
-        );
+        const attrs = locfound.attributes || {};
 
-        return cropfound;
+        // Primary path: existing crop_id + crops collection
+        if (attrs.crop_id && Array.isArray(d.crops)) {
+          const cropfound = d.crops.find(
+            (crop) => crop._id === attrs.crop_id
+          );
+          if (cropfound) {
+            return cropfound;
+          }
+        }
+
+        // Fallback path for wizard-created fields: build a lightweight crop view
+        const selectedRecipe = attrs.selectedRecipe || {};
+        const expectedYield = selectedRecipe?.recipeInfo?.expectedYield || {};
+        const env = selectedRecipe?.recipeRules?.environmentalConditions || {};
+
+        const temp = env.temperature || {};
+        const humid = env.humidity || {};
+
+        const yieldValue =
+          expectedYield.value && expectedYield.unit
+            ? `${expectedYield.value} ${expectedYield.unit}`
+            : "N/A";
+
+        // Use today's date as a neutral placeholder range
+        const today = new Date();
+        const in90 = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+        return {
+          // Fields used by Crop.jsx
+          name: attrs.cropName || locfound.name || "Field Crop",
+          icon: "🌾",
+          yield: yieldValue,
+          seedDateRangeStart: today.toISOString(),
+          harvestDateRangeEnd: in90.toISOString(),
+          tempRangeStart:
+            typeof temp.min === "number" ? temp.min : 0,
+          tempRangeEnd:
+            typeof temp.max === "number" ? temp.max : 0,
+          humidRangeStart:
+            typeof humid.min === "number" ? humid.min : 0,
+          humidRangeEnd:
+            typeof humid.max === "number" ? humid.max : 0,
+        };
       },
     }, // refers to your mock data from dataSources.js
     colSpan: 4, // width — adjust as needed

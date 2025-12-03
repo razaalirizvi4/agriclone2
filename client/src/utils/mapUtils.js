@@ -25,25 +25,34 @@ export const buildGeoJSON = (locations) => {
 
   if (!locations.length) return null;
 
-  const features = locations.map((elem) => ({
-    type: "Feature",
-    properties: {
-      type: elem?.type?.toLowerCase(),
-      name: elem?.name,
-      id: elem?._id,
-      owner: elem?.owner?.name,
-      cropId:
-        elem?.type?.toLowerCase() === "field"
-          ? elem?.attributes?.crop_id
-          : null,
-      area: elem?.attributes?.area || null,
-      farm:
-        elem?.type?.toLowerCase() === "field"
-          ? locations.find((l) => l._id === elem.parentId)?.name
+  const features = locations.map((elem) => {
+    const isField = elem?.type?.toLowerCase() === "field";
+    const attrs = elem?.attributes || {};
+    const nestedAttrs =
+      attrs?.geoJsonCords?.features?.[0]?.properties?.attributes || {};
+
+    const cropId = isField ? attrs?.crop_id || nestedAttrs?.crop_id || null : null;
+    const cropName = isField
+      ? attrs?.cropName || nestedAttrs?.cropName || null
+      : null;
+
+    return {
+      type: "Feature",
+      properties: {
+        type: elem?.type?.toLowerCase(),
+        name: elem?.name,
+        id: elem?._id,
+        owner: elem?.owner?.name,
+        cropId,
+        cropName,
+        area: attrs?.area || null,
+        farm: isField
+          ? locations.find((l) => l._id === elem.parentId)?.name || attrs?.farm
           : elem?.name,
-    },
-    geometry: elem?.attributes?.geoJsonCords?.features?.[0]?.geometry,
-  }));
+      },
+      geometry: attrs?.geoJsonCords?.features?.[0]?.geometry,
+    };
+  });
 
   return { type: "FeatureCollection", features };
 };

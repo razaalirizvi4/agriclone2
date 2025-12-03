@@ -1,6 +1,6 @@
 // src/pages/WizardPage.js
-import React, { useState } from "react";
-import { Outlet } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import locationService from "../services/location.service";
 import './wizard.css'
 
@@ -38,6 +38,9 @@ const getSessionOwner = () => {
 };
 
 const WizardPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const farmId = location.state?.farmId || null;
   const [wizardData, setWizardData] = useState({
     farmDetails: null,
     farmLocation: null,
@@ -49,6 +52,47 @@ const WizardPage = () => {
     selectedFieldId: null
   });
   const [isSavingWizard, setIsSavingWizard] = useState(false);
+
+  // If we came from "Edit Farm in Wizard", prefill farm details for editing
+  useEffect(() => {
+    const loadFarmForEdit = async () => {
+      if (!farmId) return;
+      try {
+        const res = await locationService.getLocations();
+        const all = res.data || [];
+        const farm = all.find((loc) => loc._id === farmId);
+        if (!farm) return;
+
+        const farmAttributes = farm.attributes || {};
+
+        setWizardData((prev) => ({
+          ...prev,
+          farmDetails: {
+            ...(prev.farmDetails || {}),
+            name: farm.name || "",
+            address: farmAttributes.address || "",
+            numberOfFields:
+              prev.numberOfFields ||
+              (prev.fieldsInfo?.length || 1),
+          },
+          farmArea: farmAttributes.area || prev.farmArea,
+          farmBoundaries: {
+            ...farm,
+            type: "Farm",
+            attributes: {
+              ...farmAttributes,
+              geoJsonCords:
+                farmAttributes.geoJsonCords || farmAttributes.geoJsonCords,
+            },
+          },
+        }));
+      } catch (err) {
+        console.error("Failed to load farm for edit", err);
+      }
+    };
+
+    loadFarmForEdit();
+  }, [farmId]);
 
   // Handle farm details form submission
   const handleFarmDetailsSubmit = (farmDetails) => {
@@ -360,7 +404,16 @@ const WizardPage = () => {
         savedLocations: response.data,
       }));
 
+      // Mark wizard as completed for this user
+      const owner = getSessionOwner();
+      const ownerId = owner?.id;
+      if (ownerId && typeof window !== "undefined") {
+        const wizardKey = `farmWizardCompleted_${ownerId}`;
+        localStorage.setItem(wizardKey, "true");
+      }
+
       alert("Farm registration completed successfully!");
+      navigate("/"); // Go to dashboard/home after wizard completion
     } catch (error) {
       console.error("Failed to complete farm wizard", error);
       const message =
