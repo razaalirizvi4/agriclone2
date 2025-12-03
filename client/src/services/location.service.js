@@ -9,7 +9,7 @@ const getAuthHeader = () => {
 };
 
 const getLocations = () => {
-  return axios.get(API_URL , { headers: getAuthHeader() });
+  return axios.get(API_URL, { headers: getAuthHeader() });
 };
 
 const createLocation = (locationData) => {
@@ -17,11 +17,20 @@ const createLocation = (locationData) => {
 };
 
 const updateLocation = (id, locationData) => {
-  return axios.put(`${API_URL}/${id}`, locationData, { headers: getAuthHeader() });
+  return axios.put(`${API_URL}/${id}`, locationData, {
+    headers: getAuthHeader(),
+  });
 };
 
 const deleteLocation = (id) => {
   return axios.delete(`${API_URL}/${id}`, { headers: getAuthHeader() });
+};
+
+// Farm wizard bulk setup (farm + fields)
+const farmWizard = (locations) => {
+  return axios.post(`${API_URL}/farm-wizard`, locations, {
+    headers: getAuthHeader(),
+  });
 };
 
 export default {
@@ -29,4 +38,5 @@ export default {
   createLocation,
   updateLocation,
   deleteLocation,
+  farmWizard,
 };

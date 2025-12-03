@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getLocations, createLocation, updateLocation, deleteLocation } from '../features/location/location.slice';
 
+const getTypeName = (typeValue) => {
+  if (!typeValue) {
+    return '';
+  }
+  if (typeof typeValue === 'string') {
+    return typeValue;
+  }
+  return typeValue.name || typeValue.type || '';
+};
+
 const LocationPage = () => {
   const dispatch = useDispatch();
   const { locations, status } = useSelector((state) => state.locations);
@@ -36,7 +46,7 @@ const LocationPage = () => {
   const handleEdit = (location) => {
     setIsEditing(true);
     setCurrentLocationId(location._id);
-    setFormData({ name: location.name, type: location.type });
+    setFormData({ name: location.name, type: getTypeName(location.type) });
   };
 
   const handleDelete = (id) => {
@@ -71,7 +81,7 @@ const LocationPage = () => {
       <ul>
         {locations.map((location) => (
           <li key={location._id}>
-            {location.name} ({location.type})
+            {location.name} ({getTypeName(location.type)})
             <button onClick={() => handleEdit(location)}>Edit</button>
             <button onClick={() => handleDelete(location._id)}>Delete</button>
           </li>

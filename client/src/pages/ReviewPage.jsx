@@ -2,18 +2,28 @@ import React from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 
 const ReviewPage = () => {
-  const { wizardData, onWizardComplete } = useOutletContext();
+  const { wizardData, onWizardComplete, isSavingWizard } = useOutletContext();
   const navigate = useNavigate();
 
   const farmDetails = wizardData.farmDetails || {};
   const fieldsInfo = wizardData.fieldsInfo || [];
-  const crops = wizardData.crops || [];
 
-  const getCropName = (cropId) => {
-    if (!cropId) return null;
-    const crop = crops.find((c) => c.id === cropId);
-    return crop ? crop.name : cropId;
+  // Derive crop name directly from field info (no global crops list in wizardData)
+  const getCropName = (field) => {
+    if (!field) return null;
+    return (
+      field.cropName ??
+      field.attributes?.cropName ??
+      null
+    );
   };
+
+  // Build a simple summary of how many fields use each crop
+  const cropSummary = fieldsInfo.reduce((acc, field) => {
+    const name = getCropName(field) || "Unassigned";
+    acc[name] = (acc[name] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <div
@@ -239,7 +249,15 @@ const ReviewPage = () => {
                 </div>
                 {fieldsInfo.map((field, index) => {
                   const extraEntries = Object.entries(field).filter(
-                    ([key]) => !["id", "name", "area", "cropId"].includes(key)
+                    ([key]) =>
+                      ![
+                        "id",
+                        "name",
+                        "area",
+                        "cropName",
+                        "cropStage",
+                        "selectedRecipe",
+                      ].includes(key)
                   );
 
                   return (
@@ -265,7 +283,7 @@ const ReviewPage = () => {
                           {field.name || `Field ${index + 1}`}
                         </div>
                         <div>{field.area || "—"}</div>
-                        <div>{getCropName(field.cropId) || "Not assigned"}</div>
+                        <div>{getCropName(field) || "Not assigned"}</div>
                       </div>
 
                       {extraEntries.length > 0 && (
@@ -311,6 +329,66 @@ const ReviewPage = () => {
           )}
         </section>
 
+        {/* Crop Summary */}
+        <section
+          style={{
+            marginBottom: "24px",
+            padding: "16px 18px",
+            borderRadius: "10px",
+            backgroundColor: "#f9fafb",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <h3
+            style={{
+              margin: 0,
+              marginBottom: "12px",
+              fontSize: "16px",
+              fontWeight: 600,
+              color: "#111827",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <span>🌱</span> <span>Crop Summary</span>
+          </h3>
+
+          {Object.keys(cropSummary).length ? (
+            <div
+              style={{
+                marginTop: "8px",
+                display: "grid",
+                gridTemplateColumns: "2fr 1fr",
+                gap: "8px 16px",
+                fontSize: "14px",
+                color: "#374151",
+              }}
+            >
+              {Object.entries(cropSummary).map(([name, count]) => (
+                <React.Fragment key={name}>
+                  <div style={{ fontWeight: 500 }}>{name}</div>
+                  <div>
+                    {count} field
+                    {count > 1 ? "s" : ""}
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: "4px",
+                fontSize: "14px",
+                color: "#9ca3af",
+                fontStyle: "italic",
+              }}
+            >
+              No crops have been assigned to fields yet.
+            </div>
+          )}
+        </section>
+
         {/* Actions */}
         <div
           style={{
@@ -339,28 +417,30 @@ const ReviewPage = () => {
           <button
             type="button"
             onClick={onWizardComplete}
-            disabled={!wizardData.farmDetails || !fieldsInfo.length}
+            disabled={
+              !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard
+            }
             style={{
               flex: 1,
               padding: "10px 14px",
               borderRadius: "8px",
               border: "none",
               backgroundColor:
-                !wizardData.farmDetails || !fieldsInfo.length
+                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard
                   ? "#9ca3af"
                   : "#16a34a",
               color: "#ffffff",
               fontSize: "14px",
               fontWeight: 600,
               cursor:
-                !wizardData.farmDetails || !fieldsInfo.length
+                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard
                   ? "not-allowed"
                   : "pointer",
               boxShadow: "0 4px 10px rgba(22, 163, 74, 0.3)",
               transition: "background-color 0.15s ease",
             }}
           >
-            Confirm &amp; Complete
+            {isSavingWizard ? "Saving..." : "Confirm & Complete"}
           </button>
         </div>
       </div>

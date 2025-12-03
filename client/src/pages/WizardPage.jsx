@@ -1,14 +1,40 @@
 // src/pages/WizardPage.js
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
+import locationService from "../services/location.service";
 
-const buildOwnerDetails = (details) => ({
-  id: {
-    $oid: details?.ownerId || "",
-  },
-  email: details?.ownerEmail || details?.contactEmail || "",
-  name: details?.ownerName || details?.owner || "Farm Owner",
-});
+const getSessionOwner = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      return null;
+    }
+
+    const parsedUser = JSON.parse(storedUser);
+    const id =
+      parsedUser?._id ||
+      parsedUser?.id ||
+      parsedUser?.userId ||
+      parsedUser?.user?._id;
+
+    const owner = {
+      email: parsedUser?.email || parsedUser?.user?.email || "",
+      name: parsedUser?.name || parsedUser?.user?.name || "Farm Owner",
+    };
+
+    if (id && typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id)) {
+      owner.id = id;
+    }
+
+    return owner;
+  } catch {
+    return null;
+  }
+};
 
 const WizardPage = () => {
   const [wizardData, setWizardData] = useState({
@@ -19,23 +45,18 @@ const WizardPage = () => {
     numberOfFields: null,
     fieldsData: { type: "FeatureCollection", features: [] },
     fieldsInfo: [],
-    selectedFieldId: null,
-    crops: [
-      { id: "crop1", name: "Wheat" },
-      { id: "crop2", name: "Rice" },
-      { id: "crop3", name: "Corn" },
-      { id: "crop4", name: "Cotton" },
-      { id: "crop5", name: "Sugarcane" },
-    ],
+    selectedFieldId: null
   });
+  const [isSavingWizard, setIsSavingWizard] = useState(false);
 
   // Handle farm details form submission
   const handleFarmDetailsSubmit = (farmDetails) => {
+    const ownerFromSession = getSessionOwner();
     // Prepare initial farm data for API
     const initialFarmData = {
       type: "Farm",
       name: farmDetails.name || "Unnamed Farm",
-      owner: buildOwnerDetails(farmDetails),
+      owner: ownerFromSession,
       attributes: {
         area: "0 acres", // Initial area before polygon is created
         lat: 0,
@@ -209,10 +230,146 @@ const WizardPage = () => {
   };
 
   // Handle wizard completion
-  const handleWizardComplete = () => {
-    // Here you would send wizardData.farmBoundaries to your API
-    console.log("wizardData", wizardData);
-    alert("Farm registration completed successfully!");
+  const buildFarmPayload = () => {
+    if (!wizardData.farmBoundaries) {
+      throw new Error("Farm information is incomplete.");
+    }
+
+    const owner = getSessionOwner() || wizardData.farmBoundaries.owner || null;
+
+    const attributes = {
+      ...wizardData.farmBoundaries.attributes,
+    };
+
+    if (!attributes.geoJsonCords && wizardData.farmBoundaries.geoJsonCords) {
+      attributes.geoJsonCords = wizardData.farmBoundaries.geoJsonCords;
+    }
+
+    return {
+      ...wizardData.farmBoundaries,
+      type: wizardData.farmBoundaries.type || "Farm",
+      owner,
+      attributes,
+    };
+  };
+
+  const buildFieldPayloads = (farmPayload) => {
+    const features = wizardData.fieldsData?.features || [];
+    const sessionOwner = getSessionOwner();
+
+    if (!features.length) {
+      throw new Error("Please create at least one field before submitting.");
+    }
+
+    return features.map((feature, index) => {
+      const fieldInfo =
+        wizardData.fieldsInfo.find(
+          (info) => info.id === feature.properties?.id
+        ) || {};
+
+      const {
+        id,
+        _id,
+        name,
+        area,
+        fieldEventsInfo,
+        parentId,
+        ...fieldAttributes
+      } = fieldInfo;
+
+      const filteredAttributes = Object.keys(fieldAttributes).reduce(
+        (acc, key) => {
+          if (
+            ![
+              "attributes",
+              "geoJsonCords",
+              "geometry",
+              "owner",
+              "type",
+              "typeId",
+            ].includes(key) &&
+            fieldAttributes[key] !== undefined &&
+            fieldAttributes[key] !== null
+          ) {
+            acc[key] = fieldAttributes[key];
+          }
+          return acc;
+        },
+        {}
+      );
+
+      const attributes = {
+        ...feature.properties?.attributes,
+        ...filteredAttributes,
+        area: area || feature.properties?.area || "",
+        geoJsonCords: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: feature.type,
+              properties: { ...feature.properties },
+              geometry: feature.geometry,
+            },
+          ],
+        },
+      };
+
+      const fieldPayload = {
+        type: "Field",
+        name: name || feature.properties?.name || `Field ${index + 1}`,
+        parentId: parentId || farmPayload?._id || null,
+        owner: sessionOwner || farmPayload?.owner || null,
+        attributes,
+      };
+
+      if (fieldEventsInfo) {
+        fieldPayload.fieldEventsInfo = fieldEventsInfo;
+      }
+
+      if (_id) {
+        fieldPayload._id = _id;
+      }
+
+      return fieldPayload;
+    });
+  };
+
+  const buildWizardPayload = () => {
+    const farmPayload = buildFarmPayload();
+    const fieldPayloads = buildFieldPayloads(farmPayload);
+
+    return [farmPayload, ...fieldPayloads];
+  };
+
+  const handleWizardComplete = async () => {
+    if (isSavingWizard) {
+      return;
+    }
+
+    try {
+      const payload = buildWizardPayload();
+
+      setIsSavingWizard(true);
+      console.log("Submitting wizard payload", payload);
+
+      const response = await locationService.farmWizard(payload);
+
+      setWizardData((prev) => ({
+        ...prev,
+        savedLocations: response.data,
+      }));
+
+      alert("Farm registration completed successfully!");
+    } catch (error) {
+      console.error("Failed to complete farm wizard", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Farm registration failed. Please try again.";
+      alert(message);
+    } finally {
+      setIsSavingWizard(false);
+    }
   };
 
   // Create default square polygon
@@ -283,7 +440,7 @@ const WizardPage = () => {
     const farmData = {
       type: "Farm",
       name: wizardData.farmDetails?.name || "Unnamed Farm",
-      owner: buildOwnerDetails(wizardData.farmDetails),
+      owner: getSessionOwner(),
       attributes: {
         area: wizardData.farmArea,
         lat: completeData.centerCoordinates?.lat || 0,
@@ -305,22 +462,20 @@ const WizardPage = () => {
   };
 
   return (
-    <Outlet
-      context={{
-        wizardData,
-        onFarmDetailsSubmit: handleFarmDetailsSubmit,
-        onLocationUpdate: handleLocationUpdate,
-        onFarmComplete: handleFieldDivisionComplete,
-        updateFarmArea: updateFarmArea,
-        onFieldSelect: handleFieldSelect,
-        onFieldInfoUpdate: handleFieldInfoUpdate,
-        onAddField: handleAddField, //not used can be removed after wizard completion
-        onWizardComplete: handleWizardComplete,
-        onCreateDefaultSquare: handleCreateDefaultSquare,
-        onFieldDivisionComplete: handleFieldDivisionComplete,
-        onFieldGeometryUpdate: handleFieldGeometryUpdate,
-      }}
-    />
+    <Outlet context={{
+      wizardData,
+      onFarmDetailsSubmit: handleFarmDetailsSubmit,
+      onLocationUpdate: handleLocationUpdate,
+      updateFarmArea: updateFarmArea,
+      onFieldSelect: handleFieldSelect,
+      onFieldInfoUpdate: handleFieldInfoUpdate,
+      onAddField: handleAddField,   // TODO: Remove this
+      onWizardComplete: handleWizardComplete,
+      onCreateDefaultSquare: handleCreateDefaultSquare,
+      onFieldDivisionComplete: handleFieldDivisionComplete,
+      onFieldGeometryUpdate: handleFieldGeometryUpdate,
+      isSavingWizard
+    }} />
   );
 };
 

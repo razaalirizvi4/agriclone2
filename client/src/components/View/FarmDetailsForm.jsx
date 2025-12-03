@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { getTypes } from "../../features/type/type.slice";
 
-const FarmDetailsForm = ({ onSubmit, geoJsonData, initialValues = {} }) => {
+const FarmDetailsForm = ({ onSubmit, initialValues = {} }) => {
   const dispatch = useDispatch();
   const {
     types = [],
@@ -25,10 +25,7 @@ const FarmDetailsForm = ({ onSubmit, geoJsonData, initialValues = {} }) => {
       const farmType = types.find((t) => t.type === "farm");
       const farmAttributes = farmType?.attributes || [];
 
-      // Separate Mapbox and non-Mapbox attributes
-      const mapboxAttributes = farmAttributes.filter(
-        (attr) => attr.modules && attr.modules.includes("mapbox")
-      );
+      // Filter out Mapbox attributes (handled separately in map component)
       const nonMapboxAttributes = farmAttributes.filter(
         (attr) => !attr.modules || !attr.modules.includes("mapbox")
       );
@@ -42,16 +39,9 @@ const FarmDetailsForm = ({ onSubmit, geoJsonData, initialValues = {} }) => {
           initialValues[attr.key] !== undefined ? initialValues[attr.key] : "";
       });
 
-      // Add geoJsonData for Mapbox attributes
-      if (geoJsonData) {
-        mapboxAttributes.forEach((attr) => {
-          initialFormData[attr.key] = geoJsonData;
-        });
-      }
-
       setFormData(initialFormData);
     }
-  }, [types, geoJsonData, initialValues]);
+  }, [types, initialValues]);
 
   const handleChange = (key, value) => {
     setFormData((prev) => ({ ...prev, [key]: value }));

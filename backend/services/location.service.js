@@ -23,11 +23,14 @@ exports.deleteLocation = async (id) => {
   return await locationDataLayer.deleteLocation(id);
 };
 
-exports.farmSetup = async (locations) => {
+exports.farmSetup = async (locations = []) => {
+  const payload = Array.isArray(locations) ? locations : [];
   const results = [];
 
-  for (const item of locations) {
-    if (item.typeId === "<FarmTypeId>") { // Assuming a way to identify a farm
+  for (const item of payload) {
+    const normalizedType = (item.type || "").toLowerCase();
+
+    if (normalizedType === "farm") { // Determine farm entries by type
       // Farm object
       if (item._id) {
         // Edit Mode: Update existing Farm
@@ -42,7 +45,7 @@ exports.farmSetup = async (locations) => {
         // Store farmId for subsequent fields
         item._id = newFarm._id;
       }
-    } else if (item.typeId === "<FieldTypeId>") { // Assuming a way to identify a field
+    } else if (normalizedType === "field") { // Determine field entries by type
       // Field object
       if (item._id) {
         // Edit Mode: Update existing Field
@@ -51,8 +54,8 @@ exports.farmSetup = async (locations) => {
       } else {
         // Add Mode: Create new Field
         // Ensure parentId is set from the newly created farm or existing farm
-        if (!item.parentId && locations[0] && locations[0]._id) {
-          item.parentId = locations[0]._id; // Assuming the first item in the array is the farm
+        if (!item.parentId && payload[0] && payload[0]._id) {
+          item.parentId = payload[0]._id; // Assuming the first item in the array is the farm
         }
 
         const newField = new Location(item);

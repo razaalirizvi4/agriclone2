@@ -22,7 +22,7 @@ const seedTypes = async () => {
           required: true,
           inputHint: "Enter the farm name",
           example: { value: "Green valley farm" },
-          modules: []
+          modules: [],
         },
         {
           key: "address",
@@ -31,7 +31,7 @@ const seedTypes = async () => {
           required: false,
           inputHint: "Enter the physical address of the farm",
           example: { value: "123 Farm Road, City, State" },
-          modules: []
+          modules: [],
         },
         {
           key: "area",
@@ -40,7 +40,7 @@ const seedTypes = async () => {
           required: true,
           inputHint: "Enter the farm area in acres or square meters",
           example: { value: "100 acres" },
-          modules: []
+          modules: [],
         },
         {
           key: "fields",
@@ -49,7 +49,7 @@ const seedTypes = async () => {
           required: false,
           inputHint: "Enter the number of fields",
           example: { value: "3 or 4" },
-          modules: []
+          modules: [],
         },
         {
           key: "geometry",
@@ -57,8 +57,19 @@ const seedTypes = async () => {
           valueType: "geojson",
           required: true,
           inputHint: "Draw or enter GeoJSON for farm boundaries",
-          example: { type: "Polygon", coordinates: [[[0,0],[1,0],[1,1],[0,1],[0,0]]] },
-          modules: ["mapbox"]
+          example: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          modules: ["mapbox"],
         },
       ],
     });
@@ -72,9 +83,21 @@ const seedTypes = async () => {
           label: "Crop stage",
           valueType: "string",
           required: false,
-          inputHint: "Enter the current growth stage (e.g., seedling, maturing)",
+          inputHint:
+            "Enter the current growth stage (e.g., seedling, maturing)",
           example: { value: "seedling" },
-          modules: []
+          modules: [],
+          inputConfig: {
+            inputType: "select",
+            enum: [
+              "Seeding",
+              "Irrigation",
+              "Disease",
+              "Fertilizer",
+              "Harvesting",
+              "Land_Prep",
+            ],
+          },
         },
         {
           key: "name",
@@ -83,16 +106,20 @@ const seedTypes = async () => {
           required: true,
           inputHint: "Enter the field name",
           example: { value: "South field" },
-          modules: []
+          modules: [],
         },
         {
-          key: "cropType",
-          label: "Crop type",
+          key: "cropName",
+          label: "Crop Name",
           valueType: "string",
           required: true,
           inputHint: "Select or enter the type of crop (e.g., wheat, corn)",
           example: { value: "wheat" },
-          modules: []
+          modules: [],
+          inputConfig: {
+            inputType: "select",
+            enum: [],
+          },
         },
         {
           key: "soilType",
@@ -101,7 +128,32 @@ const seedTypes = async () => {
           required: false,
           inputHint: "Enter the soil composition (e.g., loamy, sandy)",
           example: { value: "loamy" },
-          modules: []
+          modules: [],
+          inputConfig: {
+            inputType: "select",
+            enum: [
+              "Sandy",
+              "Loamy",
+              "Clay",
+              "Silt",
+              "Peaty",
+              "Chalky",
+              "Sandy Loam",
+              "Clay Loam",
+              "Silty Clay",
+              "Silty Loam",
+              "Loam",
+              "Sandy Clay",
+              "Gravelly",
+              "Laterite",
+              "Alluvial",
+              "Black Soil",
+              "Red Soil",
+              "Volcanic",
+              "Saline",
+              "Calcareous",
+            ],
+          },
         },
         {
           key: "soilph",
@@ -110,7 +162,7 @@ const seedTypes = async () => {
           required: true,
           inputHint: "Select or enter the soil ph",
           example: { value: "0-14" },
-          modules: []
+          modules: [],
         },
         {
           key: "geometry",
@@ -118,8 +170,19 @@ const seedTypes = async () => {
           valueType: "geojson",
           required: true,
           inputHint: "Draw or enter GeoJSON for field boundaries",
-          example: { type: "Polygon", coordinates: [[[0,0],[1,0],[1,1],[0,1],[0,0]]] },
-          modules: ["mapbox"]
+          example: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          modules: ["mapbox"],
         },
       ],
     });

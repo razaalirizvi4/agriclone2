@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import FieldDetailsForm from "../components/View/FieldDetailsForm";
+import FieldDetailsForm, { CropAssignmentForm } from "../components/View/FieldDetailsForm";
 import MapWizard from "../components/View/MapWizard";
 
 const FieldsPage = () => {
@@ -75,11 +75,7 @@ const FieldsPage = () => {
           "Farm",
       },
     }));
-  }, [
-    wizardData.fieldsData,
-    wizardData.farmDetails,
-    wizardData.farmBoundaries,
-  ]);
+  }, [wizardData.fieldsData, wizardData.farmDetails, wizardData.farmBoundaries]);
 
   const mapGeoJSON = useMemo(() => {
     const features = [];
@@ -97,7 +93,6 @@ const FieldsPage = () => {
 
   const selectedFieldArea = selectedFieldFeature?.properties?.area || null;
 
-  // Define handleFieldSelect BEFORE using it in useMapViewModel
   const handleFieldSelect = (fieldInfo) => {
     const fieldId = fieldInfo.fieldId;
     setSelectedField(fieldId);
@@ -149,10 +144,6 @@ const FieldsPage = () => {
     }
   };
 
-  const handleCropAssignment = (fieldId, cropId) => {
-    onFieldInfoUpdate(fieldId, { cropId });
-  };
-
   const getSelectedFieldInfo = () => {
     const fieldInfo = (wizardData.fieldsInfo || []).find(
       (field) => field.id === selectedField
@@ -189,14 +180,12 @@ const FieldsPage = () => {
     const fieldFeature = fieldFeatures.find(
       (feature) => feature.properties?.id === fieldId
     );
-
     if (fieldFeature && mapApiRef.current) {
       mapApiRef.current.focusOnFeature(fieldFeature);
     }
   };
 
   const currentFieldInfo = getSelectedFieldInfo();
-
   return (
     <div className="recipe-wizard-page">
       <div className="wizard-layout">
@@ -330,62 +319,33 @@ const FieldsPage = () => {
               </div>
             )}
 
-            {activeTab === "crops" && (
-              <div className="fields-section">
-                <h3 className="fields-section__title">Crop Assignment</h3>
-
-                {selectedField ? (
-                  <div className="fields-section__block">
-                    <div className="fields-detail__header">
-                      <h4>Assign Crop to {currentFieldInfo?.name}</h4>
-                      <button
-                        onClick={() => centerMapOnField(selectedField)}
-                        className="fields-mini-button"
-                        type="button"
-                      >
-                        🔍 View on Map
-                      </button>
-                    </div>
-
-                    {/* Existing Crops */}
-                    <div className="fields-select__group">
-                      <label className="fields-select__label">
-                        Select Crop:
-                      </label>
-                      <select
-                        value={currentFieldInfo?.cropId || ""}
-                        onChange={(e) =>
-                          handleCropAssignment(selectedField, e.target.value)
-                        }
-                        className="fields-select"
-                      >
-                        <option value="">Select a crop</option>
-                        {wizardData.crops.map((crop) => (
-                          <option key={crop.id} value={crop.id}>
-                            {crop.name}
-                          </option>
-                        ))}
-                      </select>
-                      {currentFieldInfo?.cropId && (
-                        <div className="fields-select__status">
-                          ✓ Assigned:{" "}
-                          {wizardData.crops.find(
-                            (c) => c.id === currentFieldInfo.cropId
-                          )?.name || ""}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="fields-empty-state">
-                    <div className="fields-empty-state__icon">🌱</div>
-                    <p>Select a field to assign crops.</p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
-
+          {activeTab === "crops" && (
+            <div>
+              {selectedField ? (
+                <CropAssignmentForm
+                  field={currentFieldInfo}
+                  onSubmit={handleFieldInfoSubmit}
+                  fieldName={currentFieldInfo?.name}
+                  onViewMap={() => centerMapOnField(selectedField)}
+                />
+              ) : (
+                <div style={{
+                  textAlign: "center",
+                  color: "#666",
+                  padding: "20px",
+                  background: "#f8f9fa",
+                  borderRadius: "4px",
+                  border: "1px dashed #dee2e6"
+                }}>
+                  <div style={{ fontSize: "24px", marginBottom: "10px" }}>🌱</div>
+                  <div style={{ fontSize: "14px" }}>
+                    Select a field to assign crops
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {/* Bottom Actions */}
           <div className="fields-actions">
             <div className="fields-actions__row">
@@ -414,7 +374,6 @@ const FieldsPage = () => {
             </div>
           </div>
         </div>
-
         {/* Right Side - Map, matching FarmDrawPage layout */}
         <div className="recipe-card fields-map-card">
           <div className="fields-map-wrapper">

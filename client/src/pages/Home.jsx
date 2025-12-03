@@ -18,6 +18,16 @@ import { componentMapper } from "../components/componentMapper";
 // 2.1. field[0] -> store in function (setSelectedField)
 // 2.2. selected field -> onclik eventlistner get field id
 // 2.2. according to that field id the crops and events will change
+const getLocationTypeName = (typeValue) => {
+  if (!typeValue) {
+    return "";
+  }
+  if (typeof typeValue === "string") {
+    return typeValue;
+  }
+  return typeValue.name || typeValue.type || "";
+};
+
 function Home() {
   const dispatch = useDispatch();
   const [selectedFieldId, setSelectedFieldId] = useState(null);
@@ -34,7 +44,9 @@ function Home() {
   // Log locations status
   useEffect(() => {
     if (status === "succeeded" && locations.length > 0) {
-      const fields = locations.filter((loc) => loc.type === "Field");
+      const fields = locations.filter(
+        (loc) => getLocationTypeName(loc.type) === "Field"
+      );
       if (fields.length > 0) {
         const fieldIds = fields.map((f) => f._id);
         const cropIds = fields.map((f) => f.attributes.crop_id).filter(Boolean);
