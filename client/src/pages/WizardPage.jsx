@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import locationService from "../services/location.service";
+import './wizard.css'
 
 const getSessionOwner = () => {
   if (typeof window === "undefined") {
