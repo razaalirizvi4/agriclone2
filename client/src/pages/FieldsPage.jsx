@@ -201,151 +201,71 @@ const FieldsPage = () => {
               Address: {wizardData.farmDetails?.address}
             </p>
             <p className="fields-panel__subtitle">
-              Farm Size: {wizardData.farmArea}
+              Farm Size:{wizardData.farmDetails.area}
             </p>
             <p className="fields-panel__meta">
               Total Fields: {(wizardData.fieldsInfo || []).length || 0}
             </p>
           </div>
 
-          {/* Tabs */}
-          <div className="fields-panel__tabs">
-            <button
-              onClick={() => setActiveTab("fields")}
-              className={`fields-tab ${
-                activeTab === "fields" ? "fields-tab--active" : ""
-              }`}
-            >
-              Field Details
-            </button>
-            <button
-              onClick={() => setActiveTab("crops")}
-              className={`fields-tab ${
-                activeTab === "crops" ? "fields-tab--active" : ""
-              }`}
-            >
-              Crop Assignment
-            </button>
-          </div>
-
-          {/* Content */}
+          {/* Left content: Field details + Crop assignment toggle */}
           <div className="fields-panel__content">
-            {activeTab === "fields" && (
+            {selectedField ? (
               <div className="fields-section">
-                <div className="fields-section__header">
-                  <h4 className="fields-section__title">
-                    Fields{" "}
-                    {(wizardData.fieldsInfo || []).length > 0 && (
-                      <span>({(wizardData.fieldsInfo || []).length})</span>
-                    )}
-                  </h4>
-                  <small className="fields-section__hint">
-                    Click a field to select
-                  </small>
+                <div className="fields-detail__header">
+                  <h4>Editing: {currentFieldInfo?.name}</h4>
+                  <button
+                    onClick={() => centerMapOnField(selectedField)}
+                    className="fields-mini-button"
+                    type="button"
+                  >
+                    🔍 Re-center
+                  </button>
                 </div>
 
-                {/* Fields Table */}
-                {(wizardData.fieldsInfo || []).length > 0 ? (
-                  <div className="fields-table">
-                    {(wizardData.fieldsInfo || []).map((field) => {
-                      const isSelected = selectedField === field.id;
-                      return (
-                        <button
-                          key={field.id}
-                          type="button"
-                          className={`fields-row ${
-                            isSelected ? "fields-row--selected" : ""
-                          }`}
-                          onClick={() =>
-                            handleFieldSelect({ fieldId: field.id })
-                          }
-                        >
-                          <div className="fields-row__body">
-                            <div className="fields-row__name">
-                              {field.name}
-                              {isSelected && (
-                                <span className="fields-row__pill">
-                                  ● Selected
-                                </span>
-                              )}
-                            </div>
-                            <div className="fields-row__meta">
-                              Area: {field.area}
-                            </div>
-                          </div>
-                          <span
-                            className={`fields-row__indicator ${
-                              isSelected ? "fields-row__indicator--active" : ""
-                            }`}
-                          />
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="fields-empty-state">
-                    <div className="fields-empty-state__icon">🌾</div>
-                    <p>
-                      No fields created yet. Click "Start Drawing Fields" to
-                      begin.
-                    </p>
-                  </div>
+                {/* Toggle for Field Details / Crop Assignment */}
+                <div className="fields-panel__tabs">
+                  <button
+                    onClick={() => setActiveTab("fields")}
+                    className={`fields-tab ${
+                      activeTab === "fields" ? "fields-tab--active" : ""
+                    }`}
+                  >
+                    Field Details
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("crops")}
+                    className={`fields-tab ${
+                      activeTab === "crops" ? "fields-tab--active" : ""
+                    }`}
+                  >
+                    Crop Assignment
+                  </button>
+                </div>
+
+                {activeTab === "fields" && (
+                  <FieldDetailsForm
+                    field={currentFieldInfo}
+                    onSubmit={handleFieldInfoSubmit}
+                  />
                 )}
 
-                {/* Field Details Form */}
-                {selectedField ? (
-                  <div className="fields-section">
-                    <div className="fields-detail__header">
-                      <h4>Editing: {currentFieldInfo?.name}</h4>
-                      <button
-                        onClick={() => centerMapOnField(selectedField)}
-                        className="fields-mini-button"
-                        type="button"
-                      >
-                        🔍 Re-center
-                      </button>
-                    </div>
-                    <FieldDetailsForm
-                      field={currentFieldInfo}
-                      onSubmit={handleFieldInfoSubmit}
-                    />
-                  </div>
-                ) : (
-                  <div className="fields-empty-state">
-                    <div className="fields-empty-state__icon">🗺️</div>
-                    <p>Select a field to view and edit details.</p>
-                  </div>
+                {activeTab === "crops" && (
+                  <CropAssignmentForm
+                    field={currentFieldInfo}
+                    onSubmit={handleFieldInfoSubmit}
+                    fieldName={currentFieldInfo?.name}
+                    onViewMap={() => centerMapOnField(selectedField)}
+                  />
                 )}
               </div>
+            ) : (
+              <div className="fields-empty-state">
+                <div className="fields-empty-state__icon">🗺️</div>
+                <p>Select a field to view and edit details.</p>
+              </div>
             )}
-
           </div>
-          {activeTab === "crops" && (
-            <div>
-              {selectedField ? (
-                <CropAssignmentForm
-                  field={currentFieldInfo}
-                  onSubmit={handleFieldInfoSubmit}
-                  fieldName={currentFieldInfo?.name}
-                  onViewMap={() => centerMapOnField(selectedField)}
-                />
-              ) : (
-                <div style={{
-                  textAlign: "center",
-                  color: "#666",
-                  padding: "20px",
-                  background: "#f8f9fa",
-                  borderRadius: "4px",
-                  border: "1px dashed #dee2e6"
-                }}>
-                  <div style={{ fontSize: "24px", marginBottom: "10px" }}>🌱</div>
-                  <div style={{ fontSize: "14px" }}>
-                    Select a field to assign crops
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           {/* Bottom Actions */}
           <div className="fields-actions">
             <div className="fields-actions__row">
@@ -374,7 +294,7 @@ const FieldsPage = () => {
             </div>
           </div>
         </div>
-        {/* Right Side - Map, matching FarmDrawPage layout */}
+        {/* Right Side - Map with Fields table below */}
         <div className="recipe-card fields-map-card">
           <div className="fields-map-wrapper">
             <MapWizard
@@ -389,6 +309,66 @@ const FieldsPage = () => {
                 setMapReady(true);
               }}
             />
+
+            {/* Fields selection table below the map */}
+            <div className="fields-section">
+              <div className="fields-section__header">
+                <h4 className="fields-section__title">
+                  Fields{" "}
+                  {(wizardData.fieldsInfo || []).length > 0 && (
+                    <span>({(wizardData.fieldsInfo || []).length})</span>
+                  )}
+                </h4>
+                <small className="fields-section__hint">
+                  Click a field to select
+                </small>
+              </div>
+
+              {(wizardData.fieldsInfo || []).length > 0 ? (
+                <div className="fields-table">
+                  {(wizardData.fieldsInfo || []).map((field) => {
+                    const isSelected = selectedField === field.id;
+                    return (
+                      <button
+                        key={field.id}
+                        type="button"
+                        className={`fields-row ${
+                          isSelected ? "fields-row--selected" : ""
+                        }`}
+                        onClick={() => handleFieldSelect({ fieldId: field.id })}
+                      >
+                        <div className="fields-row__body">
+                          <div className="fields-row__name">
+                            {field.name}
+                            {isSelected && (
+                              <span className="fields-row__pill">
+                                ● Selected
+                              </span>
+                            )}
+                          </div>
+                          <div className="fields-row__meta">
+                            Area: {field.area}
+                          </div>
+                        </div>
+                        <span
+                          className={`fields-row__indicator ${
+                            isSelected ? "fields-row__indicator--active" : ""
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="fields-empty-state">
+                  <div className="fields-empty-state__icon">🌾</div>
+                  <p>
+                    No fields created yet. Click "Start Drawing Fields" to
+                    begin.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

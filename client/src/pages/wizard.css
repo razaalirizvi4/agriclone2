@@ -1,3 +1,7 @@
+.field-form {
+  width: 100%;
+  overflow-x: hidden;
+}
 /* Wizard Layout */
 .wizard-wrapper {
   padding: 20px;
@@ -18,11 +22,16 @@
   display: grid;
   grid-template-columns: minmax(320px, 360px) 1fr;
   gap: 24px;
+  /* Let each column size itself; avoid right column forcing left to grow */
   align-items: flex-start;
 }
 
 .fields-panel {
   padding: 0;
+  /* Match right-side card height so both columns stay parallel */
+  height: 600px;
+  display: flex;
+  flex-direction: column;
 }
 
 .fields-panel__header {
@@ -77,6 +86,7 @@
 .fields-panel__content {
   flex: 1;
   padding: 15px;
+  /* Scroll inside the left panel instead of growing the card taller */
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -112,7 +122,8 @@
 .fields-table {
   max-height: 220px;
   overflow: auto;
-  border: 1px solid #e0e0e0;
+  /* Remove outer box borders; keep only row separators */
+  border: none;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -132,7 +143,8 @@
 }
 
 .fields-row:last-child {
-  border-bottom: none;
+  /* Make the final row carry the thicker baseline */
+  border-bottom: 2px solid #555b63;
 }
 
 .fields-row:hover {
@@ -257,11 +269,57 @@
 
 .fields-map-card {
   padding: 0;
-  min-height: 600px;
+  /* Same fixed height as left panel so they align even without scroll */
+  height: 600px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .fields-map-wrapper {
-  min-height: 600px;
+  /* Use all available height inside the right card */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Inside the right card, let the Fields section grow and scroll internally */
+.fields-map-wrapper .fields-section {
+  /* Use remaining space under the map within the right card */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow children (table) to scroll */
+}
+
+.fields-map-wrapper .fields-table {
+  flex: 1;
+  min-height: 0;
+  max-height: none; /* override base 220px limit for the right-side table */
+  overflow-y: auto;
+}
+
+/* Hide default scrollbar track outline while still allowing scroll */
+.fields-panel__content,
+.fields-map-wrapper .fields-table {
+  scrollbar-width: thin; /* Firefox */
+}
+
+.fields-panel__content::-webkit-scrollbar,
+.fields-map-wrapper .fields-table::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fields-panel__content::-webkit-scrollbar-track,
+.fields-map-wrapper .fields-table::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fields-panel__content::-webkit-scrollbar-thumb,
+.fields-map-wrapper .fields-table::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
 }
 
 .crop-card,

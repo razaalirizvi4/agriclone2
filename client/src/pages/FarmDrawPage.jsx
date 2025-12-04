@@ -5,14 +5,14 @@ import MapWizard from "../components/View/MapWizard";
 import { processFarmDivision, createFieldsInfo } from "../utils/fieldDivision";
 
 const FarmDrawPage = () => {
-  const { 
-    wizardData, 
-    onFarmDetailsSubmit, 
+  const {
+    wizardData,
+    onFarmDetailsSubmit,
     updateFarmArea,
     onCreateDefaultSquare,
     onFieldDivisionComplete
   } = useOutletContext();
-  
+
   const navigate = useNavigate();
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -143,24 +143,26 @@ const FarmDrawPage = () => {
 
   const geocodeAddressAndCreatePolygon = async (address, size) => {
     if (!address || !size) return;
-    
+
     setIsGeocoding(true);
     try {
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          address
+        )}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`
       );
       const data = await response.json();
-      
+
       if (data.features && data.features.length > 0) {
         const [lng, lat] = data.features[0].center;
         if (mapApiRef.current) {
           mapApiRef.current.setMapCenter(lng, lat);
         }
         setFarmCenter({ lat, lng });
-        
+
         // Create default square polygon based on farm size
         const squareData = onCreateDefaultSquare([lng, lat], size);
-        
+
         // Update the map with the created polygon
         if (mapApiRef.current) {
           mapApiRef.current.setDrawnDataProgrammatically(
@@ -208,7 +210,7 @@ const FarmDrawPage = () => {
           numberOfFields: wizardData.numberOfFields,
           centerCoordinates: farmCenter
         };
-        
+
         onFieldDivisionComplete(completeData);
         setFieldsGenerated(true);
         navigate("/wizard/fields");
@@ -237,76 +239,41 @@ const FarmDrawPage = () => {
             <div className="wizard-farm-summary">
               <h4>Farm Summary</h4>
               <div className="wizard-farm-summary-content">
-                <div><strong>Name:</strong> {wizardData.farmDetails.name}</div>
-                <div><strong>Address:</strong> {wizardData.farmDetails.address}</div>
-                <div><strong>Size:</strong> {wizardData.farmArea} acres</div>
-                <div><strong>Number of Fields:</strong> {wizardData.farmDetails.numberOfFields}</div>
+                <div>
+                  <strong>Name:</strong> {wizardData.farmDetails.name}
+                </div>
+                <div>
+                  <strong>Address:</strong> {wizardData.farmDetails.address}
+                </div>
+                <div>
+                  <strong>Size:</strong>{" "}
+                  {wizardData.farmArea && wizardData.farmArea !== "0 acres"
+                    ? wizardData.farmArea
+                    : farmSize
+                    ? `${farmSize} Acre`
+                    : null}
+                </div>
+                <div>
+                  <strong>Number of Fields:</strong>{" "}
+                  {wizardData.farmDetails.numberOfFields}
+                </div>
                 {farmCenter && (
-                  <div><strong>Location:</strong> Lat: {farmCenter.lat.toFixed(6)}, Lng: {farmCenter.lng.toFixed(6)}</div>
+                  <div>
+                    <strong>Location:</strong> Lat: {farmCenter.lat.toFixed(6)},
+                    Lng: {farmCenter.lng.toFixed(6)}
+                  </div>
                 )}
                 {wizardData.farmArea && wizardData.farmArea !== "0 acres" && (
-                  <div><strong>Calculated Area:</strong> {wizardData.farmArea}</div>
+                  <div>
+                    <strong>Calculated Area:</strong> {wizardData.farmArea}
+                  </div>
                 )}
                 {fieldsGenerated && wizardData.fieldsData && (
                   <div className="status-success">
-                    <strong>✓ Fields Generated:</strong> {wizardData.fieldsData.features?.length || 0} fields created
+                    <strong>✓ Fields Generated:</strong>{" "}
+                    {wizardData.fieldsData.features?.length || 0} fields created
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* Map Controls (shown after form submission) */}
-          {showMap && (
-            <div className="wizard-map-controls">
-              <h4>Map Status</h4>
-              
-              {/* Location Status */}
-              <div className="control-section">
-                <div className="control-label">Farm Location</div>
-                {isGeocoding ? (
-                  <div className="status-info">
-                    🔍 Creating farm boundary at: {wizardData.farmDetails?.address}
-                  </div>
-                ) : farmCenter ? (
-                  <div className="status-success">
-                    ✓ Location set: Lat {farmCenter.lat.toFixed(6)}, Lng {farmCenter.lng.toFixed(6)}
-                  </div>
-                ) : (
-                  <div className="status-warning">
-                    Creating farm boundary...
-                  </div>
-                )}
-              </div>
-
-              {/* Farm Boundaries */}
-              <div className="control-section">
-                <div className="control-label">Farm Boundaries</div>
-                <div className="instruction">
-                  A {farmSize}-acre farm boundary has been automatically created around your location.
-                  You can adjust the boundary by dragging the corners.
-                </div>
-                {wizardData.farmArea && wizardData.farmArea !== "0 acres" && (
-                  <div className="status-success" style={{marginTop: '10px'}}>
-                    ✓ Current Area: {wizardData.farmArea}
-                  </div>
-                )}
-              </div>
-
-              {/* Generate Fields and Navigate Button */}
-              <div className="control-section">
-                <div className="control-label">Field Generation</div>
-                <div className="instruction">
-                  Click the button below to automatically divide your farm into {wizardData.numberOfFields} fields and proceed to customization.
-                </div>
-                <button 
-                  onClick={handleGenerateFields}
-                  disabled={!drawnData || drawnData.features.length === 0 || !wizardData.numberOfFields || isGeocoding}
-                  className="primary-button"
-                  style={{width: '100%', marginTop: '10px'}}
-                >
-                  Generate {wizardData.numberOfFields} Fields & Next
-                </button>
               </div>
             </div>
           )}
@@ -337,6 +304,71 @@ const FarmDrawPage = () => {
                 <div className="wizard-placeholder-icon">🗺️</div>
                 <h3>Map Area</h3>
                 <p>Fill out the farm details first to proceed</p>
+              </div>
+            </div>
+          )}
+          {/* Map Controls (shown after form submission) */}
+
+          {showMap && (
+            <div className="wizard-map-controls">
+              <h4>Map Status</h4>
+
+              {/* Location Status */}
+              <div className="control-section">
+                <div className="control-label">Farm Location</div>
+                {isGeocoding ? (
+                  <div className="status-info">
+                    🔍 Creating farm boundary at:{" "}
+                    {wizardData.farmDetails?.address}
+                  </div>
+                ) : farmCenter ? (
+                  <div className="status-success">
+                    ✓ Location set: Lat {farmCenter.lat.toFixed(6)}, Lng{" "}
+                    {farmCenter.lng.toFixed(6)}
+                  </div>
+                ) : (
+                  <div className="status-warning">
+                    Creating farm boundary...
+                  </div>
+                )}
+              </div>
+
+              {/* Farm Boundaries */}
+              <div className="control-section">
+                <div className="control-label">Farm Boundaries</div>
+                <div className="instruction">
+                  A {farmSize}-acre farm boundary has been automatically created
+                  around your location. You can adjust the boundary by dragging
+                  the corners.
+                </div>
+                {wizardData.farmArea && wizardData.farmArea !== "0 acres" && (
+                  <div className="status-success" style={{ marginTop: "10px" }}>
+                    ✓ Current Area: {wizardData.farmArea}
+                  </div>
+                )}
+              </div>
+
+              {/* Generate Fields and Navigate Button */}
+              <div className="control-section">
+                <div className="control-label">Field Generation</div>
+                <div className="instruction">
+                  Click the button below to automatically divide your farm into{" "}
+                  {wizardData.numberOfFields} fields and proceed to
+                  customization.
+                </div>
+                <button
+                  onClick={handleGenerateFields}
+                  disabled={
+                    !drawnData ||
+                    drawnData.features.length === 0 ||
+                    !wizardData.numberOfFields ||
+                    isGeocoding
+                  }
+                  className="primary-button"
+                  style={{ width: "20%", marginTop: "10px",  float:"right" }}
+                >
+                  Generate {wizardData.numberOfFields} Fields & Next
+                </button>
               </div>
             </div>
           )}

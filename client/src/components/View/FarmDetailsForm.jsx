@@ -82,7 +82,7 @@ const FarmDetailsForm = ({ onSubmit, initialValues = {} }) => {
           />
         </div>
       ))}
-      <button type="submit">Submit</button>
+      <button type="submit" className="primary-button">Submit</button>
     </form>
   );
 };
