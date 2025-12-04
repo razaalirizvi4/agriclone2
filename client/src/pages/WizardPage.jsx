@@ -343,10 +343,14 @@ const WizardPage = () => {
         {}
       );
 
+      // Ensure crop_id is included in attributes (it might be in fieldInfo directly or in attributes)
+      const crop_id = fieldInfo.crop_id || fieldInfo.attributes?.crop_id || filteredAttributes.crop_id;
+      
       const attributes = {
         ...feature.properties?.attributes,
         ...filteredAttributes,
         area: area || feature.properties?.area || "",
+        ...(crop_id && { crop_id }), // Include crop_id if it exists
         geoJsonCords: {
           type: "FeatureCollection",
           features: [
@@ -358,6 +362,7 @@ const WizardPage = () => {
           ],
         },
       };
+      
 
       const fieldPayload = {
         type: "Field",
@@ -395,7 +400,6 @@ const WizardPage = () => {
       const payload = buildWizardPayload();
 
       setIsSavingWizard(true);
-      console.log("Submitting wizard payload", payload);
 
       const response = await locationService.farmWizard(payload);
 
@@ -412,15 +416,17 @@ const WizardPage = () => {
         localStorage.setItem(wizardKey, "true");
       }
 
-      alert("Farm registration completed successfully!");
-      navigate("/"); // Go to dashboard/home after wizard completion
+      // Return response so ReviewPage can create events
+      // NOTE: Don't navigate here - let ReviewPage handle navigation after events are created
+      return response;
     } catch (error) {
-      console.error("Failed to complete farm wizard", error);
+      console.error("Failed to complete farm wizard:", error);
       const message =
         error?.response?.data?.message ||
         error?.message ||
         "Farm registration failed. Please try again.";
       alert(message);
+      throw error; // Re-throw so ReviewPage can handle it
     } finally {
       setIsSavingWizard(false);
     }

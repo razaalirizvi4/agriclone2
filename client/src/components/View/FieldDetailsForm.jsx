@@ -210,6 +210,7 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
 
   const [cropAssignmentData, setCropAssignmentData] = useState({
     cropName: "",
+    crop_id: "",
     cropStage: "",
     selectedRecipe: null
   });
@@ -246,6 +247,7 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
     if (field) {
       setCropAssignmentData({
         cropName: field?.cropName ?? "",
+        crop_id: field?.crop_id ?? field?.attributes?.crop_id ?? "",
         cropStage: field?.cropStage ?? "",
         selectedRecipe: field?.selectedRecipe ?? null
       });
@@ -275,6 +277,14 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
             )
           : null;
 
+        // Update crop_id if we found the crop but don't have it stored yet
+        if (selectedCrop?._id && !cropAssignmentData.crop_id) {
+          setCropAssignmentData((prev) => ({
+            ...prev,
+            crop_id: selectedCrop._id
+          }));
+        }
+
         const recipes = selectedCrop?.recipes || [];
         setRecipesState({ recipes, loading: false });
       } catch (err) {
@@ -287,10 +297,26 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
   }, [cropAssignmentData.cropName]);
 
   const handleChange = (key, value) => {
-    setCropAssignmentData((prev) => ({
-      ...prev,
-      [key]: value
-    }));
+    if (key === "cropName") {
+      // When cropName changes, also find and store the crop_id
+      const selectedCrop = cropOptions.find(
+        (crop) => crop.name === value
+      );
+      
+      
+      setCropAssignmentData((prev) => ({
+        ...prev,
+        cropName: value,
+        crop_id: selectedCrop?._id || "",
+        // Clear selected recipe when crop changes
+        selectedRecipe: null
+      }));
+    } else {
+      setCropAssignmentData((prev) => ({
+        ...prev,
+        [key]: value
+      }));
+    }
   };
 
   const handleSubmit = (e) => {

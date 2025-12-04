@@ -8,7 +8,7 @@ export const getEvents = createAsyncThunk(
       const response = await eventStreamService.getEvents(params);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || error.message);
     }
   }
 );

@@ -7,16 +7,30 @@ const getEvents = async (queryParams) => {
 
   if (ids) {
     const idArray = ids.split(',').map(id => id.trim());
-    return await EventStream.find({ _id: { $in: idArray } }); // ✅ returns full data now
+    return await EventStream.find({ _id: { $in: idArray } });
   }
 
-if (field_Ids) {
-    const fieldIdArray = field_Ids.split(",").map((id) => new mongoose.Types.ObjectId(id.trim()));
-    console.log("Fetching by field IDs:", fieldIdArray);
-
-    return await EventStream.find({
-      "RelationIds.Field_id": { $in: fieldIdArray },
-    });
+  if (field_Ids) {
+    const fieldIdStrings = field_Ids.split(",").map((id) => id.trim());
+    
+    // Convert to ObjectIds for querying (handles both ObjectId and string storage)
+    const fieldIdObjectIds = fieldIdStrings.map((id) => {
+      try {
+        return new mongoose.Types.ObjectId(id);
+      } catch (error) {
+        return null;
+      }
+    }).filter(Boolean);
+    
+    // Query for both ObjectId and string matches (since Field_id can be stored as either)
+    const query = {
+      $or: [
+        { "RelationIds.Field_id": { $in: fieldIdObjectIds } }, // Match ObjectId
+        { "RelationIds.Field_id": { $in: fieldIdStrings } },   // Match string
+      ],
+    };
+    
+    return await EventStream.find(query);
   }
 
   // Default: fetch all events

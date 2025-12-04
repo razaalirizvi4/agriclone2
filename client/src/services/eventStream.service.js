@@ -5,7 +5,6 @@ const API_URL = "http://localhost:5000/api/eventstream";
 // ✅ Helper to attach token
 const getAuthHeader = () => {
   const user = JSON.parse(localStorage.getItem("user"));
-  console.log("🔑 Sending Auth Header:", user?.token ? `Bearer ${user.token}` : "No token found");
   if (user && user.token) {
     return { Authorization: `Bearer ${user.token}` };
   }
@@ -27,9 +26,17 @@ const updateEventStatus = (eventId, data) => {
   });
 };
 
+// ✅ Create field lifecycle events
+const createFieldEvents = (data) => {
+  return axios.post(`${API_URL}/field-events`, data, {
+    headers: getAuthHeader(),
+  });
+};
+
 const eventStreamService = {
   getEvents,
   updateEventStatus,
+  createFieldEvents,
 };
 
 export default eventStreamService;

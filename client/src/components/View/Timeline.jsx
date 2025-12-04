@@ -49,10 +49,26 @@ return (
           <div className="timeline-card" style={event.cardStyle}>
             <div className="card-header">
               <span>{formatDateYYYYMMDD(event.date)}</span>
-              <img src={event.icon} alt="" className="card-icon" />
+              {event.icon && (
+                event.icon.startsWith('http') || event.icon.startsWith('/') ? (
+                  <img src={event.icon} alt="" className="card-icon" />
+                ) : (
+                  <span className="card-icon-emoji">{event.icon}</span>
+                )
+              )}
             </div>
             <div className="card-body">
               <p>{event.details}</p>
+              {(event.duration || (event.equipment && event.equipment.length > 0)) && (
+                <div className="card-meta">
+                  {event.duration && (
+                    <span className="meta-badge">⏱️ {event.duration} days</span>
+                  )}
+                  {event.equipment && event.equipment.length > 0 && (
+                    <span className="meta-badge">🔧 {event.equipment.length} tool{event.equipment.length > 1 ? 's' : ''}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="event-name" style={event.TextStyle}>{event.name}</div>

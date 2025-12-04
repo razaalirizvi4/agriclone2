@@ -20,7 +20,73 @@ const sortWorkflows = (workflows = []) => {
   });
 };
 
-const buildRecipeWorkflowEvents = (cropDoc, recipeDoc, fieldId, baselineDate) => {
+// Crop stages in order
+const CROP_STAGES = ['Land_Prep', 'Seeding', 'Irrigation', 'Disease', 'Fertilizer', 'Harvesting'];
+
+// Helper to check if a workflow step name matches a crop stage
+const matchesCropStage = (stepName, cropStage) => {
+  if (!stepName || !cropStage) {
+    return false;
+  }
+  const normalizedStepName = String(stepName).trim();
+  const normalizedCropStage = String(cropStage).trim();
+  
+  // Direct match
+  if (normalizedStepName === normalizedCropStage) {
+    return true;
+  }
+  
+  // Case-insensitive match
+  if (normalizedStepName.toLowerCase() === normalizedCropStage.toLowerCase()) {
+    return true;
+  }
+  
+  // Check if step name contains crop stage (e.g., "Land Preparation" matches "Land_Prep")
+  const stepNameLower = normalizedStepName.toLowerCase().replace(/[_\s-]/g, '');
+  const cropStageLower = normalizedCropStage.toLowerCase().replace(/[_\s-]/g, '');
+  if (stepNameLower.includes(cropStageLower) || cropStageLower.includes(stepNameLower)) {
+    return true;
+  }
+  
+  return false;
+};
+
+// Helper to determine event state based on crop stage
+const getEventState = (stepName, selectedCropStage, stepIndex, totalSteps) => {
+  if (!selectedCropStage) {
+    return 'Pending'; // Default state if no crop stage selected
+  }
+  
+  // Find the index of the selected crop stage
+  const selectedStageIndex = CROP_STAGES.indexOf(selectedCropStage);
+  if (selectedStageIndex === -1) {
+    return 'Pending'; // Invalid crop stage, default to Pending
+  }
+  
+  // Check if this step matches the selected crop stage or any stage before it
+  let stepStageIndex = -1;
+  for (let i = 0; i < CROP_STAGES.length; i++) {
+    if (matchesCropStage(stepName, CROP_STAGES[i])) {
+      stepStageIndex = i;
+      break;
+    }
+  }
+  
+  // If step doesn't match any crop stage, use position-based logic
+  if (stepStageIndex === -1) {
+    // Approximate: divide steps into crop stages proportionally
+    const stepsPerStage = totalSteps / CROP_STAGES.length;
+    const approximateStageIndex = Math.floor(stepIndex / stepsPerStage);
+    stepStageIndex = Math.min(approximateStageIndex, CROP_STAGES.length - 1);
+  }
+  
+  // Mark events before selected stage as Completed, from selected stage onwards as Pending
+  const state = stepStageIndex < selectedStageIndex ? 'Completed' : 'Pending';
+  
+  return state;
+};
+
+const buildRecipeWorkflowEvents = (cropDoc, recipeDoc, fieldId, baselineDate, selectedCropStage = null) => {
   const workflows = sortWorkflows(recipeDoc?.recipeWorkflows || []);
 
   if (!workflows.length) {
@@ -33,17 +99,20 @@ const buildRecipeWorkflowEvents = (cropDoc, recipeDoc, fieldId, baselineDate) =>
 
   let cursorDate = new Date(baselineDate);
 
-  return workflows.map((workflow, index) => {
+  const events = workflows.map((workflow, index) => {
     const stepName = workflow.stepName || workflow.name || `Workflow Step ${index + 1}`;
     const durationDays = Number(workflow.duration) || 0;
     const eventDate = new Date(cursorDate);
     cursorDate = addDays(cursorDate, durationDays);
 
+    // Determine state based on crop stage
+    const eventState = getEventState(stepName, selectedCropStage, index, workflows.length);
+
     return {
       Feature_Type: stepName,
       Module_Action: 'RecipeWorkflow',
       Date: eventDate,
-      State: 'Scheduled',
+      State: eventState,
       Meta_Data: {
         cropName: cropDoc.name,
         recipeDescription: recipeDoc.recipeInfo?.description,
@@ -59,6 +128,8 @@ const buildRecipeWorkflowEvents = (cropDoc, recipeDoc, fieldId, baselineDate) =>
       }
     };
   });
+  
+  return events;
 };
 
 const createFieldLifeCycleEvents = async ({
@@ -66,6 +137,7 @@ const createFieldLifeCycleEvents = async ({
   recipeId,
   fieldId,
   startDate = new Date(),
+  cropStage = null,
   save = true
 }) => {
   if (!cropId || !recipeId || !fieldId) {
@@ -76,7 +148,7 @@ const createFieldLifeCycleEvents = async ({
   if (!crop) {
     throw new Error(`Crop with id "${cropId}" was not found.`);
   }
-
+  
   const recipe =
     (crop.recipes || []).find((rec) => {
       const recId = rec.id || toStringId(rec._id);
@@ -88,7 +160,7 @@ const createFieldLifeCycleEvents = async ({
     throw new Error(`Recipe "${recipeId}" was not found inside crop "${crop.name}".`);
   }
 
-  const events = buildRecipeWorkflowEvents(crop, recipe, fieldId, startDate);
+  const events = buildRecipeWorkflowEvents(crop, recipe, fieldId, startDate, cropStage);
 
   if (!save) {
     return { events, savedEvents: [] };
@@ -120,5 +192,6 @@ module.exports = {
   updateEventStatus,
   pushEvent: pushEventData,
   createFieldLifeCycleEvents,
-  buildRecipeWorkflowEvents
+  buildRecipeWorkflowEvents,
+  CROP_STAGES // Export for use in other modules
 };

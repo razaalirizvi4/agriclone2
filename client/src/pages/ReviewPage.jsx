@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
+import eventStreamService from "../services/eventStream.service";
 
 const ReviewPage = () => {
   const { wizardData, onWizardComplete, isSavingWizard } = useOutletContext();
   const navigate = useNavigate();
+  const [isCreatingEvents, setIsCreatingEvents] = useState(false);
 
   const farmDetails = wizardData.farmDetails || {};
   const fieldsInfo = wizardData.fieldsInfo || [];
@@ -416,9 +418,97 @@ const ReviewPage = () => {
           </button>
           <button
             type="button"
-            onClick={onWizardComplete}
+            onClick={async () => {
+              if (isSavingWizard || isCreatingEvents) {
+                return;
+              }
+              
+              try {
+                // First complete the wizard and get saved locations
+                const response = await onWizardComplete();
+                
+                // Extract saved fields from response
+                // Response structure: [{ type: 'farm', data: {...} }, { type: 'field', data: {...} }, ...]
+                const savedFields = response?.data?.filter(item => item.type === 'field' && item.data) || [];
+                
+                // Create a map of field names to saved field IDs for lookup
+                const fieldIdMap = new Map();
+                savedFields.forEach(item => {
+                  if (item.data && item.data.name) {
+                    fieldIdMap.set(item.data.name, item.data._id);
+                  }
+                });
+                
+                // Then create events for each field that has a recipe
+                setIsCreatingEvents(true);
+                const eventPromises = [];
+                
+                for (let i = 0; i < fieldsInfo.length; i++) {
+                  const field = fieldsInfo[i];
+                  const selectedRecipe = field.selectedRecipe;
+                  const cropStage = field.cropStage;
+                  
+                  // Try to get cropId from various possible locations
+                  let cropId = field.crop_id || field.attributes?.crop_id;
+                  
+                  // If no cropId but we have cropName, try to find it in saved fields
+                  if (!cropId && field.cropName) {
+                    // Check if saved field has crop_id in attributes
+                    const savedField = savedFields[i]?.data;
+                    
+                    if (savedField?.attributes?.crop_id) {
+                      cropId = savedField.attributes.crop_id;
+                    }
+                  }
+                  
+                  // Also check if cropId is in the selectedRecipe (some recipes might have crop reference)
+                  if (!cropId && selectedRecipe?.cropId) {
+                    cropId = selectedRecipe.cropId;
+                  }
+                  
+                  // Get the saved field ID from the map (prefer by name, fallback to index)
+                  const savedFieldId = fieldIdMap.get(field.name) || savedFields[i]?.data?._id || field._id || field.id;
+                  
+                  // Only create events if field has a recipe and crop
+                  if (selectedRecipe && cropId && selectedRecipe.id && savedFieldId) {
+                    const eventData = {
+                      cropId,
+                      recipeId: selectedRecipe.id,
+                      fieldId: savedFieldId,
+                      startDate: new Date().toISOString(),
+                      cropStage: cropStage || null,
+                    };
+                    
+                    eventPromises.push(
+                      eventStreamService.createFieldEvents(eventData)
+                        .then(result => result)
+                        .catch(error => {
+                          console.error(`Failed to create events for field ${field.name}:`, error);
+                          // Don't throw - continue with other fields
+                          return null;
+                        })
+                    );
+                  }
+                }
+                
+                // Wait for all events to be created
+                await Promise.all(eventPromises);
+                
+                alert("Farm registration and events created successfully!");
+                navigate("/"); // Navigate to dashboard after everything is done
+              } catch (error) {
+                console.error("Error during wizard completion or event creation:", error);
+                const message =
+                  error?.response?.data?.message ||
+                  error?.message ||
+                  "Failed to complete wizard or create events. Please try again.";
+                alert(message);
+              } finally {
+                setIsCreatingEvents(false);
+              }
+            }}
             disabled={
-              !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard
+              !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard || isCreatingEvents
             }
             style={{
               flex: 1,
@@ -426,21 +516,21 @@ const ReviewPage = () => {
               borderRadius: "8px",
               border: "none",
               backgroundColor:
-                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard
+                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard || isCreatingEvents
                   ? "#9ca3af"
                   : "#16a34a",
               color: "#ffffff",
               fontSize: "14px",
               fontWeight: 600,
               cursor:
-                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard
+                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard || isCreatingEvents
                   ? "not-allowed"
                   : "pointer",
               boxShadow: "0 4px 10px rgba(22, 163, 74, 0.3)",
               transition: "background-color 0.15s ease",
             }}
           >
-            {isSavingWizard ? "Saving..." : "Confirm & Complete"}
+            {isSavingWizard ? "Saving..." : isCreatingEvents ? "Creating Events..." : "Confirm & Complete"}
           </button>
         </div>
       </div>
