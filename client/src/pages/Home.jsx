@@ -117,7 +117,7 @@ function Home() {
     <div className="dashboard-grid">
       {/* Edit Farm button at top of dashboard */}
       <div style={{ gridColumn: "span 12", marginBottom: "8px" }}>
-        {/* <button
+         <button
           type="button"
           onClick={() => farm && navigate("/wizard", { state: { farmId: farm._id } })}
           disabled={!farm}
@@ -133,7 +133,7 @@ function Home() {
           }}
         >
           {farm ? "Edit Farm in Wizard" : "No farm available to edit"}
-        </button> */}
+        </button>
       </div>
       {sortedSchema.map((item) => {
         const Component = componentMapper[item.key];

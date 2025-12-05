@@ -24,7 +24,8 @@ const useMapViewModel = ({
   selectedFieldId: externalSelectedFieldId,
   mode = null,
   shouldInitialize = true,
-  onAreaUpdate
+  onAreaUpdate,
+  validateGeometry = null // Optional validation callback: (feature) => boolean
 }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -34,6 +35,8 @@ const useMapViewModel = ({
   const pendingDrawFeatureRef = useRef(null);
   const lastDrawnFeatureRef = useRef(null);
   const onAreaUpdateRef = useRef(onAreaUpdate);
+  const validateGeometryRef = useRef(validateGeometry);
+  const lastValidDrawDataRef = useRef(null);
   
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showFields, setShowFields] = useState(true);
@@ -46,6 +49,10 @@ const useMapViewModel = ({
   useEffect(() => {
     onAreaUpdateRef.current = onAreaUpdate;
   }, [onAreaUpdate]);
+
+  useEffect(() => {
+    validateGeometryRef.current = validateGeometry;
+  }, [validateGeometry]);
 
   useEffect(() => {
     if (drawnData?.features?.length) {
@@ -478,13 +485,38 @@ useEffect(() => {
   const updateArea = () => {
     const data = draw.getAll();
     
-    // Update the drawn data source to show on map
-    if (map.current.getSource('drawn-data')) {
-      map.current.getSource('drawn-data').setData(data);
-    }
-    
     if (data.features.length > 0) {
       const feature = data.features[data.features.length - 1];
+      
+      // Validate geometry if validation callback is provided
+      if (validateGeometryRef.current) {
+        const isValid = validateGeometryRef.current(feature);
+        
+        if (!isValid) {
+          // Alert the user
+          alert("Field boundary must stay within the farm boundary. Please adjust the shape.");
+          
+          // Revert to last valid data if available
+          if (lastValidDrawDataRef.current && map.current.getSource('drawn-data')) {
+            map.current.getSource('drawn-data').setData(lastValidDrawDataRef.current);
+            // Restore the draw control to the last valid state
+            if (drawRef.current && lastValidDrawDataRef.current.features.length > 0) {
+              const lastValidFeature = lastValidDrawDataRef.current.features[0];
+              drawRef.current.deleteAll();
+              drawRef.current.add(lastValidFeature);
+            }
+          }
+          return; // Don't proceed with invalid geometry
+        }
+      }
+      
+      // Store valid data for future reverts
+      lastValidDrawDataRef.current = JSON.parse(JSON.stringify(data));
+      
+      // Update the drawn data source to show on map
+      if (map.current.getSource('drawn-data')) {
+        map.current.getSource('drawn-data').setData(data);
+      }
       
       // Calculate center coordinates for the farm
       const center = turf.center(feature);
@@ -507,6 +539,7 @@ useEffect(() => {
       // Call the callback with null when no area
       onAreaUpdateRef.current?.(null, null, null);
       setDrawnData(null);
+      lastValidDrawDataRef.current = null;
     }
   };
 
@@ -515,6 +548,12 @@ useEffect(() => {
   if (featureToRestore) {
     syncDrawFeature(featureToRestore);
     pendingDrawFeatureRef.current = null;
+    // Initialize last valid data when restoring a feature
+    const restoreData = {
+      type: "FeatureCollection",
+      features: [featureToRestore],
+    };
+    lastValidDrawDataRef.current = JSON.parse(JSON.stringify(restoreData));
   }
 
   // Add event listeners

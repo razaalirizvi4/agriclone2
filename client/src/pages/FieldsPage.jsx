@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
+import * as turf from "@turf/turf";
 import FieldDetailsForm, { CropAssignmentForm } from "../components/View/FieldDetailsForm";
 import MapWizard from "../components/View/MapWizard";
 
@@ -28,6 +29,7 @@ const FieldsPage = () => {
   );
   const [mapReady, setMapReady] = useState(false);
   const mapApiRef = useRef(null);
+  const lastValidFieldGeometryRef = useRef(null);
 
   const farmFeature = useMemo(() => {
     const farmBoundaries = wizardData.farmBoundaries;
@@ -93,6 +95,57 @@ const FieldsPage = () => {
 
   const selectedFieldArea = selectedFieldFeature?.properties?.area || null;
 
+  // Helpers to compute area in acres and the remaining (uncategorized) area
+  const parseAcres = (value) => {
+    if (value === null || value === undefined) return 0;
+    const numeric = parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
+  const farmAreaAcres = useMemo(() => {
+    // Priority 1: Calculate from geometry if available (most accurate)
+    if (farmFeature?.geometry) {
+      try {
+        const areaSqMeters = turf.area(farmFeature);
+        const areaAcres = areaSqMeters / 4046.8564224;
+        if (areaAcres > 0) {
+          return areaAcres;
+        }
+      } catch (error) {
+        console.error("Error calculating farm area from geometry:", error);
+      }
+    }
+
+    // Priority 2: Try to get area from labels
+    const areaLabel =
+      wizardData.farmArea ||
+      wizardData.farmDetails?.area ||
+      wizardData.farmBoundaries?.attributes?.area ||
+      farmFeature?.properties?.area;
+
+    if (areaLabel) {
+      const parsed = parseAcres(areaLabel);
+      if (parsed > 0) {
+        return parsed;
+      }
+    }
+
+    return 0;
+  }, [farmFeature, wizardData.farmArea, wizardData.farmDetails, wizardData.farmBoundaries]);
+
+  const totalFieldAreaAcres = useMemo(() => {
+    return (wizardData.fieldsInfo || []).reduce(
+      (sum, field) => sum + parseAcres(field.area),
+      0
+    );
+  }, [wizardData.fieldsInfo]);
+
+  const uncategorizedAreaAcres = Math.max(
+    0,
+    parseFloat((farmAreaAcres - totalFieldAreaAcres).toFixed(2))
+  );
+  const uncategorizedAreaLabel = `${uncategorizedAreaAcres.toFixed(2)} acres`;
+
   const handleFieldSelect = (fieldInfo) => {
     const fieldId = fieldInfo.fieldId;
     setSelectedField(fieldId);
@@ -108,6 +161,42 @@ const FieldsPage = () => {
       const featureId = feature.properties?.id || selectedField;
       if (featureId !== selectedField) return;
 
+      // Prevent field geometry from leaving the farm boundary
+      if (farmFeature?.geometry) {
+        const fieldFeature = {
+          type: "Feature",
+          properties: feature.properties || {},
+          geometry: feature.geometry,
+        };
+
+        const insideFarm = turf.booleanWithin(fieldFeature, farmFeature);
+
+        if (!insideFarm) {
+          // Immediately revert to the last valid geometry
+          const lastValidGeometry = lastValidFieldGeometryRef.current;
+          
+          if (lastValidGeometry && mapApiRef.current?.setDrawnDataProgrammatically) {
+            // Create a feature with the last valid geometry
+            const validFeature = {
+              type: "Feature",
+              properties: feature.properties || {},
+              geometry: lastValidGeometry,
+            };
+            
+            // Use setTimeout to ensure this happens after the current render cycle
+            setTimeout(() => {
+              mapApiRef.current.setDrawnDataProgrammatically(validFeature);
+            }, 0);
+          }
+          
+          alert("Field boundary must stay within the farm boundary. Please adjust the shape.");
+          return;
+        }
+      }
+
+      // Store the valid geometry for future reverts
+      lastValidFieldGeometryRef.current = feature.geometry;
+
       const updatedArea =
         typeof areaLabel === "string" && areaLabel.length
           ? areaLabel
@@ -115,7 +204,13 @@ const FieldsPage = () => {
 
       onFieldGeometryUpdate(selectedField, feature.geometry, updatedArea);
     },
-    [onFieldGeometryUpdate, selectedField, selectedFieldArea]
+    [
+      onFieldGeometryUpdate,
+      selectedField,
+      selectedFieldArea,
+      farmFeature,
+      selectedFieldFeature,
+    ]
   );
 
   useEffect(() => {
@@ -124,6 +219,13 @@ const FieldsPage = () => {
       setSelectedField(wizardData.selectedFieldId);
     }
   }, [wizardData.selectedFieldId, selectedField]);
+
+  // Store the last valid geometry when selected field changes
+  useEffect(() => {
+    if (selectedFieldFeature?.geometry) {
+      lastValidFieldGeometryRef.current = selectedFieldFeature.geometry;
+    }
+  }, [selectedFieldFeature]);
 
   useEffect(() => {
     if (
@@ -304,6 +406,18 @@ const FieldsPage = () => {
               onAreaUpdate={handleMapAreaUpdate}
               onFieldSelect={handleFieldSelect}
               selectedFieldId={selectedField}
+              validateGeometry={(feature) => {
+                // Validate that field geometry stays within farm boundary
+                if (!farmFeature?.geometry || !feature?.geometry) return true;
+                
+                const fieldFeature = {
+                  type: "Feature",
+                  properties: feature.properties || {},
+                  geometry: feature.geometry,
+                };
+                
+                return turf.booleanWithin(fieldFeature, farmFeature);
+              }}
               onMapReady={(api) => {
                 mapApiRef.current = api;
                 setMapReady(true);
@@ -322,6 +436,33 @@ const FieldsPage = () => {
                 <small className="fields-section__hint">
                   Click a field to select
                 </small>
+              </div>
+
+              <div
+                style={{
+                  marginBottom: "8px",
+                  padding: "8px 10px",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  backgroundColor: uncategorizedAreaAcres > 0 ? "#fef3c7" : "#f9fafb",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: "13px",
+                  color: "#374151",
+                }}
+              >
+                <div>
+                  <strong>Uncategorized area:</strong> {uncategorizedAreaLabel}
+                  {farmAreaAcres > 0 && (
+                    <span style={{ marginLeft: "8px", fontSize: "12px", color: "#6b7280" }}>
+                      (Farm: {farmAreaAcres.toFixed(2)} acres, Fields: {totalFieldAreaAcres.toFixed(2)} acres)
+                    </span>
+                  )}
+                </div>
+                <span style={{ color: "#6b7280" }}>
+                  Farm area not covered by any field
+                </span>
               </div>
 
               {(wizardData.fieldsInfo || []).length > 0 ? (

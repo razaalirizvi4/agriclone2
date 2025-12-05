@@ -424,6 +424,9 @@ const ReviewPage = () => {
               }
               
               try {
+                // Set loading state for the entire process
+                setIsCreatingEvents(true);
+                
                 // First complete the wizard and get saved locations
                 const response = await onWizardComplete();
                 
@@ -439,8 +442,8 @@ const ReviewPage = () => {
                   }
                 });
                 
-                // Then create events for each field that has a recipe
-                setIsCreatingEvents(true);
+                // Collect field IDs and prepare event data for fields that will have events created
+                const fieldIdsForEvents = [];
                 const eventPromises = [];
                 
                 for (let i = 0; i < fieldsInfo.length; i++) {
@@ -453,24 +456,26 @@ const ReviewPage = () => {
                   
                   // If no cropId but we have cropName, try to find it in saved fields
                   if (!cropId && field.cropName) {
-                    // Check if saved field has crop_id in attributes
                     const savedField = savedFields[i]?.data;
-                    
                     if (savedField?.attributes?.crop_id) {
                       cropId = savedField.attributes.crop_id;
                     }
                   }
                   
-                  // Also check if cropId is in the selectedRecipe (some recipes might have crop reference)
+                  // Also check if cropId is in the selectedRecipe
                   if (!cropId && selectedRecipe?.cropId) {
                     cropId = selectedRecipe.cropId;
                   }
                   
-                  // Get the saved field ID from the map (prefer by name, fallback to index)
+                  // Get the saved field ID
                   const savedFieldId = fieldIdMap.get(field.name) || savedFields[i]?.data?._id || field._id || field.id;
                   
-                  // Only create events if field has a recipe and crop
+                  // Only process fields that have a recipe and crop
                   if (selectedRecipe && cropId && selectedRecipe.id && savedFieldId) {
+                    // Add to field IDs list for deletion
+                    fieldIdsForEvents.push(savedFieldId);
+                    
+                    // Prepare event creation promise
                     const eventData = {
                       cropId,
                       recipeId: selectedRecipe.id,
@@ -488,6 +493,17 @@ const ReviewPage = () => {
                           return null;
                         })
                     );
+                  }
+                }
+                
+                // Delete existing events for these field IDs before creating new ones
+                if (fieldIdsForEvents.length > 0) {
+                  try {
+                    const deleteResponse = await eventStreamService.deleteEventsByFieldIds(fieldIdsForEvents);
+                    console.log(`Deleted ${deleteResponse.data.deletedCount} existing events for field IDs:`, fieldIdsForEvents);
+                  } catch (deleteError) {
+                    console.error("Error deleting existing events:", deleteError);
+                    // Continue with event creation even if deletion fails
                   }
                 }
                 
