@@ -12,7 +12,6 @@ import useMapViewModel from "../ViewModel/useMapViewModel";
  */
 const MapWizard = ({
   locations,
-  emptySpaces,
   mode = "wizard",
   shouldInitialize = true,
   onAreaUpdate,
@@ -25,7 +24,6 @@ const MapWizard = ({
 }) => {
   const api = useMapViewModel({
     locations,
-    emptySpaces,
     mode,
     shouldInitialize,
     onAreaUpdate,
