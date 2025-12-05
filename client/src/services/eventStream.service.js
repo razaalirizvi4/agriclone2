@@ -33,19 +33,10 @@ const createFieldEvents = (data) => {
   });
 };
 
-// ✅ Delete events by field IDs
-const deleteEventsByFieldIds = (fieldIds) => {
-  return axios.delete(`${API_URL}/field-events`, {
-    data: { fieldIds },
-    headers: getAuthHeader(),
-  });
-};
-
 const eventStreamService = {
   getEvents,
   updateEventStatus,
   createFieldEvents,
-  deleteEventsByFieldIds,
 };
 
 export default eventStreamService;

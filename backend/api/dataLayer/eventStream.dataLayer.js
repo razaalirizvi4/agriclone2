@@ -52,40 +52,9 @@ const pushEvent = async (eventData) => {
   return await newEvent.save();
 };
 
-// ✅ Delete events by field IDs
-const deleteEventsByFieldIds = async (fieldIds) => {
-  if (!Array.isArray(fieldIds) || fieldIds.length === 0) {
-    return { deletedCount: 0 };
-  }
-  
-  // Convert to ObjectIds for querying (handles both ObjectId and string storage)
-  const fieldIdObjectIds = fieldIds.map((id) => {
-    try {
-      return new mongoose.Types.ObjectId(id);
-    } catch (error) {
-      return null;
-    }
-  }).filter(Boolean);
-  
-  // Convert to strings for querying
-  const fieldIdStrings = fieldIds.map(id => id.toString());
-  
-  // Query for both ObjectId and string matches (since Field_id can be stored as either)
-  const query = {
-    $or: [
-      { "RelationIds.Field_id": { $in: fieldIdObjectIds } }, // Match ObjectId
-      { "RelationIds.Field_id": { $in: fieldIdStrings } },   // Match string
-    ],
-  };
-  
-  const result = await EventStream.deleteMany(query);
-  return { deletedCount: result.deletedCount };
-};
-
 // ✅ Export all functions properly
 module.exports = {
   getEvents,
   updateEventStatus,
-  pushEvent,
-  deleteEventsByFieldIds
+  pushEvent
 };
