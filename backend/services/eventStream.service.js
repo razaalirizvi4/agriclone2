@@ -1,7 +1,8 @@
 const {
   getEvents: getEventsData,
   updateEventStatus: updateEventStatusData,
-  pushEvent: pushEventData
+  pushEvent: pushEventData,
+  deleteEventsByFieldIds: deleteEventsByFieldIdsData
 } = require('../api/dataLayer/eventStream.dataLayer.js');
 const Crop = require('../api/models/cropModule/crop.model.js');
 
@@ -187,11 +188,16 @@ const pushEvent = async (eventData) => {
   return await pushEventData(eventData);
 };
 
+const deleteEventsByFieldIds = async (fieldIds) => {
+  return await deleteEventsByFieldIdsData(fieldIds);
+};
+
 module.exports = {
   getEvents,
   updateEventStatus,
   pushEvent: pushEventData,
   createFieldLifeCycleEvents,
   buildRecipeWorkflowEvents,
+  deleteEventsByFieldIds,
   CROP_STAGES // Export for use in other modules
 };

@@ -439,8 +439,34 @@ const ReviewPage = () => {
                   }
                 });
                 
-                // Then create events for each field that has a recipe
+                // Collect all field IDs (both existing _id and newly saved _id)
+                const allFieldIds = [];
+                fieldsInfo.forEach(field => {
+                  // Check if field has _id (existing field from edit mode)
+                  if (field._id) {
+                    allFieldIds.push(field._id);
+                  }
+                });
+                // Also add newly saved field IDs
+                savedFields.forEach(item => {
+                  if (item.data?._id && !allFieldIds.includes(item.data._id)) {
+                    allFieldIds.push(item.data._id);
+                  }
+                });
+                
+                // In edit mode, delete existing events for these fields before creating new ones
                 setIsCreatingEvents(true);
+                if (allFieldIds.length > 0) {
+                  try {
+                    await eventStreamService.deleteEventsByFieldIds(allFieldIds);
+                    console.log(`Deleted events for ${allFieldIds.length} field(s)`);
+                  } catch (deleteError) {
+                    console.error("Error deleting existing events:", deleteError);
+                    // Continue even if deletion fails - we'll still create new events
+                  }
+                }
+                
+                // Then create events for each field that has a recipe
                 const eventPromises = [];
                 
                 for (let i = 0; i < fieldsInfo.length; i++) {
