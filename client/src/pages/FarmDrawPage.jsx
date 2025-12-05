@@ -183,6 +183,17 @@ const FarmDrawPage = () => {
 
   // Handle field generation (uses drawnData captured from MapWizard)
   const handleGenerateFields = () => {
+    // Check if we're in edit mode and already have fields
+    const isEditMode = wizardData.farmBoundaries?._id;
+    const hasExistingFields = wizardData.fieldsData?.features?.length > 0;
+
+    // If editing and fields already exist, skip regeneration and navigate to fields page
+    if (isEditMode && hasExistingFields) {
+      console.log("Edit mode: Fields already exist, skipping regeneration");
+      navigate("/wizard/fields");
+      return;
+    }
+
     if (!drawnData || drawnData.features.length === 0) {
       alert("Please wait for the farm boundary to be created first!");
       return;
