@@ -2,8 +2,23 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import locationService from "../services/location.service";
+import {
+  loadFarmForEdit,
+  prepareWizardDataForEdit,
+  isEditMode,
+  hasExistingFields,
+} from "../utils/wizardEditMode";
+import { buildWizardPayload } from "../utils/wizardPayloadBuilder";
 import './wizard.css'
 
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Retrieves the current session owner from localStorage
+ * @returns {Object|null} Owner object with id, email, and name, or null if not found
+ */
 const getSessionOwner = () => {
   if (typeof window === "undefined") {
     return null;
@@ -37,10 +52,19 @@ const getSessionOwner = () => {
   }
 };
 
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 const WizardPage = () => {
+  // ============================================================================
+  // HOOKS & STATE
+  // ============================================================================
+  
   const navigate = useNavigate();
   const location = useLocation();
   const farmId = location.state?.farmId || null;
+  
   const [wizardData, setWizardData] = useState({
     farmDetails: null,
     farmLocation: null,
@@ -51,149 +75,46 @@ const WizardPage = () => {
     fieldsInfo: [],
     selectedFieldId: null
   });
+  
   const [isSavingWizard, setIsSavingWizard] = useState(false);
 
-  // If we came from "Edit Farm in Wizard", prefill farm details for editing
+  // ============================================================================
+  // DATA LOADING (Edit Mode)
+  // ============================================================================
+
+  /**
+   * Loads farm and field data when editing an existing farm
+   * Edit mode functionality has been moved to utils/wizardEditMode.js
+   */
   useEffect(() => {
-    const loadFarmForEdit = async () => {
-      if (!farmId) return;
-      try {
-        const res = await locationService.getLocations();
-        const all = res.data || [];
-        const farm = all.find((loc) => loc._id === farmId);
-        if (!farm) return;
-
-        const farmAttributes = farm.attributes || {};
-        const farmFields = all.filter(
-          (loc) => String(loc.parentId) === String(farmId) && loc.type === "Field"
-        );
-        const farmFieldsCount = farmFields.length;
-
-        // Convert farmFields to fieldsData (FeatureCollection format)
-        // Match the structure used by processFarmDivision (line 121-132 in fieldDivision.js)
-        const fieldsDataFeatures = farmFields.map((field) => {
-          const fieldAttributes = field.attributes || {};
-          const geoJsonCords = fieldAttributes.geoJsonCords || {};
-          const fieldFeature = geoJsonCords.features?.[0] || null;
-          
-          // Extract geometry from geoJsonCords
-          const geometry = fieldFeature?.geometry || null;
-          
-          if (!geometry) return null; // Skip fields without geometry
-          
-          // Structure matches processFarmDivision: properties directly on properties object
-          // No nested attributes object initially (that's added by handleFieldInfoUpdate)
-          return {
-            type: "Feature",
-            properties: {
-              id: field._id, // Use _id as id for matching with fieldsInfo
-              type: "field",
-              name: field.name || `Field ${field._id}`,
-              area: fieldAttributes.area || "0 acres",
-              farm: farm.name || "Farm",
-              crop_id: fieldAttributes.crop_id || null,
-            },
-            geometry: geometry,
-          };
-        }).filter((feature) => feature !== null); // Filter out null entries
-
-        // Convert farmFields to fieldsInfo array
-        // Match the structure used by createFieldsInfo (line 248-253 in fieldDivision.js)
-        const fieldsInfo = farmFields.map((field) => {
-          const fieldAttributes = field.attributes || {};
-          // Structure matches createFieldsInfo: flat structure with id, name, area, crop_id
-          // Plus _id for API updates and parentId for reference
-          return {
-            id: field._id, // Must match properties.id in fieldsData features
-            _id: field._id, // Keep _id for API updates (used in buildFieldPayloads line 455)
-            name: field.name || `Field ${field._id}`,
-            area: fieldAttributes.area || "0 acres",
-            crop_id: fieldAttributes.crop_id || null,
-            parentId: field.parentId,
-            // Include all other field attributes at top level (not nested)
-            // Exclude geoJsonCords since geometry is already in fieldsData
-            ...Object.keys(fieldAttributes).reduce((acc, key) => {
-              if (key !== 'geoJsonCords') {
-                acc[key] = fieldAttributes[key];
-              }
-              return acc;
-            }, {}),
-          };
-        });
-
-        setWizardData((prev) => {
-          const existingDetails = prev.farmDetails || {};
-          console.log("Existing details attributes:", existingDetails);
-          console.log("Loaded farm fields:", farmFields);
-          console.log("Converted fieldsData features:", fieldsDataFeatures);
-          console.log("Converted fieldsInfo:", fieldsInfo);
-
-          return {
-            ...prev,
-            // Prefill all non-mapbox attributes for FarmDetailsForm
-            farmDetails: {
-              // All attribute fields from backend (e.g. address, size, fields, etc.)
-              ...farmAttributes,
-              // Preserve any details already in state
-              ...existingDetails,
-              // Ensure name is taken from main farm document
-              name: farm.name || existingDetails.name || "",
-              // Common address field fallback
-              address:
-                farmAttributes.address ||
-                existingDetails.address ||
-                "",
-              // No. of fields input uses key "fields" in FarmDetailsForm schema
-              fields:
-                farmAttributes.fields ??
-                farmAttributes.numberOfFields ??
-                (farmFieldsCount ||
-                  prev.numberOfFields ||
-                  (prev.fieldsInfo?.length || 1)),
-              // Also keep numeric numberOfFields in wizard state for later steps
-              numberOfFields:
-                prev.numberOfFields ||
-                farmAttributes.numberOfFields ||
-                farmAttributes.fields ||
-                farmFieldsCount ||
-                (prev.fieldsInfo?.length || 1),
-            },
-            farmArea: farmAttributes.area || prev.farmArea,
-            farmBoundaries: {
-              ...farm,
-              type: "Farm",
-              attributes: {
-                ...farmAttributes,
-                geoJsonCords:
-                  farmAttributes.geoJsonCords || farmAttributes.geoJsonCords,
-              },
-            },
-            // Populate fields data
-            fieldsData: {
-              type: "FeatureCollection",
-              features: fieldsDataFeatures,
-            },
-            fieldsInfo: fieldsInfo,
-            selectedFieldId: fieldsInfo[0]?.id || prev.selectedFieldId,
-          };
-        });
-      } catch (err) {
-        console.error("Failed to load farm for edit", err);
+    const loadFarmData = async () => {
+      const result = await loadFarmForEdit(farmId);
+      if (result) {
+        const { farm, farmFields } = result;
+        setWizardData((prev) => prepareWizardDataForEdit(farm, farmFields, prev));
       }
     };
 
-    loadFarmForEdit();
+    loadFarmData();
   }, [farmId]);
 
-  // Handle farm details form submission
+  // ============================================================================
+  // FARM HANDLERS
+  // ============================================================================
+
+  /**
+   * Handles farm details form submission
+   * Preserves existing data in edit mode, creates new structure for new farms
+   * @param {Object} farmDetails - Form data from FarmDetailsForm
+   */
   const handleFarmDetailsSubmit = (farmDetails) => {
     const ownerFromSession = getSessionOwner();
     
     setWizardData((prev) => {
       // Check if we're in edit mode (has existing farmBoundaries with _id)
-      const isEditMode = prev.farmBoundaries?._id;
+      const editMode = isEditMode(prev);
       
-      if (isEditMode) {
+      if (editMode) {
         // Preserve existing farmBoundaries structure and _id when editing
         return {
           ...prev,
@@ -243,7 +164,10 @@ const WizardPage = () => {
     });
   };
 
-  // Handle farm location coordinates
+  /**
+   * Updates farm location coordinates
+   * @param {Object} location - Location coordinates object
+   */
   const handleLocationUpdate = (location) => {
     setWizardData((prev) => ({
       ...prev,
@@ -251,7 +175,10 @@ const WizardPage = () => {
     }));
   };
 
-  // Function to update area
+  /**
+   * Updates farm area when boundary is drawn/modified
+   * @param {string} area - Area string (e.g., "25.5 acres")
+   */
   const updateFarmArea = (area) => {
     setWizardData((prev) => ({
       ...prev,
@@ -259,7 +186,14 @@ const WizardPage = () => {
     }));
   };
 
-  // Handle field selection
+  // ============================================================================
+  // FIELD HANDLERS
+  // ============================================================================
+
+  /**
+   * Handles field selection in the UI
+   * @param {string} fieldId - ID of the selected field
+   */
   const handleFieldSelect = (fieldId) => {
     setWizardData((prev) => ({
       ...prev,
@@ -267,7 +201,12 @@ const WizardPage = () => {
     }));
   };
 
-  // Handle field info updates
+  /**
+   * Updates field information (attributes, crop, etc.)
+   * Updates both fieldsInfo array and fieldsData FeatureCollection
+   * @param {string} fieldId - ID of the field to update
+   * @param {Object} fieldData - Field data to merge
+   */
   const handleFieldInfoUpdate = (fieldId, fieldData) => {
     setWizardData((prev) => {
       const existingFieldIndex = prev.fieldsInfo.findIndex(
@@ -276,6 +215,7 @@ const WizardPage = () => {
       let updatedFieldsInfo;
       let updatedFieldsData = prev.fieldsData;
 
+      // Update existing field or add new one
       if (existingFieldIndex >= 0) {
         updatedFieldsInfo = [...prev.fieldsInfo];
         updatedFieldsInfo[existingFieldIndex] = {
@@ -325,6 +265,12 @@ const WizardPage = () => {
     });
   };
 
+  /**
+   * Updates field geometry (polygon shape) and area
+   * @param {string} fieldId - ID of the field to update
+   * @param {Object} geometry - GeoJSON geometry object
+   * @param {string} area - Updated area string
+   */
   const handleFieldGeometryUpdate = (fieldId, geometry, area) => {
     setWizardData((prev) => {
       if (!prev.fieldsData?.features?.length) {
@@ -359,7 +305,13 @@ const WizardPage = () => {
     });
   };
 
-  // Handle adding new field geometry
+  /**
+   * Adds a new field with geometry
+   * Used for manually adding fields (marked for removal)
+   * @param {Object} fieldGeometry - GeoJSON geometry object
+   * @param {number} area - Area in acres
+   * @returns {string} The generated field ID
+   */
   const handleAddField = (fieldGeometry, area) => {
     const fieldId = `field-${Date.now()}`;
     const newField = {
@@ -394,130 +346,23 @@ const WizardPage = () => {
     return fieldId;
   };
 
-  // Handle wizard completion
-  const buildFarmPayload = () => {
-    if (!wizardData.farmBoundaries) {
-      throw new Error("Farm information is incomplete.");
-    }
+  // ============================================================================
+  // WIZARD COMPLETION
+  // ============================================================================
 
-    const owner = getSessionOwner() || wizardData.farmBoundaries.owner || null;
-
-    const attributes = {
-      ...wizardData.farmBoundaries.attributes,
-    };
-
-    if (!attributes.geoJsonCords && wizardData.farmBoundaries.geoJsonCords) {
-      attributes.geoJsonCords = wizardData.farmBoundaries.geoJsonCords;
-    }
-
-    return {
-      ...wizardData.farmBoundaries,
-      type: wizardData.farmBoundaries.type || "Farm",
-      owner,
-      attributes,
-    };
-  };
-
-  const buildFieldPayloads = (farmPayload) => {
-    const features = wizardData.fieldsData?.features || [];
-    const sessionOwner = getSessionOwner();
-
-    if (!features.length) {
-      throw new Error("Please create at least one field before submitting.");
-    }
-
-    return features.map((feature, index) => {
-      const fieldInfo =
-        wizardData.fieldsInfo.find(
-          (info) => info.id === feature.properties?.id
-        ) || {};
-
-      const {
-        id,
-        _id,
-        name,
-        area,
-        fieldEventsInfo,
-        parentId,
-        ...fieldAttributes
-      } = fieldInfo;
-
-      const filteredAttributes = Object.keys(fieldAttributes).reduce(
-        (acc, key) => {
-          if (
-            ![
-              "attributes",
-              "geoJsonCords",
-              "geometry",
-              "owner",
-              "type",
-              "typeId",
-            ].includes(key) &&
-            fieldAttributes[key] !== undefined &&
-            fieldAttributes[key] !== null
-          ) {
-            acc[key] = fieldAttributes[key];
-          }
-          return acc;
-        },
-        {}
-      );
-
-      // Ensure crop_id is included in attributes (it might be in fieldInfo directly or in attributes)
-      const crop_id = fieldInfo.crop_id || fieldInfo.attributes?.crop_id || filteredAttributes.crop_id;
-      
-      const attributes = {
-        ...feature.properties?.attributes,
-        ...filteredAttributes,
-        area: area || feature.properties?.area || "",
-        ...(crop_id && { crop_id }), // Include crop_id if it exists
-        geoJsonCords: {
-          type: "FeatureCollection",
-          features: [
-            {
-              type: feature.type,
-              properties: { ...feature.properties },
-              geometry: feature.geometry,
-            },
-          ],
-        },
-      };
-      
-
-      const fieldPayload = {
-        type: "Field",
-        name: name || feature.properties?.name || `Field ${index + 1}`,
-        parentId: parentId || farmPayload?._id || null,
-        owner: sessionOwner || farmPayload?.owner || null,
-        attributes,
-      };
-
-      if (fieldEventsInfo) {
-        fieldPayload.fieldEventsInfo = fieldEventsInfo;
-      }
-
-      if (_id) {
-        fieldPayload._id = _id;
-      }
-
-      return fieldPayload;
-    });
-  };
-
-  const buildWizardPayload = () => {
-    const farmPayload = buildFarmPayload();
-    const fieldPayloads = buildFieldPayloads(farmPayload);
-
-    return [farmPayload, ...fieldPayloads];
-  };
-
+  /**
+   * Handles wizard completion and API submission
+   * Saves farm and fields data, marks wizard as completed
+   * Payload building functions have been moved to utils/wizardPayloadBuilder.js
+   * @returns {Promise<Object>} API response
+   */
   const handleWizardComplete = async () => {
     if (isSavingWizard) {
       return;
     }
 
     try {
-      const payload = buildWizardPayload();
+      const payload = buildWizardPayload(wizardData, getSessionOwner);
 
       setIsSavingWizard(true);
 
@@ -552,7 +397,17 @@ const WizardPage = () => {
     }
   };
 
-  // Create default square polygon
+  // ============================================================================
+  // GEOMETRY UTILITIES
+  // ============================================================================
+
+  /**
+   * Creates a default square polygon based on center coordinates and size
+   * Used for initial farm boundary creation
+   * @param {Array<number>} center - [longitude, latitude] center coordinates
+   * @param {number} sizeInAcres - Size of the square in acres
+   * @returns {Object} GeoJSON Feature object with square polygon
+   */
   const createDefaultSquare = (center, sizeInAcres) => {
     // Convert acres to square meters
     const areaSqMeters = sizeInAcres * 4046.8564224;
@@ -593,7 +448,13 @@ const WizardPage = () => {
     };
   };
 
-  // Create default square and return feature collection
+  /**
+   * Creates default square and updates wizard state
+   * Handles edit mode by preserving existing farmBoundaries structure
+   * @param {Array<number>} center - [longitude, latitude] center coordinates
+   * @param {number} sizeInAcres - Size of the square in acres
+   * @returns {Object} FeatureCollection with the square feature
+   */
   const handleCreateDefaultSquare = (center, sizeInAcres) => {
     const defaultSquare = createDefaultSquare(center, sizeInAcres);
 
@@ -604,9 +465,9 @@ const WizardPage = () => {
 
     // Update wizard data with the default square
     setWizardData((prev) => {
-      const isEditMode = prev.farmBoundaries?._id;
+      const editMode = isEditMode(prev);
       
-      if (isEditMode) {
+      if (editMode) {
         // Preserve existing farmBoundaries structure and _id when editing
         return {
           ...prev,
@@ -630,18 +491,26 @@ const WizardPage = () => {
     return featureCollection;
   };
 
-  // farm division utility
+  // ============================================================================
+  // FIELD DIVISION HANDLER
+  // ============================================================================
+
+  /**
+   * Handles field division completion from FarmDrawPage
+   * Preserves existing fields in edit mode, creates new fields for new farms
+   * @param {Object} completeData - Object containing farmBoundaries, fieldsData, fieldsInfo, numberOfFields, centerCoordinates
+   */
   const handleFieldDivisionComplete = (completeData) => {
     const { farmBoundaries, fieldsData, fieldsInfo, numberOfFields } =
       completeData;
 
     setWizardData((prev) => {
       // Check if we're in edit mode and already have fields
-      const isEditMode = prev.farmBoundaries?._id;
-      const hasExistingFields = prev.fieldsData?.features?.length > 0;
+      const editMode = isEditMode(prev);
+      const existingFields = hasExistingFields(prev);
 
       // If editing and fields already exist, preserve them instead of overwriting
-      if (isEditMode && hasExistingFields) {
+      if (editMode && existingFields) {
         console.log("Edit mode: Preserving existing fields instead of regenerating");
         return {
           ...prev,
@@ -684,7 +553,7 @@ const WizardPage = () => {
       };
 
       // Preserve _id if editing
-      if (isEditMode && prev.farmBoundaries?._id) {
+      if (editMode && prev.farmBoundaries?._id) {
         farmData._id = prev.farmBoundaries._id;
       }
 
@@ -698,6 +567,10 @@ const WizardPage = () => {
       };
     });
   };
+
+  // ============================================================================
+  // CONTEXT PROVIDER
+  // ============================================================================
 
   return (
     <Outlet context={{
