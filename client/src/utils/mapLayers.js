@@ -121,6 +121,30 @@ export const createFieldLayers = (selectedFieldId) => [
   },
 ];
 
+export const createEmptySpaceLayers = () => [
+  {
+    id: LAYER_IDS.EMPTY_SPACES,
+    type: "fill",
+    source: "empty-spaces-data",
+    paint: {
+      "fill-color": COLORS.EMPTY_SPACE_FILL,
+      "fill-opacity": 0.4,
+    },
+    layout: { visibility: "visible" },
+  },
+  {
+    id: LAYER_IDS.EMPTY_SPACES_OUTLINE,
+    type: "line",
+    source: "empty-spaces-data",
+    paint: {
+      "line-color": COLORS.EMPTY_SPACE_OUTLINE,
+      "line-width": 2,
+      "line-dasharray": [2, 2],
+    },
+    layout: { visibility: "visible" },
+  },
+];
+
 export const createGeometryLayers = () => [
   {
     id: LAYER_IDS.ROADS,

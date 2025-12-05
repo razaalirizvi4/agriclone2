@@ -7,8 +7,14 @@ import React, {
   useRef,
 } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import FieldDetailsForm, { CropAssignmentForm } from "../components/View/FieldDetailsForm";
+import FieldDetailsForm from "../components/View/FieldDetailsForm";
+import { CropAssignmentForm } from "../components/View/cropAssignmentForm";
 import MapWizard from "../components/View/MapWizard";
+import {
+  calculateEmptySpaces,
+  calculateEmptySpaceArea,
+  calculateFieldReduction,
+} from "../utils/emptySpaceCalculator";
 
 const FieldsPage = () => {
   const {
@@ -75,7 +81,22 @@ const FieldsPage = () => {
           "Farm",
       },
     }));
-  }, [wizardData.fieldsData, wizardData.farmDetails, wizardData.farmBoundaries]);
+  }, [
+    wizardData.fieldsData,
+    wizardData.farmDetails,
+    wizardData.farmBoundaries,
+  ]);
+
+  // Calculate empty spaces
+  const emptySpaces = useMemo(() => {
+    if (!farmFeature || !fieldFeatures.length) return null;
+    return calculateEmptySpaces(farmFeature, fieldFeatures);
+  }, [farmFeature, fieldFeatures]);
+
+  const emptySpaceArea = useMemo(() => {
+    if (!emptySpaces) return 0;
+    return calculateEmptySpaceArea(emptySpaces);
+  }, [emptySpaces]);
 
   const mapGeoJSON = useMemo(() => {
     const features = [];
@@ -185,6 +206,31 @@ const FieldsPage = () => {
     }
   };
 
+  // Calculate uncategorized areas from field reductions
+  const uncategorizedAreas = useMemo(() => {
+    return (wizardData.fieldsInfo || [])
+      .map((field) => {
+        const fieldFeature = wizardData.fieldsData?.features?.find(
+          (f) => f.properties?.id === field.id
+        );
+        const initialArea =
+          field.initialArea || fieldFeature?.properties?.initialArea;
+        const reduction = initialArea
+          ? calculateFieldReduction(initialArea, field.area)
+          : null;
+
+        if (reduction?.reduced) {
+          return {
+            id: `uncategorized-${field.id}`,
+            name: `Uncategorized Area`,
+            area: `${reduction.reductionAcres} acres`,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }, [wizardData.fieldsInfo, wizardData.fieldsData]);
+
   const currentFieldInfo = getSelectedFieldInfo();
   return (
     <div className="recipe-wizard-page">
@@ -206,6 +252,11 @@ const FieldsPage = () => {
             <p className="fields-panel__meta">
               Total Fields: {(wizardData.fieldsInfo || []).length || 0}
             </p>
+            {emptySpaceArea > 0 && (
+              <p className="fields-panel__meta" style={{ color: "#FF6B6B" }}>
+                Unassigned Area: {emptySpaceArea} acres
+              </p>
+            )}
           </div>
 
           {/* Left content: Field details + Crop assignment toggle */}
@@ -299,6 +350,7 @@ const FieldsPage = () => {
           <div className="fields-map-wrapper">
             <MapWizard
               locations={mapGeoJSON}
+              emptySpaces={emptySpaces}
               mode="wizard"
               shouldInitialize={true}
               onAreaUpdate={handleMapAreaUpdate}
@@ -326,8 +378,10 @@ const FieldsPage = () => {
 
               {(wizardData.fieldsInfo || []).length > 0 ? (
                 <div className="fields-table">
+                  {/* Render all fields normally */}
                   {(wizardData.fieldsInfo || []).map((field) => {
                     const isSelected = selectedField === field.id;
+
                     return (
                       <button
                         key={field.id}
@@ -358,6 +412,27 @@ const FieldsPage = () => {
                       </button>
                     );
                   })}
+
+                  {/* Render uncategorized areas as new entries */}
+                  {uncategorizedAreas.map((uncategorizedArea, index) => (
+                    <button
+                      key={uncategorizedArea.id}
+                      type="button"
+                      className="fields-row"
+                      onClick={(e) => e.preventDefault()}
+                      style={{ cursor: "default" }}
+                    >
+                      <div className="fields-row__body">
+                        <div className="fields-row__name">
+                          {uncategorizedArea.name} ({index + 1})
+                        </div>
+                        <div className="fields-row__meta">
+                          Area: {uncategorizedArea.area}
+                        </div>
+                      </div>
+                      <span className="fields-row__indicator" />
+                    </button>
+                  ))}
                 </div>
               ) : (
                 <div className="fields-empty-state">

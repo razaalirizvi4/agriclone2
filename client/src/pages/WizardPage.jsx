@@ -333,23 +333,38 @@ const WizardPage = () => {
 
       const updatedFieldsData = {
         ...prev.fieldsData,
-        features: prev.fieldsData.features.map((feature) =>
-          feature.properties?.id === fieldId
-            ? {
-                ...feature,
-                geometry,
-                properties: {
-                  ...feature.properties,
-                  area: area || feature.properties?.area,
-                },
-              }
-            : feature
-        ),
+        features: prev.fieldsData.features.map((feature) => {
+          if (feature.properties?.id === fieldId) {
+            // Store initial area if not already stored
+            const initialArea =
+              feature.properties?.initialArea || feature.properties?.area;
+
+            return {
+              ...feature,
+              geometry,
+              properties: {
+                ...feature.properties,
+                area: area || feature.properties?.area,
+                initialArea: initialArea, // Preserve initial area
+              },
+            };
+          }
+          return feature;
+        }),
       };
 
-      const updatedFieldsInfo = prev.fieldsInfo.map((info) =>
-        info.id === fieldId ? { ...info, area: area || info.area } : info
-      );
+      const updatedFieldsInfo = prev.fieldsInfo.map((info) => {
+        if (info.id === fieldId) {
+          // Store initial area if not already stored
+          const initialArea = info.initialArea || info.area;
+          return {
+            ...info,
+            area: area || info.area,
+            initialArea: initialArea, // Preserve initial area
+          };
+        }
+        return info;
+      });
 
       return {
         ...prev,
@@ -362,13 +377,15 @@ const WizardPage = () => {
   // Handle adding new field geometry
   const handleAddField = (fieldGeometry, area) => {
     const fieldId = `field-${Date.now()}`;
+    const areaStr = `${area} acres`;
     const newField = {
       type: "Feature",
       properties: {
         id: fieldId,
         type: "field",
         name: `Field ${wizardData.fieldsData.features.length + 1}`,
-        area: `${area} acres`,
+        area: areaStr,
+        initialArea: areaStr, // Store initial area when field is created
         farm: wizardData.farmDetails?.name || "Farm",
       },
       geometry: fieldGeometry,
@@ -385,7 +402,8 @@ const WizardPage = () => {
         {
           id: fieldId,
           name: `Field ${prev.fieldsData.features.length + 1}`,
-          area: `${area} acres`,
+          area: areaStr,
+          initialArea: areaStr, // Store initial area when field is created
         },
       ],
       selectedFieldId: fieldId,
@@ -433,7 +451,6 @@ const WizardPage = () => {
         ) || {};
 
       const {
-        id,
         _id,
         name,
         area,
@@ -635,6 +652,38 @@ const WizardPage = () => {
     const { farmBoundaries, fieldsData, fieldsInfo, numberOfFields } =
       completeData;
 
+    // Store initial areas for fields created through division
+    const fieldsDataWithInitialAreas = {
+      ...fieldsData,
+      features: fieldsData.features.map((feature) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          initialArea:
+            feature.properties?.area || feature.properties?.initialArea,
+        },
+      })),
+    };
+
+    const fieldsInfoWithInitialAreas = fieldsInfo.map((info) => ({
+      ...info,
+      initialArea: info.area || info.initialArea,
+    }));
+
+    // Prepare the final farm data
+    const farmData = {
+      type: "Farm",
+      name: wizardData.farmDetails?.name || "Unnamed Farm",
+      owner: getSessionOwner(),
+      attributes: {
+        area: wizardData.farmArea,
+        lat: completeData.centerCoordinates?.lat || 0,
+        lon: completeData.centerCoordinates?.lng || 0,
+        geoJsonCords: farmBoundaries,
+        crop_id: null,
+        lifecycle: "Active",
+      },
+    };
     setWizardData((prev) => {
       // Check if we're in edit mode and already have fields
       const isEditMode = prev.farmBoundaries?._id;
@@ -697,21 +746,29 @@ const WizardPage = () => {
         selectedFieldId: fieldsData.features[0]?.properties?.id || null,
       };
     });
+    setWizardData((prev) => ({
+      ...prev,
+      farmBoundaries: farmData,
+      fieldsData: fieldsDataWithInitialAreas,
+      fieldsInfo: fieldsInfoWithInitialAreas,
+      numberOfFields: numberOfFields || prev.numberOfFields,
+      selectedFieldId: fieldsData.features[0]?.properties?.id || null,
+    }));
   };
 
   return (
     <Outlet context={{
-      wizardData,
-      onFarmDetailsSubmit: handleFarmDetailsSubmit,
-      onLocationUpdate: handleLocationUpdate,
-      updateFarmArea: updateFarmArea,
-      onFieldSelect: handleFieldSelect,
-      onFieldInfoUpdate: handleFieldInfoUpdate,
+        wizardData,
+        onFarmDetailsSubmit: handleFarmDetailsSubmit,
+        onLocationUpdate: handleLocationUpdate,
+        updateFarmArea: updateFarmArea,
+        onFieldSelect: handleFieldSelect,
+        onFieldInfoUpdate: handleFieldInfoUpdate,
       onAddField: handleAddField,   // TODO: Remove this
-      onWizardComplete: handleWizardComplete,
-      onCreateDefaultSquare: handleCreateDefaultSquare,
-      onFieldDivisionComplete: handleFieldDivisionComplete,
-      onFieldGeometryUpdate: handleFieldGeometryUpdate,
+        onWizardComplete: handleWizardComplete,
+        onCreateDefaultSquare: handleCreateDefaultSquare,
+        onFieldDivisionComplete: handleFieldDivisionComplete,
+        onFieldGeometryUpdate: handleFieldGeometryUpdate,
       isSavingWizard
     }} />
   );
