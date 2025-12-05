@@ -1,5 +1,7 @@
 // src/utils/wizardEditMode.js
 import locationService from "../services/location.service";
+import * as turf from "@turf/turf";
+import { redivideFieldsForNewFarmLocation } from "./mapUtils";
 
 /**
  * Converts API field data to fieldsData FeatureCollection format
@@ -178,5 +180,114 @@ export const isEditMode = (wizardData) => {
  */
 export const hasExistingFields = (wizardData) => {
   return wizardData.fieldsData?.features?.length > 0;
+};
+
+/**
+ * Stores farm geoJSON coordinates when farm boundary is updated
+ * Updates wizardData state to propagate changes through field wizard page
+ * @param {Object} wizardData - Current wizard state
+ * @param {Object} farmFeature - GeoJSON Feature object representing the farm boundary
+ * @param {string} area - Updated area string (e.g., "25.5 acres")
+ * @param {Object} centerCoordinates - Center coordinates {lat, lng}
+ * @returns {Object} Updated wizard data state with farm geoJSON coordinates stored
+ */
+export const storeFarmGeoJsonCoords = (wizardData, farmFeature, area, centerCoordinates = null) => {
+  if (!farmFeature || !farmFeature.geometry) {
+    console.warn("storeFarmGeoJsonCoords: Invalid farm feature provided");
+    return wizardData;
+  }
+
+  // Create FeatureCollection from the farm feature
+  const geoJsonCords = {
+    type: "FeatureCollection",
+    features: [farmFeature],
+  };
+
+  // Calculate center if not provided
+  let center = centerCoordinates;
+  if (!center && farmFeature.geometry) {
+    try {
+      const centerPoint = turf.center(farmFeature);
+      center = {
+        lat: centerPoint.geometry.coordinates[1],
+        lng: centerPoint.geometry.coordinates[0],
+      };
+    } catch (error) {
+      console.warn("Failed to calculate farm center:", error);
+      center = null;
+    }
+  }
+
+  // Update wizard data with new farm boundary coordinates
+  const updatedWizardData = {
+    ...wizardData,
+    farmArea: area || wizardData.farmArea,
+    farmBoundaries: {
+      ...wizardData.farmBoundaries,
+      attributes: {
+        ...wizardData.farmBoundaries?.attributes,
+        geoJsonCords: geoJsonCords,
+        area: area || wizardData.farmBoundaries?.attributes?.area,
+        ...(center && {
+          lat: center.lat,
+          lon: center.lng,
+        }),
+      },
+    },
+  };
+
+  // Ensure geoJSON coordinates propagate to fields page
+  // The fields page reads from farmBoundaries.attributes.geoJsonCords
+  console.log("Farm geoJSON coordinates stored:", geoJsonCords);
+  
+  return updatedWizardData;
+};
+
+/**
+ * Automatically moves existing fields into the new farm boundary
+ * Uses the re-division function from mapUtils to preserve field data
+ * @param {Object} wizardData - Current wizard state
+ * @param {Object} newFarmFeature - GeoJSON Feature object representing the new farm boundary
+ * @param {Object} oldFarmFeature - GeoJSON Feature object representing the old farm boundary (optional, not used but kept for compatibility)
+ * @returns {Object} Updated wizard data state with fields moved into new farm boundary
+ */
+export const moveFieldsIntoFarmBoundary = (wizardData, newFarmFeature, oldFarmFeature = null) => {
+  if (!newFarmFeature || !newFarmFeature.geometry) {
+    console.warn("moveFieldsIntoFarmBoundary: Invalid new farm feature provided");
+    return wizardData;
+  }
+
+  const existingFields = wizardData.fieldsData?.features || [];
+  const existingFieldsInfo = wizardData.fieldsInfo || [];
+  
+  if (existingFields.length === 0) {
+    console.log("No existing fields to move");
+    return wizardData;
+  }
+
+  // Re-divide fields using the division function from mapUtils
+  // This preserves field data (names, crop_id, etc.) while creating new geometries
+  console.log("Farm location changed - re-dividing fields using division function");
+  
+  const farmDetails = wizardData.farmDetails || {};
+  const result = redivideFieldsForNewFarmLocation(
+    newFarmFeature,
+    existingFieldsInfo,
+    farmDetails
+  );
+
+  if (result.fieldsData && result.fieldsData.features.length > 0) {
+    console.log("Fields successfully re-divided for new farm location");
+    return {
+      ...wizardData,
+      fieldsData: result.fieldsData,
+      fieldsInfo: result.fieldsInfo,
+      selectedFieldId: result.fieldsInfo[0]?.id || wizardData.selectedFieldId,
+    };
+  }
+
+  // If re-division fails, return original wizardData
+  console.warn("Re-division failed, keeping existing fields");
+  return wizardData;
 };
 

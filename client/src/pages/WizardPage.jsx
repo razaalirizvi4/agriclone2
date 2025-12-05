@@ -7,6 +7,8 @@ import {
   prepareWizardDataForEdit,
   isEditMode,
   hasExistingFields,
+  storeFarmGeoJsonCoords,
+  moveFieldsIntoFarmBoundary,
 } from "../utils/wizardEditMode";
 import { buildWizardPayload } from "../utils/wizardPayloadBuilder";
 import './wizard.css'
@@ -177,13 +179,44 @@ const WizardPage = () => {
 
   /**
    * Updates farm area when boundary is drawn/modified
+   * Also stores farm geoJSON coordinates and moves fields if in edit mode
    * @param {string} area - Area string (e.g., "25.5 acres")
+   * @param {Object} centerCoordinates - Center coordinates {lat, lng}
+   * @param {Object} feature - GeoJSON Feature object representing the farm boundary
    */
-  const updateFarmArea = (area) => {
-    setWizardData((prev) => ({
-      ...prev,
-      farmArea: area,
-    }));
+  const updateFarmArea = (area, centerCoordinates = null, feature = null) => {
+    setWizardData((prev) => {
+      const editMode = isEditMode(prev);
+      const existingFields = hasExistingFields(prev);
+      
+      // If we have a feature, store the geoJSON coordinates
+      let updatedData = prev;
+      if (feature && editMode) {
+        // IMPORTANT: Get old farm boundary BEFORE storing the new one
+        const oldFarmGeoJson = prev.farmBoundaries?.attributes?.geoJsonCords;
+        const oldFarmFeature = oldFarmGeoJson?.features?.[0];
+        
+        // Store farm geoJSON coordinates (propagates through field wizard page)
+        updatedData = storeFarmGeoJsonCoords(prev, feature, area, centerCoordinates);
+        
+        // If fields exist, automatically move them into the new farm boundary
+        // Pass the old boundary so it can calculate the transformation
+        if (existingFields && oldFarmFeature) {
+          updatedData = moveFieldsIntoFarmBoundary(updatedData, feature, oldFarmFeature);
+        }
+      } else if (feature) {
+        // For new farms, just store the coordinates
+        updatedData = storeFarmGeoJsonCoords(prev, feature, area, centerCoordinates);
+      } else {
+        // Fallback: just update area if no feature provided
+        updatedData = {
+          ...prev,
+          farmArea: area,
+        };
+      }
+      
+      return updatedData;
+    });
   };
 
   // ============================================================================

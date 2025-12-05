@@ -1,4 +1,124 @@
 // UTILITY FUNCTIONS
+import { processFarmDivision } from "./fieldDivision";
+import * as turf from "@turf/turf";
+
+/**
+ * Re-divides fields when farm location changes, preserving existing field data
+ * @param {Object} newFarmFeature - GeoJSON Feature representing the new farm boundary
+ * @param {Array} existingFieldsInfo - Array of existing field info objects (preserves names, crop_id, etc.)
+ * @param {Object} farmDetails - Farm details object (name, etc.)
+ * @returns {Object} Object with fieldsData (FeatureCollection) and fieldsInfo (array)
+ */
+export const redivideFieldsForNewFarmLocation = (
+  newFarmFeature,
+  existingFieldsInfo = [],
+  farmDetails = {}
+) => {
+  if (!newFarmFeature || !newFarmFeature.geometry) {
+    console.warn("redivideFieldsForNewFarmLocation: Invalid farm feature provided");
+    return {
+      fieldsData: { type: "FeatureCollection", features: [] },
+      fieldsInfo: [],
+    };
+  }
+
+  // Create FeatureCollection from the new farm feature
+  const farmData = {
+    type: "FeatureCollection",
+    features: [newFarmFeature],
+  };
+
+  // Get number of fields from existing fields or default to 1
+  const numberOfFields = existingFieldsInfo.length || 1;
+
+  // Use processFarmDivision to create new field geometries
+  const newFieldsData = processFarmDivision(
+    farmData,
+    numberOfFields,
+    farmDetails
+  );
+
+  if (!newFieldsData || !newFieldsData.features || newFieldsData.features.length === 0) {
+    console.warn("Failed to divide farm into fields");
+    return {
+      fieldsData: { type: "FeatureCollection", features: [] },
+      fieldsInfo: existingFieldsInfo,
+    };
+  }
+
+  // Preserve existing field data (names, crop_id, _id, etc.) and map to new geometries
+  const preservedFieldsData = newFieldsData.features.map((newField, index) => {
+    // Find corresponding existing field by index
+    const existingField = existingFieldsInfo[index] || {};
+
+    // Preserve all existing field properties
+    return {
+      ...newField,
+      properties: {
+        ...newField.properties,
+        // Preserve existing field ID if available
+        id: existingField.id || existingField._id || newField.properties.id,
+        // Preserve existing field name
+        name: existingField.name || newField.properties.name,
+        // Preserve crop_id
+        crop_id: existingField.crop_id || null,
+        // Preserve _id for API updates
+        ...(existingField._id && { _id: existingField._id }),
+        // Preserve all other existing field attributes
+        ...Object.keys(existingField).reduce((acc, key) => {
+          // Don't overwrite geometry-related properties
+          if (!["id", "name", "area", "crop_id", "_id", "geometry", "geoJsonCords"].includes(key)) {
+            acc[key] = existingField[key];
+          }
+          return acc;
+        }, {}),
+        // Update area based on new geometry
+        area: newField.properties.area,
+      },
+    };
+  });
+
+  // Create updated fieldsInfo array preserving all existing data
+  const preservedFieldsInfo = preservedFieldsData.map((field, index) => {
+    const existingField = existingFieldsInfo[index] || {};
+    
+    return {
+      // Preserve existing field ID
+      id: existingField.id || existingField._id || field.properties.id,
+      // Preserve _id for API updates
+      ...(existingField._id && { _id: existingField._id }),
+      // Preserve existing name
+      name: existingField.name || field.properties.name,
+      // Update area based on new geometry
+      area: field.properties.area,
+      // Preserve crop_id
+      crop_id: existingField.crop_id || null,
+      // Preserve parentId
+      ...(existingField.parentId && { parentId: existingField.parentId }),
+      // Preserve all other existing attributes
+      ...Object.keys(existingField).reduce((acc, key) => {
+        if (!["id", "_id", "name", "area", "crop_id", "parentId", "geometry", "geoJsonCords"].includes(key)) {
+          acc[key] = existingField[key];
+        }
+        return acc;
+      }, {}),
+    };
+  });
+
+  console.log("Fields re-divided for new farm location:", {
+    numberOfFields: preservedFieldsData.length,
+    preservedData: preservedFieldsInfo.map(f => ({ id: f.id, name: f.name, crop_id: f.crop_id })),
+  });
+
+  return {
+    fieldsData: {
+      type: "FeatureCollection",
+      features: preservedFieldsData,
+    },
+    fieldsInfo: preservedFieldsInfo,
+  };
+};
+
 export const buildGeoJSON = (locations) => {
   if (!locations) return null;
 

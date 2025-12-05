@@ -297,8 +297,8 @@ const FarmDrawPage = () => {
               locations={null}
               mode="wizard"
               shouldInitialize={showMap}
-              onAreaUpdate={(area, centerCoordinates) => {
-                updateFarmArea(area, centerCoordinates);
+              onAreaUpdate={(area, centerCoordinates, feature) => {
+                updateFarmArea(area, centerCoordinates, feature);
                 if (centerCoordinates) {
                   setFarmCenter(centerCoordinates);
                 }
