@@ -185,11 +185,13 @@ const FarmDrawPage = () => {
   const handleGenerateFields = () => {
     // Check if we're in edit mode and already have fields
     const isEditMode = wizardData.farmBoundaries?._id;
-    const hasExistingFields = wizardData.fieldsData?.features?.length > 0;
+    const existingCount = wizardData.fieldsData?.features?.length || 0;
+    const hasExistingFields = existingCount > 0;
+    const desiredCount = wizardData.numberOfFields || existingCount;
 
-    // If editing and fields already exist, skip regeneration and navigate to fields page
-    if (isEditMode && hasExistingFields) {
-      console.log("Edit mode: Fields already exist, skipping regeneration");
+    // If editing and the requested count matches existing fields, keep current fields
+    if (isEditMode && hasExistingFields && desiredCount === existingCount) {
+      console.log("Edit mode: Fields already exist for requested count, skipping regeneration");
       navigate("/wizard/fields");
       return;
     }

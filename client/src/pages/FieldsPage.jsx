@@ -134,11 +134,32 @@ const FieldsPage = () => {
   }, [farmFeature, wizardData.farmArea, wizardData.farmDetails, wizardData.farmBoundaries]);
 
   const totalFieldAreaAcres = useMemo(() => {
+    // Prefer calculating from field geometries for accuracy; fallback to labeled areas
+    if (fieldFeatures.length) {
+      return fieldFeatures.reduce((sum, feature) => {
+        let areaAcres = 0;
+
+        if (feature.geometry) {
+          try {
+            areaAcres = turf.area(feature) / 4046.8564224;
+          } catch (err) {
+            console.error("Error calculating field area from geometry:", err);
+          }
+        }
+
+        if (!areaAcres && feature.properties?.area) {
+          areaAcres = parseAcres(feature.properties.area);
+        }
+
+        return sum + (Number.isFinite(areaAcres) ? areaAcres : 0);
+      }, 0);
+    }
+
     return (wizardData.fieldsInfo || []).reduce(
       (sum, field) => sum + parseAcres(field.area),
       0
     );
-  }, [wizardData.fieldsInfo]);
+  }, [fieldFeatures, wizardData.fieldsInfo]);
 
   const uncategorizedAreaAcres = Math.max(
     0,
@@ -161,7 +182,7 @@ const FieldsPage = () => {
       const featureId = feature.properties?.id || selectedField;
       if (featureId !== selectedField) return;
 
-      // Prevent field geometry from leaving the farm boundary
+      // Prevent field geometry from leaving the farm boundary (with small tolerance)
       if (farmFeature?.geometry) {
         const fieldFeature = {
           type: "Feature",
@@ -169,21 +190,27 @@ const FieldsPage = () => {
           geometry: feature.geometry,
         };
 
-        const insideFarm = turf.booleanWithin(fieldFeature, farmFeature);
+        let insideFarm = false;
+        try {
+          const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
+          insideFarm =
+            turf.booleanWithin(fieldFeature, bufferedFarm) ||
+            turf.booleanContains(bufferedFarm, fieldFeature);
+        } catch (err) {
+          console.error("Geometry validation failed:", err);
+          insideFarm = turf.booleanWithin(fieldFeature, farmFeature);
+        }
 
         if (!insideFarm) {
-          // Immediately revert to the last valid geometry
           const lastValidGeometry = lastValidFieldGeometryRef.current;
           
           if (lastValidGeometry && mapApiRef.current?.setDrawnDataProgrammatically) {
-            // Create a feature with the last valid geometry
             const validFeature = {
               type: "Feature",
               properties: feature.properties || {},
               geometry: lastValidGeometry,
             };
             
-            // Use setTimeout to ensure this happens after the current render cycle
             setTimeout(() => {
               mapApiRef.current.setDrawnDataProgrammatically(validFeature);
             }, 0);
@@ -407,7 +434,7 @@ const FieldsPage = () => {
               onFieldSelect={handleFieldSelect}
               selectedFieldId={selectedField}
               validateGeometry={(feature) => {
-                // Validate that field geometry stays within farm boundary
+                // Validate that field geometry stays within farm boundary (with small tolerance)
                 if (!farmFeature?.geometry || !feature?.geometry) return true;
                 
                 const fieldFeature = {
@@ -416,7 +443,16 @@ const FieldsPage = () => {
                   geometry: feature.geometry,
                 };
                 
-                return turf.booleanWithin(fieldFeature, farmFeature);
+                try {
+                  const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
+                  return (
+                    turf.booleanWithin(fieldFeature, bufferedFarm) ||
+                    turf.booleanContains(bufferedFarm, fieldFeature)
+                  );
+                } catch (err) {
+                  console.error("Geometry validation failed:", err);
+                  return turf.booleanWithin(fieldFeature, farmFeature);
+                }
               }}
               onMapReady={(api) => {
                 mapApiRef.current = api;

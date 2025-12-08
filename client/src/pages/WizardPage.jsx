@@ -1,6 +1,6 @@
 // src/pages/WizardPage.js
 import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import locationService from "../services/location.service";
 import {
   loadFarmForEdit,
@@ -62,8 +62,6 @@ const WizardPage = () => {
   // ============================================================================
   // HOOKS & STATE
   // ============================================================================
-  
-  const navigate = useNavigate();
   const location = useLocation();
   const farmId = location.state?.farmId || null;
   
@@ -338,47 +336,6 @@ const WizardPage = () => {
     });
   };
 
-  /**
-   * Adds a new field with geometry
-   * Used for manually adding fields (marked for removal)
-   * @param {Object} fieldGeometry - GeoJSON geometry object
-   * @param {number} area - Area in acres
-   * @returns {string} The generated field ID
-   */
-  const handleAddField = (fieldGeometry, area) => {
-    const fieldId = `field-${Date.now()}`;
-    const newField = {
-      type: "Feature",
-      properties: {
-        id: fieldId,
-        type: "field",
-        name: `Field ${wizardData.fieldsData.features.length + 1}`,
-        area: `${area} acres`,
-        farm: wizardData.farmDetails?.name || "Farm",
-      },
-      geometry: fieldGeometry,
-    };
-
-    setWizardData((prev) => ({
-      ...prev,
-      fieldsData: {
-        ...prev.fieldsData,
-        features: [...prev.fieldsData.features, newField],
-      },
-      fieldsInfo: [
-        ...prev.fieldsInfo,
-        {
-          id: fieldId,
-          name: `Field ${prev.fieldsData.features.length + 1}`,
-          area: `${area} acres`,
-        },
-      ],
-      selectedFieldId: fieldId,
-    }));
-
-    return fieldId;
-  };
-
   // ============================================================================
   // WIZARD COMPLETION
   // ============================================================================
@@ -542,27 +499,98 @@ const WizardPage = () => {
       const editMode = isEditMode(prev);
       const existingFields = hasExistingFields(prev);
 
-      // If editing and fields already exist, preserve them instead of overwriting
+      // If editing and fields already exist, merge regenerated geometries while preserving existing data
       if (editMode && existingFields) {
-        console.log("Edit mode: Preserving existing fields instead of regenerating");
+        const existingCount = prev.fieldsData?.features?.length || 0;
+        const desiredCount =
+          numberOfFields || prev.numberOfFields || existingCount;
+        const incomingFeatures = fieldsData?.features || [];
+        const incomingInfo = fieldsInfo || [];
+
+        // Guard: if generation did not produce enough fields, keep previous state
+        if (incomingFeatures.length < desiredCount) {
+          console.warn(
+            "Incoming generated fields less than desired; keeping previous fields"
+          );
+          return prev;
+        }
+
+        // Merge: use regenerated geometries for all fields, preserve existing metadata for first N
+        const mergedFeatures = incomingFeatures.map((incomingFeature, idx) => {
+          if (idx < existingCount) {
+            const existingFeature = prev.fieldsData.features[idx];
+            const mergedProperties = {
+              ...incomingFeature.properties,
+              ...existingFeature.properties,
+              id: existingFeature.properties?.id,
+              name: existingFeature.properties?.name,
+              area:
+                incomingFeature.properties?.area ||
+                existingFeature.properties?.area,
+            };
+            return {
+              ...incomingFeature,
+              properties: mergedProperties,
+            };
+          }
+          return incomingFeature; // New fields stay with generated defaults (blank data)
+        });
+
+        // Merge fieldsInfo: keep existing entries, append new ones for new fields
+        const mergedInfo = [];
+        for (let i = 0; i < desiredCount; i += 1) {
+          if (i < existingCount && prev.fieldsInfo[i]) {
+            const incoming = incomingInfo[i] || {};
+            mergedInfo.push({
+              ...incoming,
+              ...prev.fieldsInfo[i],
+              id: prev.fieldsInfo[i].id,
+              name: prev.fieldsInfo[i].name,
+              area: incoming.area || prev.fieldsInfo[i].area,
+            });
+          } else if (incomingInfo[i]) {
+            mergedInfo.push(incomingInfo[i]);
+          }
+        }
+
+        console.log(
+          "Edit mode: Regenerated geometries, preserved existing field data, added new blank fields",
+          { existingCount, desiredCount }
+        );
+
         return {
           ...prev,
-          // Only update farmBoundaries if needed, but preserve _id
+          // Update farmBoundaries but preserve _id
           farmBoundaries: {
             ...prev.farmBoundaries,
             attributes: {
               ...prev.farmBoundaries.attributes,
-              geoJsonCords: farmBoundaries || prev.farmBoundaries.attributes?.geoJsonCords,
-              area: wizardData.farmArea || prev.farmBoundaries.attributes?.area,
-              lat: completeData.centerCoordinates?.lat || prev.farmBoundaries.attributes?.lat || 0,
-              lon: completeData.centerCoordinates?.lng || prev.farmBoundaries.attributes?.lon || 0,
+              geoJsonCords:
+                farmBoundaries ||
+                prev.farmBoundaries.attributes?.geoJsonCords,
+              area:
+                wizardData.farmArea ||
+                prev.farmBoundaries.attributes?.area,
+              lat:
+                completeData.centerCoordinates?.lat ||
+                prev.farmBoundaries.attributes?.lat ||
+                0,
+              lon:
+                completeData.centerCoordinates?.lng ||
+                prev.farmBoundaries.attributes?.lon ||
+                0,
             },
           },
-          // Preserve existing fields data
-          fieldsData: prev.fieldsData,
-          fieldsInfo: prev.fieldsInfo,
-          numberOfFields: prev.numberOfFields || numberOfFields,
-          selectedFieldId: prev.selectedFieldId || prev.fieldsData.features[0]?.properties?.id || null,
+          fieldsData: {
+            ...prev.fieldsData,
+            features: mergedFeatures,
+          },
+          fieldsInfo: mergedInfo,
+          numberOfFields: desiredCount,
+          selectedFieldId:
+            prev.selectedFieldId ||
+            mergedFeatures[0]?.properties?.id ||
+            null,
         };
       }
 
@@ -613,7 +641,6 @@ const WizardPage = () => {
       updateFarmArea: updateFarmArea,
       onFieldSelect: handleFieldSelect,
       onFieldInfoUpdate: handleFieldInfoUpdate,
-      onAddField: handleAddField,   // TODO: Remove this
       onWizardComplete: handleWizardComplete,
       onCreateDefaultSquare: handleCreateDefaultSquare,
       onFieldDivisionComplete: handleFieldDivisionComplete,
