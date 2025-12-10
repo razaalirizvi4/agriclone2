@@ -24,6 +24,17 @@ const FieldsPage = () => {
   } = useOutletContext();
 
   const navigate = useNavigate();
+
+  // Validate that required wizard data exists, redirect if not
+  useEffect(() => {
+    // Check if farm boundary is required but missing
+    if (!wizardData?.farmBoundaries) {
+      // Redirect to the first step of the wizard
+      navigate("/wizard", { replace: true });
+      toast.warning("Please complete the farm boundary step first.");
+      return;
+    }
+  }, [wizardData, navigate]);
   const [activeTab, setActiveTab] = useState("fields");
   const [selectedField, setSelectedField] = useState(
     wizardData.selectedFieldId ||

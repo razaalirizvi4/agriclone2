@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import eventStreamService from "../services/eventStream.service";
@@ -15,6 +15,24 @@ const ReviewPage = () => {
   const navigate = useNavigate();
   const [isCreatingEvents, setIsCreatingEvents] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Validate that required wizard data exists, redirect if not
+  useEffect(() => {
+    // Check if required data is missing
+    if (!wizardData?.farmDetails || !wizardData?.farmBoundaries) {
+      // Redirect to the first step of the wizard
+      navigate("/wizard", { replace: true });
+      toast.warning("Please complete the farm setup first.");
+      return;
+    }
+    
+    // If no fields exist, redirect to fields page
+    if (!wizardData?.fieldsInfo || wizardData.fieldsInfo.length === 0) {
+      navigate("/wizard/fields", { replace: true });
+      toast.warning("Please create at least one field first.");
+      return;
+    }
+  }, [wizardData, navigate]);
   const farmDetails = wizardData.farmDetails || {};
   const fieldsInfo = wizardData.fieldsInfo || [];
   const farmName =

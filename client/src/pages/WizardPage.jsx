@@ -67,18 +67,81 @@ const WizardPage = () => {
   const location = useLocation();
   const farmId = location.state?.farmId || null;
   
-  const [wizardData, setWizardData] = useState({
-    farmDetails: null,
-    farmLocation: null,
-    farmArea: "0 acres",
-    farmBoundaries: null,
-    numberOfFields: null,
-    fieldsData: { type: "FeatureCollection", features: [] },
-    fieldsInfo: [],
-    selectedFieldId: null
-  });
+  // Helper function to get localStorage key for wizard data
+  const getWizardStorageKey = () => {
+    const owner = getSessionOwner();
+    return owner?.id ? `wizardData_${owner.id}` : 'wizardData';
+  };
+
+  // Helper function to load wizard data from localStorage
+  const loadWizardDataFromStorage = () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    try {
+      const stored = localStorage.getItem(getWizardStorageKey());
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error("Failed to load wizard data from storage:", error);
+    }
+    return null;
+  };
+
+  // Helper function to save wizard data to localStorage
+  const saveWizardDataToStorage = (data) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      localStorage.setItem(getWizardStorageKey(), JSON.stringify(data));
+    } catch (error) {
+      console.error("Failed to save wizard data to storage:", error);
+    }
+  };
+
+  // Initialize state - try to restore from localStorage if not in edit mode
+  const initialWizardData = (() => {
+    if (farmId) {
+      // Edit mode - don't restore from storage
+      return {
+        farmDetails: null,
+        farmLocation: null,
+        farmArea: "0 acres",
+        farmBoundaries: null,
+        numberOfFields: null,
+        fieldsData: { type: "FeatureCollection", features: [] },
+        fieldsInfo: [],
+        selectedFieldId: null
+      };
+    }
+    // New wizard - try to restore from storage
+    const stored = loadWizardDataFromStorage();
+    if (stored) {
+      return stored;
+    }
+    return {
+      farmDetails: null,
+      farmLocation: null,
+      farmArea: "0 acres",
+      farmBoundaries: null,
+      numberOfFields: null,
+      fieldsData: { type: "FeatureCollection", features: [] },
+      fieldsInfo: [],
+      selectedFieldId: null
+    };
+  })();
   
+  const [wizardData, setWizardData] = useState(initialWizardData);
   const [isSavingWizard, setIsSavingWizard] = useState(false);
+
+  // Save wizard data to localStorage whenever it changes (but not in edit mode)
+  useEffect(() => {
+    if (!farmId && wizardData) {
+      saveWizardDataToStorage(wizardData);
+    }
+  }, [wizardData, farmId]);
 
   // ============================================================================
   // DATA LOADING (Edit Mode)
@@ -97,7 +160,9 @@ const WizardPage = () => {
       }
     };
 
-    loadFarmData();
+    if (farmId) {
+      loadFarmData();
+    }
   }, [farmId]);
 
   // ============================================================================
@@ -447,6 +512,8 @@ const WizardPage = () => {
       if (ownerId && typeof window !== "undefined") {
         const wizardKey = `farmWizardCompleted_${ownerId}`;
         localStorage.setItem(wizardKey, "true");
+        // Clear wizard data from storage since it's been saved
+        localStorage.removeItem(getWizardStorageKey());
       }
 
       // Return response so ReviewPage can create events
