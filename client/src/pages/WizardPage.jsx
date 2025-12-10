@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import locationService from "../services/location.service";
+import * as turf from "@turf/turf";
 import {
   loadFarmForEdit,
   prepareWizardDataForEdit,
@@ -336,6 +337,76 @@ const WizardPage = () => {
     });
   };
 
+  /**
+   * Replaces the farm boundary from an imported GeoJSON feature
+   * Calculates area/center and keeps downstream state in sync
+   * @param {Object} farmFeature - GeoJSON Feature for the farm boundary
+   */
+  const handleFarmBoundaryImport = (farmFeature) => {
+    if (!farmFeature?.geometry) {
+      console.warn("handleFarmBoundaryImport: Missing geometry");
+      return;
+    }
+
+    try {
+      const areaAcres = turf.area(farmFeature) / 4046.8564224;
+      const roundedArea = Math.max(0, Math.round(areaAcres * 100) / 100);
+      const areaLabel = `${roundedArea.toFixed(2)} acres`;
+      const centerPoint = turf.center(farmFeature);
+      const centerCoordinates = {
+        lat: centerPoint.geometry.coordinates[1],
+        lng: centerPoint.geometry.coordinates[0],
+      };
+
+      const normalizedFeature = {
+        ...farmFeature,
+        properties: {
+          ...(farmFeature.properties || {}),
+          type: "farm",
+          id:
+            farmFeature.properties?.id ||
+            farmFeature.id ||
+            wizardData.farmBoundaries?._id ||
+            "farm-boundary",
+          name:
+            wizardData.farmDetails?.name ||
+            farmFeature.properties?.name ||
+            "Farm",
+          area: areaLabel,
+        },
+      };
+
+      setWizardData((prev) =>
+        storeFarmGeoJsonCoords(prev, normalizedFeature, areaLabel, centerCoordinates)
+      );
+    } catch (error) {
+      console.error("Failed to import farm boundary:", error);
+      alert("Could not import the farm boundary. Please check the file format.");
+    }
+  };
+
+  /**
+   * Replaces fields data from an imported GeoJSON FeatureCollection
+   * @param {Object} fieldsData - FeatureCollection containing fields
+   * @param {Array} fieldsInfo - Optional array of field info objects
+   */
+  const handleFieldsImport = (fieldsData, fieldsInfo = []) => {
+    if (!fieldsData?.features?.length) {
+      console.warn("handleFieldsImport: No field features provided");
+      return;
+    }
+
+    setWizardData((prev) => ({
+      ...prev,
+      fieldsData,
+      fieldsInfo: fieldsInfo.length ? fieldsInfo : prev.fieldsInfo,
+      selectedFieldId:
+        fieldsInfo?.[0]?.id ||
+        fieldsData.features?.[0]?.properties?.id ||
+        prev.selectedFieldId,
+    }));
+  };
+
   // ============================================================================
   // WIZARD COMPLETION
   // ============================================================================
@@ -645,6 +716,8 @@ const WizardPage = () => {
       onCreateDefaultSquare: handleCreateDefaultSquare,
       onFieldDivisionComplete: handleFieldDivisionComplete,
       onFieldGeometryUpdate: handleFieldGeometryUpdate,
+      onImportFarmBoundary: handleFarmBoundaryImport,
+      onImportFieldsData: handleFieldsImport,
       isSavingWizard
     }} />
   );

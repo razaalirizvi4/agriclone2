@@ -759,6 +759,19 @@ const setDrawnDataProgrammatically = useCallback(
     }
   }, []);
 
+  // Disables map interactions while keeping layer clicks intact
+  const disableInteractions = useCallback(() => {
+    if (!map.current) return;
+    const m = map.current;
+    if (m.scrollZoom) m.scrollZoom.disable();
+    if (m.boxZoom) m.boxZoom.disable();
+    if (m.dragPan) m.dragPan.disable();
+    if (m.dragRotate) m.dragRotate.disable();
+    if (m.keyboard) m.keyboard.disable();
+    if (m.doubleClickZoom) m.doubleClickZoom.disable();
+    if (m.touchZoomRotate) m.touchZoomRotate.disable();
+  }, []);
+
   return { 
     mapContainer, 
     handleRecenter, 
@@ -768,7 +781,8 @@ const setDrawnDataProgrammatically = useCallback(
     setMapCenter,
     setDrawnDataProgrammatically,
     focusOnFeature,
-    setFarmBoundaryOverlay
+    setFarmBoundaryOverlay,
+    disableInteractions
   };
 };
 
