@@ -219,15 +219,20 @@ export const storeFarmGeoJsonCoords = (wizardData, farmFeature, area, centerCoor
   }
 
   // Update wizard data with new farm boundary coordinates
+  // Always use the new area if provided (even if empty string), only fallback if area is null/undefined
+  // Also update "size" field since it's the same as area (based on backend schema where area has label "Size")
+  const updatedArea = area !== null && area !== undefined ? area : wizardData.farmBoundaries?.attributes?.area;
   const updatedWizardData = {
     ...wizardData,
-    farmArea: area || wizardData.farmArea,
+    farmArea: updatedArea || wizardData.farmArea,
     farmBoundaries: {
       ...wizardData.farmBoundaries,
       attributes: {
         ...wizardData.farmBoundaries?.attributes,
         geoJsonCords: geoJsonCords,
-        area: area || wizardData.farmBoundaries?.attributes?.area,
+        area: updatedArea,
+        // Update size to match area (size is just the label for area field)
+        ...(updatedArea && { size: updatedArea }),
         ...(center && {
           lat: center.lat,
           lon: center.lng,
@@ -280,6 +285,8 @@ export const moveFieldsIntoFarmBoundary = (wizardData, newFarmFeature, oldFarmFe
     console.log("Fields successfully re-divided for new farm location");
     return {
       ...wizardData,
+      // Preserve the updated farmBoundaries (including area) from the previous update
+      farmBoundaries: wizardData.farmBoundaries,
       fieldsData: result.fieldsData,
       fieldsInfo: result.fieldsInfo,
       selectedFieldId: result.fieldsInfo[0]?.id || wizardData.selectedFieldId,

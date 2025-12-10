@@ -1,14 +1,174 @@
 import React, { useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
+import { jsPDF } from "jspdf";
 import eventStreamService from "../services/eventStream.service";
 
 const ReviewPage = () => {
   const { wizardData, onWizardComplete, isSavingWizard } = useOutletContext();
   const navigate = useNavigate();
   const [isCreatingEvents, setIsCreatingEvents] = useState(false);
-
   const farmDetails = wizardData.farmDetails || {};
   const fieldsInfo = wizardData.fieldsInfo || [];
+
+  const formatRecipeInfo = (recipe) => {
+    if (!recipe) return "Not selected";
+    const parts = [];
+    if (recipe.name) parts.push(recipe.name);
+    if (recipe.id) parts.push(`ID: ${recipe.id}`);
+    if (recipe.version) parts.push(`Version: ${recipe.version}`);
+    if (recipe.cropId) parts.push(`Crop ID: ${recipe.cropId}`);
+    return parts.join(" | ") || "Not selected";
+  };
+
+  const generatePdfSummary = () => {
+    const doc = new jsPDF();
+    let y = 16;
+
+    const addLine = (text, fontSize = 12, spacing = 8, indent = 0) => {
+      doc.setFontSize(fontSize);
+      if (y > 280) {
+        doc.addPage();
+        y = 16;
+      }
+      doc.text(String(text), 14 + indent, y);
+      y += spacing;
+    };
+
+    addLine("Farm & Fields Summary", 18, 10);
+    addLine(`Generated: ${new Date().toLocaleString()}`, 10, 12);
+
+    addLine("Farm Information", 14, 8);
+    addLine(`Name: ${farmDetails.name || "—"}`);
+    addLine(`Address: ${farmDetails.address || "—"}`);
+    addLine(
+      `Size: ${
+        wizardData.farmArea || farmDetails.size || farmDetails.area || "—"
+      }`
+    );
+    addLine(
+      `Number of Fields: ${
+        farmDetails.numberOfFields ??
+        wizardData.numberOfFields ??
+        fieldsInfo.length ??
+        "—"
+      }`
+    );
+
+    if (wizardData.farmBoundaries?.attributes) {
+      addLine(
+        `Latitude: ${wizardData.farmBoundaries.attributes.lat ?? "—"} | Longitude: ${
+          wizardData.farmBoundaries.attributes.lon ?? "—"
+        }`
+      );
+    }
+
+    addLine("", 12, 6);
+    addLine("Fields", 14, 8);
+    if (fieldsInfo.length === 0) {
+      addLine("No fields have been created yet.");
+    } else {
+      fieldsInfo.forEach((field, index) => {
+        addLine(
+          `${index + 1}. ${field.name || `Field ${index + 1}`}`,
+          12,
+          6
+        );
+        addLine(`Area: ${field.area || "—"}`, 11, 6, 4);
+        addLine(`Crop: ${getCropName(field) || "Not assigned"}`, 11, 6, 4);
+        const soilType =
+          field.soilType ||
+          field.attributes?.soilType ||
+          field.attributes?.soil_type ||
+          null;
+        const soilPH =
+          field.soilPH ||
+          field.soilPh ||
+          field.soil_pH ||
+          field.attributes?.soilPH ||
+          field.attributes?.soilPh ||
+          field.attributes?.soil_pH ||
+          null;
+        if (soilType) {
+          addLine(`Soil Type: ${soilType}`, 10, 6, 4);
+        }
+        if (soilPH || soilPH === 0) {
+          addLine(`Soil pH: ${soilPH}`, 10, 6, 4);
+        }
+        if (field.selectedRecipe) {
+          addLine(`Recipe: ${formatRecipeInfo(field.selectedRecipe)}`, 11, 6, 4);
+          if (field.selectedRecipe?.recipeInfo?.description) {
+            addLine(
+              `Description: ${field.selectedRecipe.recipeInfo.description}`,
+              10,
+              6,
+              8
+            );
+          }
+          if (
+            Array.isArray(field.selectedRecipe.recipeWorkflows) &&
+            field.selectedRecipe.recipeWorkflows.length > 0
+          ) {
+            addLine("Workflow Steps:", 11, 6, 4);
+            field.selectedRecipe.recipeWorkflows.forEach((workflow, wfIdx) => {
+              addLine(
+                `${wfIdx + 1}. ${workflow.stepName || `Step ${wfIdx + 1}`}`,
+                10,
+                6,
+                8
+              );
+              if (workflow.duration) {
+                addLine(`Duration: ${workflow.duration} days`, 10, 6, 12);
+              }
+              if (
+                Array.isArray(workflow.equipmentRequired) &&
+                workflow.equipmentRequired.length > 0
+              ) {
+                addLine("Equipment:", 10, 6, 12);
+                workflow.equipmentRequired.forEach((equipment, eqIdx) => {
+                  const name = equipment?.name || `Item ${eqIdx + 1}`;
+                  const qty =
+                    equipment?.quantity || equipment?.quantity === 0
+                      ? equipment.quantity
+                      : "—";
+                  const optional = equipment?.optional ? " (Optional)" : "";
+                  addLine(
+                    `- ${name} (Qty: ${qty}${optional})`,
+                    10,
+                    6,
+                    16
+                  );
+                });
+              }
+              if (workflow.notes) {
+                addLine(`Notes: ${workflow.notes}`, 10, 8, 12);
+              } else {
+                y += 2;
+              }
+            });
+          }
+        } else {
+          addLine("Recipe: Not selected", 11, 6, 4);
+        }
+        if (field.cropStage) {
+          addLine(`Crop Stage: ${field.cropStage}`, 11, 8, 4);
+        } else {
+          y += 4;
+        }
+      });
+    }
+
+    addLine("", 12, 6);
+    addLine("Crop Summary", 14, 8);
+    if (Object.keys(cropSummary).length === 0) {
+      addLine("No crops have been assigned to fields yet.");
+    } else {
+      Object.entries(cropSummary).forEach(([name, count]) => {
+        addLine(`${name}: ${count} field${count > 1 ? "s" : ""}`, 12, 6);
+      });
+    }
+
+    doc.save("farm-fields-summary.pdf");
+  };
 
   // Derive crop name directly from field info (no global crops list in wizardData)
   const getCropName = (field) => {
@@ -422,7 +582,11 @@ const ReviewPage = () => {
               if (isSavingWizard || isCreatingEvents) {
                 return;
               }
-              
+
+              const wantsPdf = window.confirm(
+                "Do you want to download a PDF of your farm and fields data after submission?"
+              );
+
               try {
                 // Set loading state for the entire process
                 setIsCreatingEvents(true);
@@ -509,7 +673,15 @@ const ReviewPage = () => {
                 
                 // Wait for all events to be created
                 await Promise.all(eventPromises);
-                
+
+                if (wantsPdf) {
+                  try {
+                    generatePdfSummary();
+                  } catch (pdfError) {
+                    console.error("Failed to generate PDF:", pdfError);
+                  }
+                }
+
                 alert("Farm registration and events created successfully!");
                 navigate("/"); // Navigate to dashboard after everything is done
               } catch (error) {

@@ -116,6 +116,8 @@ const WizardPage = () => {
       
       if (editMode) {
         // Preserve existing farmBoundaries structure and _id when editing
+        // Extract area and size from farmDetails to prevent them from overwriting map-calculated values
+        const { area: areaFromForm, size: sizeFromForm, ...otherFarmDetails } = farmDetails;
         return {
           ...prev,
           farmDetails: {
@@ -128,7 +130,11 @@ const WizardPage = () => {
             name: farmDetails.name || prev.farmBoundaries.name,
             attributes: {
               ...prev.farmBoundaries.attributes,
-              ...farmDetails, // Merge form details into attributes
+              ...otherFarmDetails, // Merge form details into attributes (excluding area/size)
+              // ALWAYS preserve area from map updates - never use area from form in edit mode
+              area: prev.farmBoundaries.attributes?.area || prev.farmArea || "0 acres",
+              // Preserve existing size, or use from form if it doesn't exist yet
+              size: prev.farmBoundaries.attributes?.size ?? sizeFromForm,
             },
           },
           // Preserve existing fields data when editing
@@ -568,8 +574,9 @@ const WizardPage = () => {
               geoJsonCords:
                 farmBoundaries ||
                 prev.farmBoundaries.attributes?.geoJsonCords,
+              // Use prev.farmArea (from state) instead of wizardData.farmArea (from closure)
               area:
-                wizardData.farmArea ||
+                prev.farmArea ||
                 prev.farmBoundaries.attributes?.area,
               lat:
                 completeData.centerCoordinates?.lat ||
@@ -595,7 +602,7 @@ const WizardPage = () => {
       }
 
       // New farm or regenerating fields - use the new data
-      const farmDetails = wizardData.farmDetails || {};
+      const farmDetails = prev.farmDetails || {};
       const farmData = {
         type: "Farm",
         name: farmDetails.name || "Unnamed Farm",
@@ -604,7 +611,8 @@ const WizardPage = () => {
           // Dynamic form attributes (e.g. address, size, numberOfFields, etc.)
           ...farmDetails,
           // Core attributes used by map / weather
-          area: wizardData.farmArea,
+          // Use prev.farmArea (from state) instead of wizardData.farmArea (from closure)
+          area: prev.farmArea || prev.farmBoundaries?.attributes?.area || "0 acres",
           lat: completeData.centerCoordinates?.lat || 0,
           lon: completeData.centerCoordinates?.lng || 0,
           geoJsonCords: farmBoundaries,
