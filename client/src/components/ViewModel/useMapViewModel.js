@@ -11,6 +11,7 @@ import { calculateMapCenter } from "../../utils/mapUtils";
 import { createFarmLayers } from "../../utils/mapLayers";
 import { createFieldLayers } from "../../utils/mapLayers";
 import { createGeometryLayers } from "../../utils/mapLayers";
+import { toast } from "react-toastify";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -32,8 +33,6 @@ const useMapViewModel = ({
   const hoverPopupRef = useRef(null);
   const activeLayerRef = useRef(null);
   const drawRef = useRef(null);
-  const pendingDrawFeatureRef = useRef(null);
-  const lastDrawnFeatureRef = useRef(null);
   const onAreaUpdateRef = useRef(onAreaUpdate);
   const validateGeometryRef = useRef(validateGeometry);
   const lastValidDrawDataRef = useRef(null);
@@ -53,15 +52,6 @@ const useMapViewModel = ({
   useEffect(() => {
     validateGeometryRef.current = validateGeometry;
   }, [validateGeometry]);
-
-  useEffect(() => {
-    if (drawnData?.features?.length) {
-      lastDrawnFeatureRef.current =
-        drawnData.features[drawnData.features.length - 1];
-    } else {
-      lastDrawnFeatureRef.current = null;
-    }
-  }, [drawnData]);
 
   // Sync external selectedFieldId from parent whenever it changes
   useEffect(() => {
@@ -427,10 +417,6 @@ useEffect(() => {
   // Create draw control with simple_select mode for edit functionality
   const draw = new MapboxDraw({
     displayControlsDefault: false,
-    controls: { 
-      polygon: true, 
-      trash: true 
-    },
     defaultMode: "simple_select", // This enables edit functionality
   });
   
@@ -473,15 +459,6 @@ useEffect(() => {
     });
   }
 
-  // Prevent double-click zoom conflict
-  map.current.on("dblclick", () => {
-    if (draw.getMode && draw.getMode() === "draw_polygon") {
-      map.current.doubleClickZoom.disable();
-      draw.changeMode("simple_select");
-      setTimeout(() => map.current.doubleClickZoom.enable(), 200);
-    }
-  });
-
   const updateArea = () => {
     const data = draw.getAll();
     
@@ -494,7 +471,7 @@ useEffect(() => {
         
         if (!isValid) {
           // Alert the user
-          alert("Field boundary must stay within the farm boundary. Please adjust the shape.");
+          toast.error("Field boundary must stay within the farm boundary. Please adjust the shape.");
           
           // Revert to last valid data if available
           if (lastValidDrawDataRef.current && map.current.getSource('drawn-data')) {
@@ -543,31 +520,14 @@ useEffect(() => {
     }
   };
 
-  const featureToRestore =
-    pendingDrawFeatureRef.current || lastDrawnFeatureRef.current;
-  if (featureToRestore) {
-    syncDrawFeature(featureToRestore);
-    pendingDrawFeatureRef.current = null;
-    // Initialize last valid data when restoring a feature
-    const restoreData = {
-      type: "FeatureCollection",
-      features: [featureToRestore],
-    };
-    lastValidDrawDataRef.current = JSON.parse(JSON.stringify(restoreData));
-  }
 
   // Add event listeners
-  map.current.on("draw.create", updateArea);
-  map.current.on("draw.delete", updateArea);
   map.current.on("draw.update", updateArea);
 
   return () => {
     if (map.current) {
-      map.current.off("draw.create", updateArea);
-      map.current.off("draw.delete", updateArea);
-      map.current.off("draw.update", updateArea);
-      map.current.off("dblclick");
-      
+
+      map.current.off("draw.update", updateArea);      
       // FIXED: Use the correct layer IDs that were actually added
       if (map.current.getLayer('drawn-farm-fill')) {
         map.current.removeLayer('drawn-farm-fill');
@@ -586,7 +546,7 @@ useEffect(() => {
       }
     }
   };
-}, [mapLoaded, mode, syncDrawFeature]);
+}, [mapLoaded, mode]);
 
 
   // RECENTER FUNCTION
@@ -630,7 +590,6 @@ const setDrawnDataProgrammatically = useCallback(
   (feature) => {
     if (!feature) {
       setDrawnData(null);
-      pendingDrawFeatureRef.current = null;
       if (drawRef.current) {
         drawRef.current.deleteAll();
       }
@@ -652,20 +611,26 @@ const setDrawnDataProgrammatically = useCallback(
     };
 
     setDrawnData(featureCollection);
-    pendingDrawFeatureRef.current = normalizedFeature;
 
     if (mode === "wizard" && drawRef.current) {
+      drawRef.current.deleteAll();
       syncDrawFeature(normalizedFeature);
-      pendingDrawFeatureRef.current = null;
+      // Store as last valid data
+      lastValidDrawDataRef.current = JSON.parse(JSON.stringify(featureCollection));
+        
+        // Switch to direct_select mode for immediate editing
+        const currentFeatures = drawRef.current.getAll()?.features || [];
+        const addedFeature = currentFeatures[0];
+        if (addedFeature?.id) {
+          drawRef.current.changeMode("direct_select", {
+            featureId: addedFeature.id,
+          });
+        }
+
     }
   },
-  [mode, syncDrawFeature]
+  [mode,syncDrawFeature]
 );
-
-
-
-
-
 
   const focusOnFeature = useCallback((feature, options = {}) => {
     if (!map.current || !feature?.geometry) return;

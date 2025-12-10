@@ -3,12 +3,18 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import eventStreamService from "../services/eventStream.service";
 import MapWizard from "../components/View/MapWizard";
-import { normalizeFieldsForExport, exportFeatureCollection } from "../utils/geoJson";
+import {
+  normalizeFieldsForExport,
+  exportFeatureCollection,
+} from "../utils/geoJson";
+import { toast } from "react-toastify";
+import ConfirmationModal from "../components/View/confirmationModal";
 
 const ReviewPage = () => {
   const { wizardData, onWizardComplete, isSavingWizard } = useOutletContext();
   const navigate = useNavigate();
   const [isCreatingEvents, setIsCreatingEvents] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const farmDetails = wizardData.farmDetails || {};
   const fieldsInfo = wizardData.fieldsInfo || [];
   const farmName =
@@ -79,15 +85,14 @@ const ReviewPage = () => {
 
     exportFeatureCollection(farmExportable, `${farmName || "farm"}-boundary`);
 
-    const fieldsData =
-      wizardData.fieldsData || { type: "FeatureCollection", features: [] };
+    const fieldsData = wizardData.fieldsData || {
+      type: "FeatureCollection",
+      features: [],
+    };
     const normalizedFields = normalizeFieldsForExport(fieldsData, farmName);
 
     if (normalizedFields?.features?.length) {
-      exportFeatureCollection(
-        normalizedFields,
-        `${farmName || "farm"}-fields`
-      );
+      exportFeatureCollection(normalizedFields, `${farmName || "farm"}-fields`);
     } else {
       alert("No fields available to export.");
     }
@@ -139,9 +144,9 @@ const ReviewPage = () => {
 
     if (wizardData.farmBoundaries?.attributes) {
       addLine(
-        `Latitude: ${wizardData.farmBoundaries.attributes.lat ?? "—"} | Longitude: ${
-          wizardData.farmBoundaries.attributes.lon ?? "—"
-        }`
+        `Latitude: ${
+          wizardData.farmBoundaries.attributes.lat ?? "—"
+        } | Longitude: ${wizardData.farmBoundaries.attributes.lon ?? "—"}`
       );
     }
 
@@ -151,11 +156,7 @@ const ReviewPage = () => {
       addLine("No fields have been created yet.");
     } else {
       fieldsInfo.forEach((field, index) => {
-        addLine(
-          `${index + 1}. ${field.name || `Field ${index + 1}`}`,
-          12,
-          6
-        );
+        addLine(`${index + 1}. ${field.name || `Field ${index + 1}`}`, 12, 6);
         addLine(`Area: ${field.area || "—"}`, 11, 6, 4);
         addLine(`Crop: ${getCropName(field) || "Not assigned"}`, 11, 6, 4);
         const soilType =
@@ -178,7 +179,12 @@ const ReviewPage = () => {
           addLine(`Soil pH: ${soilPH}`, 10, 6, 4);
         }
         if (field.selectedRecipe) {
-          addLine(`Recipe: ${formatRecipeInfo(field.selectedRecipe)}`, 11, 6, 4);
+          addLine(
+            `Recipe: ${formatRecipeInfo(field.selectedRecipe)}`,
+            11,
+            6,
+            4
+          );
           if (field.selectedRecipe?.recipeInfo?.description) {
             addLine(
               `Description: ${field.selectedRecipe.recipeInfo.description}`,
@@ -214,12 +220,7 @@ const ReviewPage = () => {
                       ? equipment.quantity
                       : "—";
                   const optional = equipment?.optional ? " (Optional)" : "";
-                  addLine(
-                    `- ${name} (Qty: ${qty}${optional})`,
-                    10,
-                    6,
-                    16
-                  );
+                  addLine(`- ${name} (Qty: ${qty}${optional})`, 10, 6, 16);
                 });
               }
               if (workflow.notes) {
@@ -256,11 +257,7 @@ const ReviewPage = () => {
   // Derive crop name directly from field info (no global crops list in wizardData)
   const getCropName = (field) => {
     if (!field) return null;
-    return (
-      field.cropName ??
-      field.attributes?.cropName ??
-      null
-    );
+    return field.cropName ?? field.attributes?.cropName ?? null;
   };
 
   // Build a simple summary of how many fields use each crop
@@ -269,6 +266,138 @@ const ReviewPage = () => {
     acc[name] = (acc[name] || 0) + 1;
     return acc;
   }, {});
+
+  const handleDownloadAndComplete = () => {
+    if (isSavingWizard || isCreatingEvents) {
+      return;
+    }
+    toast.success("Downloading PDF...");
+    generatePdfSummary();
+    handleCompleteAndCreateEvents();
+  };
+
+  const handleCompleteAndCreateEvents = async () => {
+    if (isSavingWizard || isCreatingEvents) {
+      return;
+    }
+
+    setShowConfirmModal(false);
+
+    try {
+      // Set loading state for the entire process
+      setIsCreatingEvents(true);
+
+      // First complete the wizard and get saved locations
+      const response = await onWizardComplete();
+
+      // Extract saved fields from response
+      // Response structure: [{ type: 'farm', data: {...} }, { type: 'field', data: {...} }, ...]
+      const savedFields =
+        response?.data?.filter((item) => item.type === "field" && item.data) ||
+        [];
+
+      // Create a map of field names to saved field IDs for lookup
+      const fieldIdMap = new Map();
+      savedFields.forEach((item) => {
+        if (item.data && item.data.name) {
+          fieldIdMap.set(item.data.name, item.data._id);
+        }
+      });
+
+      // Collect field IDs and prepare event data for fields that will have events created
+      const fieldIdsForEvents = [];
+      const eventPromises = [];
+
+      for (let i = 0; i < fieldsInfo.length; i++) {
+        const field = fieldsInfo[i];
+        const selectedRecipe = field.selectedRecipe;
+        const cropStage = field.cropStage;
+
+        // Try to get cropId from various possible locations
+        let cropId = field.crop_id || field.attributes?.crop_id;
+
+        // If no cropId but we have cropName, try to find it in saved fields
+        if (!cropId && field.cropName) {
+          const savedField = savedFields[i]?.data;
+          if (savedField?.attributes?.crop_id) {
+            cropId = savedField.attributes.crop_id;
+          }
+        }
+
+        // Also check if cropId is in the selectedRecipe
+        if (!cropId && selectedRecipe?.cropId) {
+          cropId = selectedRecipe.cropId;
+        }
+
+        // Get the saved field ID
+        const savedFieldId =
+          fieldIdMap.get(field.name) ||
+          savedFields[i]?.data?._id ||
+          field._id ||
+          field.id;
+
+        // Only process fields that have a recipe and crop
+        if (selectedRecipe && cropId && selectedRecipe.id && savedFieldId) {
+          // Add to field IDs list for deletion
+          fieldIdsForEvents.push(savedFieldId);
+
+          // Prepare event creation promise
+          const eventData = {
+            cropId,
+            recipeId: selectedRecipe.id,
+            fieldId: savedFieldId,
+            startDate: new Date().toISOString(),
+            cropStage: cropStage || null,
+          };
+
+          eventPromises.push(
+            eventStreamService
+              .createFieldEvents(eventData)
+              .then((result) => result)
+              .catch((error) => {
+                console.error(
+                  `Failed to create events for field ${field.name}:`,
+                  error
+                );
+                // Don't throw - continue with other fields
+                return null;
+              })
+          );
+        }
+      }
+
+      // Delete existing events for these field IDs before creating new ones
+      if (fieldIdsForEvents.length > 0) {
+        try {
+          const deleteResponse =
+            await eventStreamService.deleteEventsByFieldIds(fieldIdsForEvents);
+          console.log(
+            `Deleted ${deleteResponse.data.deletedCount} existing events for field IDs:`,
+            fieldIdsForEvents
+          );
+        } catch (deleteError) {
+          console.error("Error deleting existing events:", deleteError);
+          // Continue with event creation even if deletion fails
+        }
+      }
+
+      // Wait for all events to be created
+      await Promise.all(eventPromises);
+    toast.dismiss();
+
+      toast.success("Farm registration and events created successfully!");
+      navigate("/"); // Navigate to dashboard after everything is done
+    } catch (error) {
+      console.error("Error during wizard completion or event creation:", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to complete wizard or create events. Please try again.";
+      toast.error(message);
+    } finally {
+      setIsCreatingEvents(false);
+    }
+  };
 
   return (
     <div
@@ -365,7 +494,13 @@ const ReviewPage = () => {
               }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: "12px",
+            }}
+          >
             <button
               type="button"
               className="secondary-button"
@@ -716,125 +851,12 @@ const ReviewPage = () => {
           </button>
           <button
             type="button"
-            onClick={async () => {
-              if (isSavingWizard || isCreatingEvents) {
-                return;
-              }
-
-              const wantsPdf = window.confirm(
-                "Do you want to download a PDF of your farm and fields data after submission?"
-              );
-
-              try {
-                // Set loading state for the entire process
-                setIsCreatingEvents(true);
-                
-                // First complete the wizard and get saved locations
-                const response = await onWizardComplete();
-                
-                // Extract saved fields from response
-                // Response structure: [{ type: 'farm', data: {...} }, { type: 'field', data: {...} }, ...]
-                const savedFields = response?.data?.filter(item => item.type === 'field' && item.data) || [];
-                
-                // Create a map of field names to saved field IDs for lookup
-                const fieldIdMap = new Map();
-                savedFields.forEach(item => {
-                  if (item.data && item.data.name) {
-                    fieldIdMap.set(item.data.name, item.data._id);
-                  }
-                });
-                
-                // Collect field IDs and prepare event data for fields that will have events created
-                const fieldIdsForEvents = [];
-                const eventPromises = [];
-                
-                for (let i = 0; i < fieldsInfo.length; i++) {
-                  const field = fieldsInfo[i];
-                  const selectedRecipe = field.selectedRecipe;
-                  const cropStage = field.cropStage;
-                  
-                  // Try to get cropId from various possible locations
-                  let cropId = field.crop_id || field.attributes?.crop_id;
-                  
-                  // If no cropId but we have cropName, try to find it in saved fields
-                  if (!cropId && field.cropName) {
-                    const savedField = savedFields[i]?.data;
-                    if (savedField?.attributes?.crop_id) {
-                      cropId = savedField.attributes.crop_id;
-                    }
-                  }
-                  
-                  // Also check if cropId is in the selectedRecipe
-                  if (!cropId && selectedRecipe?.cropId) {
-                    cropId = selectedRecipe.cropId;
-                  }
-                  
-                  // Get the saved field ID
-                  const savedFieldId = fieldIdMap.get(field.name) || savedFields[i]?.data?._id || field._id || field.id;
-                  
-                  // Only process fields that have a recipe and crop
-                  if (selectedRecipe && cropId && selectedRecipe.id && savedFieldId) {
-                    // Add to field IDs list for deletion
-                    fieldIdsForEvents.push(savedFieldId);
-                    
-                    // Prepare event creation promise
-                    const eventData = {
-                      cropId,
-                      recipeId: selectedRecipe.id,
-                      fieldId: savedFieldId,
-                      startDate: new Date().toISOString(),
-                      cropStage: cropStage || null,
-                    };
-                    
-                    eventPromises.push(
-                      eventStreamService.createFieldEvents(eventData)
-                        .then(result => result)
-                        .catch(error => {
-                          console.error(`Failed to create events for field ${field.name}:`, error);
-                          // Don't throw - continue with other fields
-                          return null;
-                        })
-                    );
-                  }
-                }
-                
-                // Delete existing events for these field IDs before creating new ones
-                if (fieldIdsForEvents.length > 0) {
-                  try {
-                    const deleteResponse = await eventStreamService.deleteEventsByFieldIds(fieldIdsForEvents);
-                    console.log(`Deleted ${deleteResponse.data.deletedCount} existing events for field IDs:`, fieldIdsForEvents);
-                  } catch (deleteError) {
-                    console.error("Error deleting existing events:", deleteError);
-                    // Continue with event creation even if deletion fails
-                  }
-                }
-                
-                // Wait for all events to be created
-                await Promise.all(eventPromises);
-
-                if (wantsPdf) {
-                  try {
-                    generatePdfSummary();
-                  } catch (pdfError) {
-                    console.error("Failed to generate PDF:", pdfError);
-                  }
-                }
-
-                alert("Farm registration and events created successfully!");
-                navigate("/"); // Navigate to dashboard after everything is done
-              } catch (error) {
-                console.error("Error during wizard completion or event creation:", error);
-                const message =
-                  error?.response?.data?.message ||
-                  error?.message ||
-                  "Failed to complete wizard or create events. Please try again.";
-                alert(message);
-              } finally {
-                setIsCreatingEvents(false);
-              }
-            }}
+            onClick={() => setShowConfirmModal(true)}
             disabled={
-              !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard || isCreatingEvents
+              !wizardData.farmDetails ||
+              !fieldsInfo.length ||
+              isSavingWizard ||
+              isCreatingEvents
             }
             style={{
               flex: 1,
@@ -842,23 +864,83 @@ const ReviewPage = () => {
               borderRadius: "8px",
               border: "none",
               backgroundColor:
-                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard || isCreatingEvents
+                !wizardData.farmDetails ||
+                !fieldsInfo.length ||
+                isSavingWizard ||
+                isCreatingEvents
                   ? "#9ca3af"
                   : "#16a34a",
               color: "#ffffff",
               fontSize: "14px",
               fontWeight: 600,
               cursor:
-                !wizardData.farmDetails || !fieldsInfo.length || isSavingWizard || isCreatingEvents
+                !wizardData.farmDetails ||
+                !fieldsInfo.length ||
+                isSavingWizard ||
+                isCreatingEvents
                   ? "not-allowed"
                   : "pointer",
               boxShadow: "0 4px 10px rgba(22, 163, 74, 0.3)",
               transition: "background-color 0.15s ease",
             }}
           >
-            {isSavingWizard ? "Saving..." : isCreatingEvents ? "Creating Events..." : "Confirm & Complete"}
+            {isSavingWizard
+              ? "Saving..."
+              : isCreatingEvents
+              ? "Creating Events..."
+              : "Confirm & Complete"}
           </button>
         </div>
+        <ConfirmationModal
+          isOpen={showConfirmModal}
+          title="Confirm registration"
+          description="This will save the farm and recreate events for fields with assigned recipes."
+          confirmLabel="Yes, confirm and create events"
+          loading={isSavingWizard || isCreatingEvents}
+          disableConfirm={
+            !wizardData.farmDetails ||
+            !fieldsInfo.length ||
+            isSavingWizard ||
+            isCreatingEvents
+          }
+          showCancelButton={false}
+          onCancel={() => setShowConfirmModal(false)}
+          onConfirm={handleCompleteAndCreateEvents}
+          extraAction={{
+            label: "Download PDF",
+            onClick: handleDownloadAndComplete,
+            loading: isSavingWizard || isCreatingEvents,
+            disabled:
+              !wizardData.farmDetails ||
+              !fieldsInfo.length ||
+              isSavingWizard ||
+              isCreatingEvents,
+          }}
+        >
+          <div style={{ fontSize: "14px", color: "#4b5563", lineHeight: 1.5 }}>
+            <div>
+              <strong>Fields:</strong> {fieldsInfo.length || 0}
+            </div>
+            <div>
+              <strong>Events will be regenerated for:</strong>{" "}
+              {
+                fieldsInfo.filter(
+                  (field) =>
+                    field.selectedRecipe &&
+                    (field.crop_id ||
+                      field.attributes?.crop_id ||
+                      field.selectedRecipe?.cropId ||
+                      field.cropName)
+                ).length
+              }{" "}
+              field(s) with a recipe and crop assigned.
+            </div>
+            <div style={{ marginTop: "6px", color: "#6b7280" }}>
+              Existing events for those fields will be removed before creating
+              new ones.
+            </div>
+          </div>
+        </ConfirmationModal>
       </div>
     </div>
   );

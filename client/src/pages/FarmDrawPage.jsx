@@ -5,6 +5,7 @@ import MapWizard from "../components/View/MapWizard";
 import { processFarmDivision, createFieldsInfo } from "../utils/fieldDivision";
 import { normalizeFarmFeatureFromFile } from "../utils/geoJson";
 import * as turf from "@turf/turf";
+import { toast } from "react-toastify";
 
 const FarmDrawPage = () => {
   const {
@@ -222,11 +223,11 @@ const FarmDrawPage = () => {
         }
         
       } else {
-        alert("Address not found. Please try a different address.");
+        toast.error("Address not found. Please try a different address.");
       }
     } catch (error) {
       console.error("Geocoding error:", error);
-      alert("Error geocoding address.");
+      toast.error("Error geocoding address.");
     } finally {
       setIsGeocoding(false);
     }
@@ -244,16 +245,6 @@ const FarmDrawPage = () => {
     if (isEditMode && hasExistingFields && desiredCount === existingCount) {
       console.log("Edit mode: Fields already exist for requested count, skipping regeneration");
       navigate("/wizard/fields");
-      return;
-    }
-
-    if (!drawnData || drawnData.features.length === 0) {
-      alert("Please wait for the farm boundary to be created first!");
-      return;
-    }
-
-    if (!wizardData.numberOfFields || wizardData.numberOfFields <= 0) {
-      alert("Please specify the number of fields in the farm details form!");
       return;
     }
 
@@ -279,11 +270,11 @@ const FarmDrawPage = () => {
         setFieldsGenerated(true);
         navigate("/wizard/fields");
       } else {
-        alert("Unexpected error: Could not generate fields. Please try refreshing the page.");
+        toast.error("Unexpected error: Could not generate fields. Please try refreshing the page.");
       }
     } catch (error) {
       console.error("❌ Error generating fields:", error);
-      alert("Error generating fields. Please check the console for details.");
+      toast.error("Error generating fields. Please check the console for details.");
     }
   };
 

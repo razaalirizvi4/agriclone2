@@ -17,6 +17,9 @@ import FieldsPage from "./pages/FieldsPage";
 import ReviewPage from "./pages/ReviewPage";
 import ProtectedRoute from "./router/ProtectedRoute";
 import PublicRoute from "./router/PublicRoute";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 import "./App.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -25,6 +28,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       {" "}
       {/* ✅ wraps entire app */}
       <BrowserRouter>
+        <ToastContainer
+          position="top-right"
+          autoClose={4000}
+          hideProgressBar={false}
+          newestOnTop={true}
+          closeOnClick
+          pauseOnHover
+          draggable
+          theme="colored"
+        />
         <Routes>
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
@@ -38,10 +51,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               <Route path="event-stream" element={<EventStreamPage />} />
               <Route path="locations" element={<LocationPage />} />
               <Route path="wizard" element={<WizardPage />}>
-              <Route index element={<FarmDrawPage />} />{" "}
-              {/* Default: wizard/FarmDraw */}
-              <Route path="fields" element={<FieldsPage />} />
-              <Route path="review" element={<ReviewPage />} />
+                <Route index element={<FarmDrawPage />} />{" "}
+                {/* Default: wizard/FarmDraw */}
+                <Route path="fields" element={<FieldsPage />} />
+                <Route path="review" element={<ReviewPage />} />
               </Route>
               <Route path="recipe-wizard" element={<RecipeWizard />} />
             </Route>

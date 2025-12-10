@@ -8,9 +8,11 @@ import React, {
 } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import * as turf from "@turf/turf";
-import FieldDetailsForm, { CropAssignmentForm } from "../components/View/FieldDetailsForm";
+import FieldDetailsForm from "../components/View/FieldDetailsForm";
+import { CropAssignmentForm } from "../components/View/cropAssignmentForm";
 import MapWizard from "../components/View/MapWizard";
 import { normalizeFieldsFeatureCollection } from "../utils/geoJson";
+import { toast } from "react-toastify";
 
 const FieldsPage = () => {
   const {
@@ -93,7 +95,7 @@ const FieldsPage = () => {
     if (!selectedField) return null;
     return fieldFeatures.find(
       (feature) => feature.properties?.id === selectedField
-    );y
+    );
   }, [fieldFeatures, selectedField]);
 
   const selectedFieldArea = selectedFieldFeature?.properties?.area || null;
@@ -306,7 +308,6 @@ const FieldsPage = () => {
             }, 0);
           }
           
-          alert("Field boundary must stay within the farm boundary. Please adjust the shape.");
           return;
         }
       }
@@ -326,7 +327,7 @@ const FieldsPage = () => {
       selectedField,
       selectedFieldArea,
       farmFeature,
-      selectedFieldFeature,
+    
     ]
   );
 
@@ -359,7 +360,7 @@ const FieldsPage = () => {
   const handleFieldInfoSubmit = (fieldData) => {
     if (selectedField) {
       onFieldInfoUpdate(selectedField, fieldData);
-      alert("Field details updated successfully!");
+      toast.success("Field details updated successfully!");
     }
   };
 

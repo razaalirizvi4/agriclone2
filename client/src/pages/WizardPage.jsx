@@ -13,6 +13,7 @@ import {
 } from "../utils/wizardEditMode";
 import { buildWizardPayload } from "../utils/wizardPayloadBuilder";
 import './wizard.css'
+import { toast } from "react-toastify";
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -457,7 +458,7 @@ const WizardPage = () => {
         error?.response?.data?.message ||
         error?.message ||
         "Farm registration failed. Please try again.";
-      alert(message);
+      toast.error(message);
       throw error; // Re-throw so ReviewPage can handle it
     } finally {
       setIsSavingWizard(false);

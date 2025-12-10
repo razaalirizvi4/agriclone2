@@ -58,7 +58,7 @@ const FarmDetailsForm = ({ onSubmit, initialValues = {} }) => {
       onSubmit(formData);
     } else {
       alert("Please fill all required fields");
-    }
+    } 
   };
 
   if (loading) return <div>Loading farm details...</div>;

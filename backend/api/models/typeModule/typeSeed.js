@@ -35,7 +35,7 @@ const seedTypes = async () => {
         },
         {
           key: "area",
-          label: "Size",
+          label: "Size(acres)",
           valueType: "string",
           required: true,
           inputHint: "Enter the farm area in acres or square meters",
