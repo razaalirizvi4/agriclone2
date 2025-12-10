@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth.service';
+import Topbar from '../components/Topbar';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -34,6 +35,7 @@ const LoginPage = () => {
 
   return (
     <>
+      <Topbar isLoggedIn={false} showNav={false} />
       <style>{`
         .auth-shell {
           min-height: 100vh;
@@ -42,6 +44,7 @@ const LoginPage = () => {
           grid-template-columns: 1.1fr 0.9fr;
           background: #f6fbf6;
           color: #0f172a;
+          font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .hero {
@@ -107,9 +110,9 @@ const LoginPage = () => {
           align-items: center;
           justify-content: center;
           padding: 48px;
-          background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 25%),
-                      radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.08), transparent 22%),
-                      #fdfefe;
+          // background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 25%),
+          //             radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.08), transparent 22%),
+          //             #fdfefe;
         }
 
         .auth-card {
@@ -122,6 +125,12 @@ const LoginPage = () => {
           box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
           animation: fadeUp 0.6s ease forwards;
           box-sizing: border-box;
+
+          /* FORCE CENTER — works no matter the parent */
+          position: fixed;
+          inset: 0;
+          margin: auto;
+          height: fit-content;
         }
 
         .auth-card *,
@@ -178,8 +187,8 @@ const LoginPage = () => {
 
         .input-field:focus {
           outline: none;
-          border-color: #4A5D23;
-          box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
+          border-color: #000000;
+          box-shadow: none;
           background: #ffffff;
         }
 
@@ -194,7 +203,7 @@ const LoginPage = () => {
           font-size: 15px;
           cursor: pointer;
           transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
-          box-shadow: 0 12px 30px rgba(74, 93, 35, 0.25);
+          // box-shadow: 0 12px 30px rgba(74, 93, 35, 0.25);
         }
 
         .submit-btn:hover {
@@ -243,6 +252,9 @@ const LoginPage = () => {
           font-weight: 700;
           text-align: center;
         }
+        .Topbar h1{
+
+        }
 
         @keyframes fadeUp {
           0% { opacity: 0; transform: translateY(12px); }
@@ -272,7 +284,7 @@ const LoginPage = () => {
       `}</style>
 
       <div className="auth-shell">
-        <div className="hero">
+        {/* <div className="hero">
           <img
             src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1600&q=80"
             alt="Lush green farmland"
@@ -286,13 +298,12 @@ const LoginPage = () => {
             <div className="hero-title">Sustainably manage every acre.</div>
             <div className="hero-sub">Stay on top of operations, fields, and growth with a calm green space.</div>
           </div>
-        </div>
+        </div> */}
 
         <div className="form-panel">
           <div className="auth-card">
             <div className="auth-header">
               <div className="auth-title">Welcome back</div>
-              <div className="badge">Secure Access</div>
             </div>
 
             <form className="auth-form" onSubmit={handleSubmit}>

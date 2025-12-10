@@ -522,6 +522,9 @@
 
 .form-grid.four {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  padding-top: 0.01rem;
+  display: flex;
+  flex-wrap: wrap;
 }
 
 label {

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import authService from "../services/auth.service";
 import "./Topbar.css";
 
-const Topbar = ({ isLoggedIn }) => {
+const Topbar = ({ isLoggedIn, showNav = true }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = authService.getCurrentUser();
@@ -35,36 +35,40 @@ const Topbar = ({ isLoggedIn }) => {
         <span className="logo-text">AgriPro</span>
       </div>
 
-      {/* 🍔 Hamburger Menu */}
-      <div
-        className={`hamburger ${menuOpen ? "open" : ""}`}
-        onClick={() => setMenuOpen(!menuOpen)}
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
+      {showNav && (
+        <>
+          {/* 🍔 Hamburger Menu */}
+          <div
+            className={`hamburger ${menuOpen ? "open" : ""}`}
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
 
-      {/* 🌾 Navbar */}
-      <nav className={`navbar ${menuOpen ? "active" : ""}`}>
-        <ul>
-          {navItems.map((item) => (
-            <li key={item.name}>
-              <button
-                className={`nav-btn ${
-                  location.pathname === item.path ? "active" : ""
-                }`}
-                onClick={() => {
-                  navigate(item.path);
-                  setMenuOpen(false);
-                }}
-              >
-                {item.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+          {/* 🌾 Navbar */}
+          <nav className={`navbar ${menuOpen ? "active" : ""}`}>
+            <ul>
+              {navItems.map((item) => (
+                <li key={item.name}>
+                  <button
+                    className={`nav-btn ${
+                      location.pathname === item.path ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      navigate(item.path);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {item.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </>
+      )}
 
       {/* 👤 User Section */}
       {isLoggedIn && currentUser ? (

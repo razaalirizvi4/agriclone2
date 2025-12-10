@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth.service';
+import Topbar from '../components/Topbar';
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -27,6 +28,7 @@ const RegisterPage = () => {
 
   return (
     <>
+      <Topbar isLoggedIn={false} showNav={false} />
       <style>{`
         .auth-shell {
           min-height: 100vh;
@@ -35,64 +37,7 @@ const RegisterPage = () => {
           grid-template-columns: 1.1fr 0.9fr;
           background: #f6fbf6;
           color: #0f172a;
-        }
-
-        .hero {
-          position: relative;
-          overflow: hidden;
-          height: 100%;
-          min-height: 100vh;
-        }
-
-        .hero::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(20, 83, 45, 0.7), rgba(22, 163, 74, 0.55));
-          z-index: 1;
-          mix-blend-mode: multiply;
-        }
-
-        .hero img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          transform: scale(1.02);
-          filter: saturate(1.05);
-        }
-
-        .hero-copy {
-          position: absolute;
-          bottom: 12%;
-          left: 8%;
-          z-index: 2;
-          color: #f8fafc;
-          max-width: 420px;
-          animation: fadeUp 0.8s ease forwards;
-        }
-
-        .hero-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.16);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          font-weight: 600;
-          letter-spacing: 0.01em;
-        }
-
-        .hero-title {
-          margin: 14px 0 6px;
-          font-size: 32px;
-          font-weight: 800;
-          line-height: 1.2;
-        }
-
-        .hero-sub {
-          font-size: 15px;
-          color: #e2f4e8;
+          font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .form-panel {
@@ -100,14 +45,14 @@ const RegisterPage = () => {
           align-items: center;
           justify-content: center;
           padding: 48px;
-          background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 25%),
-                      radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.08), transparent 22%),
-                      #fdfefe;
+          // background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 25%),
+          //             radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.08), transparent 22%),
+          //             #fdfefe;
         }
 
         .auth-card {
           width: 100%;
-          max-width: 440px;
+          max-width: 420px;
           background: #ffffff;
           border: 1px solid #e5efe5;
           border-radius: 16px;
@@ -115,6 +60,12 @@ const RegisterPage = () => {
           box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
           animation: fadeUp 0.6s ease forwards;
           box-sizing: border-box;
+
+          /* FORCE CENTER — works no matter the parent */
+          position: fixed;
+          inset: 0;
+          margin: auto;
+          height: fit-content;
         }
 
         .auth-card *,
@@ -171,8 +122,8 @@ const RegisterPage = () => {
 
         .input-field:focus {
           outline: none;
-          border-color: #4A5D23;
-          box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
+          border-color: #000000;
+          box-shadow: none;
           background: #ffffff;
         }
 
@@ -187,7 +138,7 @@ const RegisterPage = () => {
           font-size: 15px;
           cursor: pointer;
           transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
-          box-shadow: 0 12px 30px rgba(74, 93, 35, 0.25);
+          // box-shadow: 0 12px 30px rgba(74, 93, 35, 0.25);
         }
 
         .submit-btn:hover {
@@ -246,12 +197,6 @@ const RegisterPage = () => {
           .auth-shell {
             grid-template-columns: 1fr;
           }
-          .hero {
-            height: 40vh;
-          }
-          .hero-copy {
-            bottom: 10%;
-          }
         }
 
         @media (max-width: 640px) {
@@ -265,27 +210,10 @@ const RegisterPage = () => {
       `}</style>
 
       <div className="auth-shell">
-        <div className="hero">
-          <img
-            src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1600&q=80"
-            alt="Lush green farmland"
-            loading="lazy"
-          />
-          <div className="hero-copy">
-            <div className="hero-chip">
-              <span role="img" aria-label="seedling">🌱</span>
-              Join the growers
-            </div>
-            <div className="hero-title">Start your greener operations.</div>
-            <div className="hero-sub">Create your account and keep fields, tasks, and growth aligned.</div>
-          </div>
-        </div>
-
         <div className="form-panel">
           <div className="auth-card">
             <div className="auth-header">
               <div className="auth-title">Create account</div>
-              <div className="badge">Get started</div>
             </div>
 
             <form className="auth-form" onSubmit={handleSubmit}>
