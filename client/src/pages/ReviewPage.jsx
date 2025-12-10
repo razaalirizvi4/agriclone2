@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import eventStreamService from "../services/eventStream.service";
+import MapWizard from "../components/View/MapWizard";
+import { normalizeFieldsForExport, exportFeatureCollection } from "../utils/geoJson";
 
 const ReviewPage = () => {
   const { wizardData, onWizardComplete, isSavingWizard } = useOutletContext();
@@ -9,6 +11,87 @@ const ReviewPage = () => {
   const [isCreatingEvents, setIsCreatingEvents] = useState(false);
   const farmDetails = wizardData.farmDetails || {};
   const fieldsInfo = wizardData.fieldsInfo || [];
+  const farmName =
+    farmDetails.name || wizardData.farmBoundaries?.name || "Farm";
+
+  const farmFeature = useMemo(() => {
+    const boundaries = wizardData.farmBoundaries;
+    if (!boundaries) return null;
+
+    const geoJson =
+      boundaries?.attributes?.geoJsonCords ||
+      (boundaries.type === "FeatureCollection" ? boundaries : null);
+
+    const feature = geoJson?.features?.[0] || boundaries?.features?.[0];
+    if (!feature?.geometry) return null;
+
+    return {
+      ...feature,
+      properties: {
+        ...(feature.properties || {}),
+        id: feature.properties?.id || boundaries?._id || "farm-boundary",
+        type: "farm",
+        name: farmName,
+        area:
+          boundaries?.attributes?.area ||
+          wizardData.farmArea ||
+          feature.properties?.area ||
+          "",
+      },
+    };
+  }, [wizardData.farmBoundaries, wizardData.farmArea, farmName]);
+
+  const fieldFeatures = useMemo(() => {
+    return (wizardData.fieldsData?.features || []).map((feature) => ({
+      ...feature,
+      properties: {
+        ...(feature.properties || {}),
+        id: feature.properties?.id || feature.id,
+        type: "field",
+        farm: farmName,
+      },
+    }));
+  }, [wizardData.fieldsData, farmName]);
+
+  const mapGeoJSON = useMemo(() => {
+    const features = [];
+    if (farmFeature) features.push(farmFeature);
+    if (fieldFeatures.length) features.push(...fieldFeatures);
+    return features.length ? { type: "FeatureCollection", features } : null;
+  }, [farmFeature, fieldFeatures]);
+
+  // Exports farm boundary and fields as separate GeoJSON files
+  const handleExportAll = () => {
+    if (!farmFeature?.geometry) {
+      alert("Farm boundary is missing; cannot export.");
+      return;
+    }
+
+    const farmExportable = {
+      ...farmFeature,
+      properties: {
+        ...(farmFeature.properties || {}),
+        type: "farm",
+        name: farmName,
+        id: farmFeature.properties?.id || "farm-boundary",
+      },
+    };
+
+    exportFeatureCollection(farmExportable, `${farmName || "farm"}-boundary`);
+
+    const fieldsData =
+      wizardData.fieldsData || { type: "FeatureCollection", features: [] };
+    const normalizedFields = normalizeFieldsForExport(fieldsData, farmName);
+
+    if (normalizedFields?.features?.length) {
+      exportFeatureCollection(
+        normalizedFields,
+        `${farmName || "farm"}-fields`
+      );
+    } else {
+      alert("No fields available to export.");
+    }
+  };
 
   const formatRecipeInfo = (recipe) => {
     if (!recipe) return "Not selected";
@@ -238,6 +321,61 @@ const ReviewPage = () => {
             completing registration.
           </p>
         </div>
+
+        {/* Map Preview */}
+        <section
+          style={{
+            marginBottom: "24px",
+            padding: "0 0 12px 0",
+          }}
+        >
+          <h3
+            style={{
+              margin: "0 0 12px 0",
+              fontSize: "16px",
+              fontWeight: 600,
+              color: "#111827",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <span>🗺️</span> <span>Farm & Fields Preview</span>
+          </h3>
+          <div
+            style={{
+              height: "360px",
+              borderRadius: "10px",
+              overflow: "hidden",
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            <MapWizard
+              locations={mapGeoJSON}
+              mode="dashboard"
+              shouldInitialize={true}
+              onMapReady={(api) => {
+                api.disableInteractions();
+                // Recenter to the farm; fallback to first field
+                if (farmFeature) {
+                  api.focusOnFeature(farmFeature, { padding: 40 });
+                } else if (fieldFeatures?.[0]) {
+                  api.focusOnFeature(fieldFeatures[0], { padding: 40 });
+                }
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleExportAll}
+              disabled={!farmFeature}
+            >
+              Export Farm & Fields
+            </button>
+          </div>
+        </section>
 
         {/* Farm Information */}
         <section

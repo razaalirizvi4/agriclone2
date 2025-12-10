@@ -3,6 +3,8 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import FarmDetailsForm from "../components/View/FarmDetailsForm";
 import MapWizard from "../components/View/MapWizard";
 import { processFarmDivision, createFieldsInfo } from "../utils/fieldDivision";
+import { normalizeFarmFeatureFromFile } from "../utils/geoJson";
+import * as turf from "@turf/turf";
 
 const FarmDrawPage = () => {
   const {
@@ -10,7 +12,8 @@ const FarmDrawPage = () => {
     onFarmDetailsSubmit,
     updateFarmArea,
     onCreateDefaultSquare,
-    onFieldDivisionComplete
+    onFieldDivisionComplete,
+    onImportFarmBoundary,
   } = useOutletContext();
 
   const navigate = useNavigate();
@@ -23,6 +26,7 @@ const FarmDrawPage = () => {
   const mapApiRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [drawnData, setDrawnData] = useState(null);
+  const farmFileInputRef = useRef(null);
 
   const savedBoundaryFeature =
     wizardData.farmBoundaries?.type === "FeatureCollection"
@@ -141,6 +145,53 @@ const FarmDrawPage = () => {
     polygonInitializedRef.current = false;
   };
 
+  const handleFarmFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const farmFeature = normalizeFarmFeatureFromFile(json);
+
+      if (!farmFeature) {
+        alert("Invalid GeoJSON. Please provide a polygon farm boundary.");
+        return;
+      }
+
+      const centerPoint = turf.center(farmFeature);
+      const center = {
+        lat: centerPoint.geometry.coordinates[1],
+        lng: centerPoint.geometry.coordinates[0],
+      };
+
+      onImportFarmBoundary(farmFeature);
+      setDrawnData({
+        type: "FeatureCollection",
+        features: [farmFeature],
+      });
+      setFarmCenter(center);
+      setFieldsGenerated(false);
+      polygonInitializedRef.current = true;
+
+      if (mapApiRef.current?.setDrawnDataProgrammatically) {
+        mapApiRef.current.setDrawnDataProgrammatically(farmFeature);
+      }
+      if (mapApiRef.current?.setMapCenter) {
+        mapApiRef.current.setMapCenter(center.lng, center.lat);
+      }
+    } catch (error) {
+      console.error("Failed to import farm boundary:", error);
+      alert("Unable to import farm boundary. Ensure the file is valid GeoJSON.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const triggerFarmImport = () => {
+    farmFileInputRef.current?.click();
+  };
+
   const geocodeAddressAndCreatePolygon = async (address, size) => {
     if (!address || !size) return;
 
@@ -239,6 +290,13 @@ const FarmDrawPage = () => {
 
   return (
     <div className="recipe-wizard-page">
+      <input
+        ref={farmFileInputRef}
+        type="file"
+        accept=".json,.geojson,application/geo+json,application/json"
+        style={{ display: "none" }}
+        onChange={handleFarmFileChange}
+      />
       <div className="wizard-layout">
         {/* Left Side - Farm Details Form & Controls */}
         <div className="crop-card">
@@ -359,6 +417,23 @@ const FarmDrawPage = () => {
                     ✓ Current Area: {wizardData.farmArea}
                   </div>
                 )}
+              </div>
+
+              {/* Import / Export Farm Boundary */}
+              <div className="control-section">
+                <div className="control-label">Import Farm</div>
+                <div className="instruction">
+                  Import a farm boundary GeoJSON.
+                </div>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={triggerFarmImport}
+                  >
+                    Import Farm GeoJSON
+                  </button>
+                </div>
               </div>
 
               {/* Generate Fields and Navigate Button */}

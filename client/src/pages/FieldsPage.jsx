@@ -10,6 +10,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import * as turf from "@turf/turf";
 import FieldDetailsForm, { CropAssignmentForm } from "../components/View/FieldDetailsForm";
 import MapWizard from "../components/View/MapWizard";
+import { normalizeFieldsFeatureCollection } from "../utils/geoJson";
 
 const FieldsPage = () => {
   const {
@@ -17,6 +18,7 @@ const FieldsPage = () => {
     onFieldSelect,
     onFieldInfoUpdate,
     onFieldGeometryUpdate,
+    onImportFieldsData,
   } = useOutletContext();
 
   const navigate = useNavigate();
@@ -30,6 +32,7 @@ const FieldsPage = () => {
   const [mapReady, setMapReady] = useState(false);
   const mapApiRef = useRef(null);
   const lastValidFieldGeometryRef = useRef(null);
+  const fieldsFileInputRef = useRef(null);
 
   const farmFeature = useMemo(() => {
     const farmBoundaries = wizardData.farmBoundaries;
@@ -90,7 +93,7 @@ const FieldsPage = () => {
     if (!selectedField) return null;
     return fieldFeatures.find(
       (feature) => feature.properties?.id === selectedField
-    );
+    );y
   }, [fieldFeatures, selectedField]);
 
   const selectedFieldArea = selectedFieldFeature?.properties?.area || null;
@@ -166,6 +169,93 @@ const FieldsPage = () => {
     parseFloat((farmAreaAcres - totalFieldAreaAcres).toFixed(2))
   );
   const uncategorizedAreaLabel = `${uncategorizedAreaAcres.toFixed(2)} acres`;
+
+  const validateFieldsWithinFarm = useCallback(
+    (features) => {
+      if (!farmFeature?.geometry) {
+        alert("Import the farm boundary first before importing fields.");
+        return false;
+      }
+
+      let bufferedFarm = farmFeature;
+      try {
+        bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
+      } catch (error) {
+        console.warn("Failed to buffer farm boundary, using original geometry", error);
+      }
+
+      const invalid = features.filter((feature) => {
+        try {
+          return !(
+            turf.booleanWithin(feature, bufferedFarm) ||
+            turf.booleanContains(bufferedFarm, feature)
+          );
+        } catch (error) {
+          console.error("Validation failed for feature:", error);
+          return true;
+        }
+      });
+
+      if (invalid.length) {
+        alert(
+          "All imported fields must lie within the farm boundary. Please adjust the file and try again."
+        );
+        return false;
+      }
+
+      return true;
+    },
+    [farmFeature]
+  );
+
+  const handleFieldsFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const normalized = normalizeFieldsFeatureCollection(
+        json,
+        wizardData.farmDetails?.name ||
+          wizardData.farmBoundaries?.name ||
+          "Farm"
+      );
+
+      if (!normalized) {
+        alert("Invalid GeoJSON. Please provide polygon field features.");
+        return;
+      }
+
+      if (!validateFieldsWithinFarm(normalized.fieldsData.features)) {
+        return;
+      }
+
+      onImportFieldsData(normalized.fieldsData, normalized.fieldsInfo);
+      const firstFieldId =
+        normalized.fieldsInfo?.[0]?.id ||
+        normalized.fieldsData.features?.[0]?.properties?.id ||
+        null;
+
+      if (firstFieldId) {
+        setSelectedField(firstFieldId);
+        onFieldSelect(firstFieldId);
+      }
+
+      if (mapApiRef.current?.focusOnFeature) {
+        mapApiRef.current.focusOnFeature(normalized.fieldsData.features[0]);
+      }
+    } catch (error) {
+      console.error("Failed to import fields:", error);
+      alert("Unable to import fields. Ensure the file is valid GeoJSON.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const triggerFieldsImport = () => {
+    fieldsFileInputRef.current?.click();
+  };
 
   const handleFieldSelect = (fieldInfo) => {
     const fieldId = fieldInfo.fieldId;
@@ -317,6 +407,13 @@ const FieldsPage = () => {
   const currentFieldInfo = getSelectedFieldInfo();
   return (
     <div className="recipe-wizard-page">
+      <input
+        ref={fieldsFileInputRef}
+        type="file"
+        accept=".json,.geojson,application/geo+json,application/json"
+        style={{ display: "none" }}
+        onChange={handleFieldsFileChange}
+      />
       <div className="wizard-layout">
         {/* Left Side - Field Management Panel */}
         <div className="crop-card fields-panel">
@@ -425,6 +522,11 @@ const FieldsPage = () => {
         </div>
         {/* Right Side - Map with Fields table below */}
         <div className="recipe-card fields-map-card">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
+            <button type="button" className="secondary-button" onClick={triggerFieldsImport}>
+              Import Fields GeoJSON
+            </button>
+          </div>
           <div className="fields-map-wrapper">
             <MapWizard
               locations={mapGeoJSON}
