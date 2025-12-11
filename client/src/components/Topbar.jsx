@@ -17,9 +17,9 @@ const Topbar = ({ isLoggedIn, showNav = true }) => {
 
   const navItems = [
     { name: "Home", path: "/" },
-    { name: "About", path: "/about" },
-    { name: "Event Stream", path: "/event-stream" },
-    { name: "Locations", path: "/locations" },
+    // { name: "About", path: "/about" },
+    // { name: "Event Stream", path: "/event-stream" },
+    // { name: "Locations", path: "/locations" },
     { name: "Recipe Wizard", path: "/recipe-wizard" },
   ];
 

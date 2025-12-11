@@ -453,7 +453,7 @@ const WizardPage = () => {
       );
     } catch (error) {
       console.error("Failed to import farm boundary:", error);
-      alert("Could not import the farm boundary. Please check the file format.");
+      toast.error("Could not import the farm boundary. Please check the file format.");
     }
   };
 

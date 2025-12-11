@@ -25,7 +25,7 @@ const ReviewPage = () => {
       toast.warning("Please complete the farm setup first.");
       return;
     }
-    
+
     // If no fields exist, redirect to fields page
     if (!wizardData?.fieldsInfo || wizardData.fieldsInfo.length === 0) {
       navigate("/wizard/fields", { replace: true });
@@ -87,7 +87,7 @@ const ReviewPage = () => {
   // Exports farm boundary and fields as separate GeoJSON files
   const handleExportAll = () => {
     if (!farmFeature?.geometry) {
-      alert("Farm boundary is missing; cannot export.");
+      toast.error("Farm boundary is missing; cannot export.");
       return;
     }
 
@@ -112,7 +112,7 @@ const ReviewPage = () => {
     if (normalizedFields?.features?.length) {
       exportFeatureCollection(normalizedFields, `${farmName || "farm"}-fields`);
     } else {
-      alert("No fields available to export.");
+      toast.error("No fields available to export.");
     }
   };
 
@@ -259,16 +259,6 @@ const ReviewPage = () => {
       });
     }
 
-    addLine("", 12, 6);
-    addLine("Crop Summary", 14, 8);
-    if (Object.keys(cropSummary).length === 0) {
-      addLine("No crops have been assigned to fields yet.");
-    } else {
-      Object.entries(cropSummary).forEach(([name, count]) => {
-        addLine(`${name}: ${count} field${count > 1 ? "s" : ""}`, 12, 6);
-      });
-    }
-
     doc.save("farm-fields-summary.pdf");
   };
 
@@ -278,12 +268,14 @@ const ReviewPage = () => {
     return field.cropName ?? field.attributes?.cropName ?? null;
   };
 
-  // Build a simple summary of how many fields use each crop
-  const cropSummary = fieldsInfo.reduce((acc, field) => {
-    const name = getCropName(field) || "Unassigned";
-    acc[name] = (acc[name] || 0) + 1;
-    return acc;
-  }, {});
+  const FIELD_META_KEYS = ["_id", "ParentId", "crop_id"];
+
+  const filteredFieldsInfo = fieldsInfo.filter(
+    (field) =>
+      !FIELD_META_KEYS.some(
+        (key) => key in field && Object.keys(field).length === 1
+      )
+  );
 
   const handleDownloadAndComplete = () => {
     if (isSavingWizard || isCreatingEvents) {
@@ -291,7 +283,6 @@ const ReviewPage = () => {
     }
     toast.success("Downloading PDF...");
     generatePdfSummary();
-    handleCompleteAndCreateEvents();
   };
 
   const handleCompleteAndCreateEvents = async () => {
@@ -401,7 +392,7 @@ const ReviewPage = () => {
 
       // Wait for all events to be created
       await Promise.all(eventPromises);
-    toast.dismiss();
+      toast.dismiss();
 
       toast.success("Farm registration and events created successfully!");
       navigate("/"); // Navigate to dashboard after everything is done
@@ -516,9 +507,26 @@ const ReviewPage = () => {
             style={{
               display: "flex",
               justifyContent: "flex-end",
+              gap: "8px",
               marginTop: "12px",
             }}
           >
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleDownloadAndComplete}
+              disabled={
+                !wizardData.farmDetails ||
+                !fieldsInfo.length ||
+                isSavingWizard ||
+                isCreatingEvents
+              }
+            >
+              <span role="img" aria-label="PDF" style={{ marginRight: "6px" }}>
+                📄
+              </span>
+              <span>Download PDF</span>
+            </button>
             <button
               type="button"
               className="secondary-button"
@@ -700,16 +708,24 @@ const ReviewPage = () => {
                   <div>Area</div>
                   <div>Assigned Crop</div>
                 </div>
-                {fieldsInfo.map((field, index) => {
+                {filteredFieldsInfo.map((field, index) => {
                   const extraEntries = Object.entries(field).filter(
                     ([key]) =>
                       ![
                         "id",
+                        "_id",
                         "name",
                         "area",
                         "cropName",
                         "cropStage",
                         "selectedRecipe",
+                        "parentId",
+                        "parent_id",
+                        "ParentId",
+                        "cropId",
+                        "crop_id",
+                        "Crop Id",
+                        "CropId",
                       ].includes(key)
                   );
 
@@ -778,66 +794,6 @@ const ReviewPage = () => {
               }}
             >
               No fields have been created yet.
-            </div>
-          )}
-        </section>
-
-        {/* Crop Summary */}
-        <section
-          style={{
-            marginBottom: "24px",
-            padding: "16px 18px",
-            borderRadius: "10px",
-            backgroundColor: "#f9fafb",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <h3
-            style={{
-              margin: 0,
-              marginBottom: "12px",
-              fontSize: "16px",
-              fontWeight: 600,
-              color: "#111827",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <span>🌱</span> <span>Crop Summary</span>
-          </h3>
-
-          {Object.keys(cropSummary).length ? (
-            <div
-              style={{
-                marginTop: "8px",
-                display: "grid",
-                gridTemplateColumns: "2fr 1fr",
-                gap: "8px 16px",
-                fontSize: "14px",
-                color: "#374151",
-              }}
-            >
-              {Object.entries(cropSummary).map(([name, count]) => (
-                <React.Fragment key={name}>
-                  <div style={{ fontWeight: 500 }}>{name}</div>
-                  <div>
-                    {count} field
-                    {count > 1 ? "s" : ""}
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
-          ) : (
-            <div
-              style={{
-                marginTop: "4px",
-                fontSize: "14px",
-                color: "#9ca3af",
-                fontStyle: "italic",
-              }}
-            >
-              No crops have been assigned to fields yet.
             </div>
           )}
         </section>
@@ -912,8 +868,8 @@ const ReviewPage = () => {
         <ConfirmationModal
           isOpen={showConfirmModal}
           title="Confirm registration"
-          description="This will save the farm and recreate events for fields with assigned recipes."
-          confirmLabel="Yes, confirm and create events"
+          description="Save the farm and recreate events for fields with assigned recipes."
+          confirmLabel="Yes, confirm"
           loading={isSavingWizard || isCreatingEvents}
           disableConfirm={
             !wizardData.farmDetails ||
@@ -921,44 +877,11 @@ const ReviewPage = () => {
             isSavingWizard ||
             isCreatingEvents
           }
-          showCancelButton={false}
+          cancelLabel="Cancel"
+          showCancelButton
           onCancel={() => setShowConfirmModal(false)}
           onConfirm={handleCompleteAndCreateEvents}
-          extraAction={{
-            label: "Download PDF",
-            onClick: handleDownloadAndComplete,
-            loading: isSavingWizard || isCreatingEvents,
-            disabled:
-              !wizardData.farmDetails ||
-              !fieldsInfo.length ||
-              isSavingWizard ||
-              isCreatingEvents,
-          }}
-        >
-          <div style={{ fontSize: "14px", color: "#4b5563", lineHeight: 1.5 }}>
-            <div>
-              <strong>Fields:</strong> {fieldsInfo.length || 0}
-            </div>
-            <div>
-              <strong>Events will be regenerated for:</strong>{" "}
-              {
-                fieldsInfo.filter(
-                  (field) =>
-                    field.selectedRecipe &&
-                    (field.crop_id ||
-                      field.attributes?.crop_id ||
-                      field.selectedRecipe?.cropId ||
-                      field.cropName)
-                ).length
-              }{" "}
-              field(s) with a recipe and crop assigned.
-            </div>
-            <div style={{ marginTop: "6px", color: "#6b7280" }}>
-              Existing events for those fields will be removed before creating
-              new ones.
-            </div>
-          </div>
-        </ConfirmationModal>
+        />
       </div>
     </div>
   );
