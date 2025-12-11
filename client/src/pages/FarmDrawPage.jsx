@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import FarmDetailsForm from "../components/View/FarmDetailsForm";
 import MapWizard from "../components/View/MapWizard";
 import { processFarmDivision, createFieldsInfo } from "../utils/fieldDivision";
-import { normalizeFarmFeatureFromFile } from "../utils/geoJson";
+import {
+  normalizeFarmFeatureFromFile,
+  calculateAcresFromFeature,
+  deriveFarmNameFromFile,
+} from "../utils/geoJson";
 import * as turf from "@turf/turf";
 import { toast } from "react-toastify";
 
@@ -25,9 +29,70 @@ const FarmDrawPage = () => {
   const [fieldsGenerated, setFieldsGenerated] = useState(false);
   const polygonInitializedRef = useRef(false);
   const mapApiRef = useRef(null);
+  const pendingFeatureRef = useRef(null);
+  const pendingCenterRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [drawnData, setDrawnData] = useState(null);
   const farmFileInputRef = useRef(null);
+
+  const geocodeAddressAndCreatePolygon = useCallback(
+    async (address, size) => {
+      if (!address || !size) return;
+
+      setIsGeocoding(true);
+      try {
+        const response = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+            address
+          )}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`
+        );
+        const data = await response.json();
+
+        if (data.features && data.features.length > 0) {
+          const [lng, lat] = data.features[0].center;
+          if (mapApiRef.current) {
+            mapApiRef.current.setMapCenter(lng, lat);
+          }
+          setFarmCenter({ lat, lng });
+
+          // Create default square polygon based on farm size
+          const squareData = onCreateDefaultSquare([lng, lat], size);
+
+          // Update the map with the created polygon
+          if (mapApiRef.current) {
+            mapApiRef.current.setDrawnDataProgrammatically(
+              squareData.features[0]
+            );
+          }
+        } else {
+          toast.error("Address not found. Please try a different address.");
+        }
+      } catch (error) {
+        console.error("Geocoding error:", error);
+        toast.error("Error geocoding address.");
+      } finally {
+        setIsGeocoding(false);
+      }
+    },
+    [onCreateDefaultSquare]
+  );
+  const applyFeatureToMap = (feature, center) => {
+    if (!feature) return;
+    if (mapApiRef.current?.setDrawnDataProgrammatically) {
+      mapApiRef.current.setDrawnDataProgrammatically(feature);
+    }
+    if (center && mapApiRef.current?.setMapCenter) {
+      mapApiRef.current.setMapCenter(center.lng, center.lat);
+    }
+    pendingFeatureRef.current = null;
+    pendingCenterRef.current = null;
+  };
+
+  useEffect(() => {
+    if (mapReady && pendingFeatureRef.current) {
+      applyFeatureToMap(pendingFeatureRef.current, pendingCenterRef.current);
+    }
+  }, [mapReady]);
 
   const savedBoundaryFeature =
     wizardData.farmBoundaries?.type === "FeatureCollection"
@@ -55,6 +120,7 @@ const FarmDrawPage = () => {
     farmSize,
     hasSavedBoundary,
     mapReady,
+    geocodeAddressAndCreatePolygon,
   ]);
 
   useEffect(() => {
@@ -111,6 +177,10 @@ const FarmDrawPage = () => {
     wizardData.fieldsData,
     farmCenter,
     mapReady,
+    wizardData.farmBoundaries?.attributes?.lat,
+    wizardData.farmBoundaries?.attributes?.lon,
+    wizardData.farmBoundaries?.centerCoordinates?.lat,
+    wizardData.farmBoundaries?.centerCoordinates?.lng,
   ]);
 
   useEffect(() => {
@@ -156,7 +226,7 @@ const FarmDrawPage = () => {
       const farmFeature = normalizeFarmFeatureFromFile(json);
 
       if (!farmFeature) {
-        alert("Invalid GeoJSON. Please provide a polygon farm boundary.");
+        toast.error("Invalid GeoJSON. Please provide a polygon farm boundary.");
         return;
       }
 
@@ -165,6 +235,8 @@ const FarmDrawPage = () => {
         lat: centerPoint.geometry.coordinates[1],
         lng: centerPoint.geometry.coordinates[0],
       };
+      const derivedName = deriveFarmNameFromFile(file.name);
+      const calculatedAcres = calculateAcresFromFeature(farmFeature);
 
       onImportFarmBoundary(farmFeature);
       setDrawnData({
@@ -175,15 +247,33 @@ const FarmDrawPage = () => {
       setFieldsGenerated(false);
       polygonInitializedRef.current = true;
 
-      if (mapApiRef.current?.setDrawnDataProgrammatically) {
-        mapApiRef.current.setDrawnDataProgrammatically(farmFeature);
+      applyFeatureToMap(farmFeature, center);
+      if (!mapReady) {
+        pendingFeatureRef.current = farmFeature;
+        pendingCenterRef.current = center;
       }
-      if (mapApiRef.current?.setMapCenter) {
-        mapApiRef.current.setMapCenter(center.lng, center.lat);
+
+      // Populate form details based on import (name/size only; address left for user)
+      const updatedDetails = {
+        ...wizardData.farmDetails,
+        ...(derivedName && { name: derivedName }),
+        ...(calculatedAcres && {
+          size: calculatedAcres,
+          area: calculatedAcres,
+        }),
+      };
+
+      if (Object.keys(updatedDetails).length) {
+        onFarmDetailsSubmit(updatedDetails);
+        if (calculatedAcres) {
+          setFarmSize(calculatedAcres);
+        }
       }
     } catch (error) {
       console.error("Failed to import farm boundary:", error);
-      alert("Unable to import farm boundary. Ensure the file is valid GeoJSON.");
+      toast.error(
+        "Unable to import farm boundary. Ensure the file is valid GeoJSON."
+      );
     } finally {
       event.target.value = "";
     }
@@ -191,46 +281,6 @@ const FarmDrawPage = () => {
 
   const triggerFarmImport = () => {
     farmFileInputRef.current?.click();
-  };
-
-  const geocodeAddressAndCreatePolygon = async (address, size) => {
-    if (!address || !size) return;
-
-    setIsGeocoding(true);
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-          address
-        )}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`
-      );
-      const data = await response.json();
-
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].center;
-        if (mapApiRef.current) {
-          mapApiRef.current.setMapCenter(lng, lat);
-        }
-        setFarmCenter({ lat, lng });
-
-        // Create default square polygon based on farm size
-        const squareData = onCreateDefaultSquare([lng, lat], size);
-
-        // Update the map with the created polygon
-        if (mapApiRef.current) {
-          mapApiRef.current.setDrawnDataProgrammatically(
-            squareData.features[0]
-          );
-        }
-        
-      } else {
-        toast.error("Address not found. Please try a different address.");
-      }
-    } catch (error) {
-      console.error("Geocoding error:", error);
-      toast.error("Error geocoding address.");
-    } finally {
-      setIsGeocoding(false);
-    }
   };
 
   // Handle field generation (uses drawnData captured from MapWizard)
@@ -243,7 +293,9 @@ const FarmDrawPage = () => {
 
     // If editing and the requested count matches existing fields, keep current fields
     if (isEditMode && hasExistingFields && desiredCount === existingCount) {
-      console.log("Edit mode: Fields already exist for requested count, skipping regeneration");
+      console.log(
+        "Edit mode: Fields already exist for requested count, skipping regeneration"
+      );
       navigate("/wizard/fields");
       return;
     }
@@ -263,21 +315,24 @@ const FarmDrawPage = () => {
           fieldsData,
           fieldsInfo,
           numberOfFields: wizardData.numberOfFields,
-          centerCoordinates: farmCenter
+          centerCoordinates: farmCenter,
         };
 
         onFieldDivisionComplete(completeData);
         setFieldsGenerated(true);
         navigate("/wizard/fields");
       } else {
-        toast.error("Unexpected error: Could not generate fields. Please try refreshing the page.");
+        toast.error(
+          "Unexpected error: Could not generate fields. Please try refreshing the page."
+        );
       }
     } catch (error) {
       console.error("❌ Error generating fields:", error);
-      toast.error("Error generating fields. Please check the console for details.");
+      toast.error(
+        "Error generating fields. Please check the console for details."
+      );
     }
   };
-
 
   return (
     <div className="recipe-wizard-page">
@@ -294,8 +349,9 @@ const FarmDrawPage = () => {
           <FarmDetailsForm
             onSubmit={handleFarmDetailsSubmit}
             initialValues={wizardData.farmDetails || {}}
+            onImportGeoJSONClick={triggerFarmImport}
           />
-          
+
           {/* Farm Summary */}
           {wizardData.farmDetails && (
             <div className="wizard-farm-summary">
@@ -410,23 +466,6 @@ const FarmDrawPage = () => {
                 )}
               </div>
 
-              {/* Import / Export Farm Boundary */}
-              <div className="control-section">
-                <div className="control-label">Import Farm</div>
-                <div className="instruction">
-                  Import a farm boundary GeoJSON.
-                </div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={triggerFarmImport}
-                  >
-                    Import Farm GeoJSON
-                  </button>
-                </div>
-              </div>
-
               {/* Generate Fields and Navigate Button */}
               <div className="control-section">
                 <div className="control-label">Field Generation</div>
@@ -444,7 +483,7 @@ const FarmDrawPage = () => {
                     isGeocoding
                   }
                   className="primary-button"
-                  style={{ width: "20%", marginTop: "10px",  float:"right" }}
+                  style={{ width: "20%", marginTop: "10px", float: "right" }}
                 >
                   Generate {wizardData.numberOfFields} Fields & Next
                 </button>

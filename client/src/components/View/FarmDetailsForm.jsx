@@ -3,7 +3,11 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { getTypes } from "../../features/type/type.slice";
 
-const FarmDetailsForm = ({ onSubmit, initialValues = {} }) => {
+const FarmDetailsForm = ({
+  onSubmit,
+  initialValues = {},
+  onImportGeoJSONClick,
+}) => {
   const dispatch = useDispatch();
   const {
     types = [],
@@ -58,7 +62,7 @@ const FarmDetailsForm = ({ onSubmit, initialValues = {} }) => {
       onSubmit(formData);
     } else {
       alert("Please fill all required fields");
-    } 
+    }
   };
 
   if (loading) return <div>Loading farm details...</div>;
@@ -67,22 +71,40 @@ const FarmDetailsForm = ({ onSubmit, initialValues = {} }) => {
   return (
     <form onSubmit={handleSubmit}>
       <h2>Farm Details</h2>
-      {attributes.map((attr) => (
-        <div key={attr.key}>
-          <label htmlFor={attr.key}>{attr.label}</label>
-          <input
-            type="text"
-            id={attr.key}
-            {...{
-              value: formData[attr.key],
-              onChange: (e) => handleChange(attr.key, e.target.value),
-              required: attr.required,
-              placeholder: attr.inputHint || "",
-            }}
-          />
-        </div>
-      ))}
-      <button type="submit" className="primary-button">Submit</button>
+      {attributes.map((attr) => {
+        const isAddressField = attr.key === "address";
+
+        return (
+          <div key={attr.key} className={isAddressField ? "address-field" : ""}>
+            <label htmlFor={attr.key}>{attr.label}</label>
+            <div className={isAddressField ? "input-action-row" : ""}>
+              <input
+                type="text"
+                id={attr.key}
+                {...{
+                  value: formData[attr.key],
+                  onChange: (e) => handleChange(attr.key, e.target.value),
+                  required: attr.required,
+                  placeholder: attr.inputHint || "",
+                }}
+              />
+              {isAddressField && onImportGeoJSONClick && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={onImportGeoJSONClick}
+                  style={{ marginLeft: "8px", whiteSpace: "nowrap" }}
+                >
+                  Import Farm GeoJSON
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <button type="submit" className="primary-button">
+        Submit
+      </button>
     </form>
   );
 };

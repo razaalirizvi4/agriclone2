@@ -1,5 +1,22 @@
 import * as turf from "@turf/turf";
 
+// Calculates area in acres for a given polygon/multipolygon feature
+export const calculateAcresFromFeature = (feature) => {
+  if (!feature) return null;
+  const areaSqMeters = turf.area(feature);
+  const acres = areaSqMeters / 4046.8564224;
+  return Number(acres.toFixed(2));
+};
+
+// Derives farm name from filename (portion before first dash)
+export const deriveFarmNameFromFile = (fileName) => {
+  if (!fileName) return "";
+  const base = fileName.replace(/\.[^.]+$/, "");
+  const [firstPart] = base.split("-");
+  return firstPart || base;
+};
+
+
 // Extracts the first polygon/multipolygon feature from GeoJSON input
 export const normalizeFarmFeatureFromFile = (data) => {
   if (!data) return null;
@@ -41,7 +58,8 @@ export const normalizeFieldsFeatureCollection = (data, farmName = "Farm") => {
         ["Polygon", "MultiPolygon"].includes(feature.geometry.type)
     )
     .map((feature, idx) => {
-      const id = feature.properties?.id || feature.id || `field-${Date.now()}-${idx}`;
+      const id =
+        feature.properties?.id || feature.id || `field-${Date.now()}-${idx}`;
       const name = feature.properties?.name || `Field ${idx + 1}`;
       let areaLabel = feature.properties?.area;
 
@@ -81,7 +99,10 @@ export const normalizeFieldsFeatureCollection = (data, farmName = "Farm") => {
 };
 
 // Tags each field with type/farm/name/id before exporting
-export const normalizeFieldsForExport = (featureCollection, farmName = "Farm") => {
+export const normalizeFieldsForExport = (
+  featureCollection,
+  farmName = "Farm"
+) => {
   if (!featureCollection?.features?.length) return null;
   const features = featureCollection.features
     .filter(
@@ -111,7 +132,10 @@ export const normalizeFieldsForExport = (featureCollection, farmName = "Farm") =
 };
 
 // Downloads a Feature or FeatureCollection as a .geojson file
-export const exportFeatureCollection = (featureOrCollection, filenameBase = "export") => {
+export const exportFeatureCollection = (
+  featureOrCollection,
+  filenameBase = "export"
+) => {
   if (!featureOrCollection) return;
 
   const featureCollection =
