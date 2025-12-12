@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth.service';
-import Topbar from '../components/Topbar';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -35,7 +34,6 @@ const LoginPage = () => {
 
   return (
     <>
-      <Topbar isLoggedIn={false} showNav={false} />
       <style>{`
         .auth-shell {
           min-height: 100vh;
@@ -44,7 +42,6 @@ const LoginPage = () => {
           grid-template-columns: 1.1fr 0.9fr;
           background: #f6fbf6;
           color: #0f172a;
-          font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .hero {
@@ -187,8 +184,8 @@ const LoginPage = () => {
 
         .input-field:focus {
           outline: none;
-          border-color: #000000;
-          box-shadow: none;
+          border-color: #4A5D23;
+          box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
           background: #ffffff;
         }
 
@@ -203,7 +200,7 @@ const LoginPage = () => {
           font-size: 15px;
           cursor: pointer;
           transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
-          // box-shadow: 0 12px 30px rgba(74, 93, 35, 0.25);
+          box-shadow: 0 12px 30px rgba(74, 93, 35, 0.25);
         }
 
         .submit-btn:hover {
@@ -304,6 +301,7 @@ const LoginPage = () => {
           <div className="auth-card">
             <div className="auth-header">
               <div className="auth-title">Welcome back</div>
+              <div className="badge">Secure Access</div>
             </div>
 
             <form className="auth-form" onSubmit={handleSubmit}>

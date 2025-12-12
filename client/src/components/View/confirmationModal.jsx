@@ -26,24 +26,6 @@ const ConfirmationModal = ({
 }) => {
   if (!isOpen) return null;
 
-  const confirmColors =
-    confirmVariant === "danger"
-      ? {
-          backgroundColor: "#dc2626",
-          hoverColor: "#b91c1c",
-          shadow: "rgba(220, 38, 38, 0.35)",
-        }
-      : {
-          backgroundColor: "#16a34a",
-          hoverColor: "#15803d",
-          shadow: "rgba(22, 163, 74, 0.35)",
-        };
-
-  const extraColors =
-    extraAction?.variant === "danger"
-      ? { backgroundColor: "#fee2e2", color: "#b91c1c", border: "#fecaca" }
-      : { backgroundColor: "#eef2ff", color: "#4338ca", border: "#e0e7ff" };
-
   const handleClose = onClose || onCancel;
 
   return (
@@ -85,16 +67,9 @@ const ConfirmationModal = ({
               type="button"
               onClick={extraAction.onClick}
               disabled={extraAction.disabled || extraAction.loading}
-              className="confirmation-modal-extra"
-              style={{
-                border: `1px solid ${extraColors.border}`,
-                backgroundColor: extraColors.backgroundColor,
-                color: extraColors.color,
-                cursor:
-                  extraAction.disabled || extraAction.loading
-                    ? "not-allowed"
-                    : "pointer",
-              }}
+              className={`confirmation-modal-extra ${
+                extraAction.variant === "danger" ? "danger" : ""
+              }`}
             >
               {extraAction.loading ? "Working..." : extraAction.label}
             </button>
@@ -112,26 +87,9 @@ const ConfirmationModal = ({
             type="button"
             onClick={onConfirm}
             disabled={disableConfirm || loading}
-            className="confirmation-modal-confirm"
-            style={{
-              backgroundColor:
-                disableConfirm || loading
-                  ? "#9ca3af"
-                  : confirmColors.backgroundColor,
-              cursor: disableConfirm || loading ? "not-allowed" : "pointer",
-              boxShadow: `0 6px 16px ${confirmColors.shadow}`,
-            }}
-            onMouseEnter={(e) => {
-              if (!disableConfirm && !loading)
-                e.currentTarget.style.backgroundColor =
-                  confirmColors.hoverColor;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor =
-                disableConfirm || loading
-                  ? "#9ca3af"
-                  : confirmColors.backgroundColor;
-            }}
+            className={`confirmation-modal-confirm ${
+              confirmVariant === "danger" ? "danger" : ""
+            }`}
           >
             {loading ? "Processing..." : confirmLabel}
           </button>
