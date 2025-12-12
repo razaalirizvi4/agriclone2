@@ -227,16 +227,7 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
   
             <button
               type="submit"
-              style={{
-                marginTop: "15px",
-                padding: "10px 16px",
-                background: "#007bff",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                width: "100%",
-              }}
+          className="primary-button"
             >
               Update Crop Assignment
             </button>

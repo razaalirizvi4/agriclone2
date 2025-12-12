@@ -78,7 +78,7 @@
 
 .fields-tab--active {
   background: #fff;
-  border-bottom: 2px solid #007bff;
+  border-bottom: 2px solid #4a5d23;
   font-weight: 700;
   color: #2f3825;
 }
@@ -93,11 +93,20 @@
   gap: 20px;
 }
 
-.fields-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.map-container {
+  flex: 1 1 auto;     /* give it priority */
+  min-height: 200px;  /* prevents collapsing */
+  overflow: hidden;
+  position: relative;
 }
+
+/* Fields list should shrink if needed */
+.fields-section {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 
 .fields-section__header {
   display: flex;
@@ -127,6 +136,7 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
+    padding: 4px;        /* FIX */
 }
 
 .fields-row {
@@ -172,7 +182,7 @@
 }
 
 .fields-row__pill {
-  color: #007bff;
+  color: #4a5d23;
   font-size: 0.8rem;
 }
 
@@ -190,8 +200,8 @@
 }
 
 .fields-row__indicator--active {
-  background: #007bff;
-  border: 2px solid #0056b3;
+  background: #4a5d23;
+  border: 2px solid #4a5d23;
 }
 
 .fields-empty-state {
@@ -281,7 +291,7 @@
   /* Use all available height inside the right card */
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
 }
 

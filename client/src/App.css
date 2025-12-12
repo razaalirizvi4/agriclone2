@@ -50,7 +50,7 @@ h3 {
   right: 20px;
   transform: translateY(-50%);
   z-index: 2;
-  background-color: #007bff;
+  background-color: #4a5d23;
   color: white;
   border: none;
   border-radius: 25px;
@@ -63,13 +63,13 @@ h3 {
 }
 
 .recenter-button:hover {
-  background-color: #0056b3;
+  background-color: #3b4c1c;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   transform: translateY(-50%) scale(1.05);
 }
 
 .recenter-button:active {
-  background-color: #00408a;
+  background-color: #3b4c1c;
   transform: translateY(-50%) scale(0.98);
 }
 

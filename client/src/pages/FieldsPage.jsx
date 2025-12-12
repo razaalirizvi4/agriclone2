@@ -534,7 +534,7 @@ const FieldsPage = () => {
         </div>
         {/* Right Side - Map with Fields table below */}
         <div className="recipe-card fields-map-card">
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button type="button" className="secondary-button" onClick={triggerFieldsImport}>
               Import Fields GeoJSON
             </button>
