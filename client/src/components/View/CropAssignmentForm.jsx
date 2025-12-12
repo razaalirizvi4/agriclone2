@@ -150,21 +150,7 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
             marginBottom: "15px" 
           }}>
             <h4>Assign Crop to {fieldName}</h4>
-            {onViewMap && (
-              <button
-                onClick={onViewMap}
-                style={{
-                  padding: "6px 12px",
-                  background: "#17a2b8",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "12px"
-                }}
-              >
-                🔍 View on Map
-              </button>
+            {onViewMap (
             )}
           </div>
   

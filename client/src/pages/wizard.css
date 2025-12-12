@@ -216,19 +216,20 @@
 }
 
 .fields-mini-button {
-  padding: 6px 12px;
-  background: #17a2b8;
-  color: white;
+  background: linear-gradient(135deg, #4a5d23, #4a5d23);
+  color: #fff;
   border: none;
-  border-radius: 4px;
+  padding: 7px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.8rem;
   font-weight: 600;
-  transition: background 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .fields-mini-button:hover {
-  background: #13879b;
+  background: linear-gradient(135deg, #4a5d23, #4a5d23);
+  box-shadow: 0 4px 10px rgba(30, 136, 229, 0.3);
+  transform: translateY(-2px);
 }
 
 .fields-select__group {

@@ -186,7 +186,7 @@ const FieldsPage = () => {
   const validateFieldsWithinFarm = useCallback(
     (features) => {
       if (!farmFeature?.geometry) {
-        alert("Import the farm boundary first before importing fields.");
+        toast.error("Import the farm boundary first before importing fields.");
         return false;
       }
 
@@ -210,7 +210,7 @@ const FieldsPage = () => {
       });
 
       if (invalid.length) {
-        alert(
+        toast.error(
           "All imported fields must lie within the farm boundary. Please adjust the file and try again."
         );
         return false;
@@ -236,7 +236,7 @@ const FieldsPage = () => {
       );
 
       if (!normalized) {
-        alert("Invalid GeoJSON. Please provide polygon field features.");
+        toast.error("Invalid GeoJSON. Please provide polygon field features.");
         return;
       }
 
@@ -260,7 +260,7 @@ const FieldsPage = () => {
       }
     } catch (error) {
       console.error("Failed to import fields:", error);
-      alert("Unable to import fields. Ensure the file is valid GeoJSON.");
+      toast.error("Unable to import fields. Ensure the file is valid GeoJSON.");
     } finally {
       event.target.value = "";
     }
