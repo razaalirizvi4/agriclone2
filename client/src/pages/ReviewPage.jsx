@@ -324,7 +324,7 @@ const ReviewPage = () => {
 
       // Collect field IDs and prepare event data for fields that will have events created
       const fieldIdsForEvents = [];
-      const eventPromises = [];
+      const eventsToCreate = [];
 
       for (let i = 0; i < fieldsInfo.length; i++) {
         const field = fieldsInfo[i];
@@ -368,19 +368,7 @@ const ReviewPage = () => {
             cropStage: cropStage || null,
           };
 
-          eventPromises.push(
-            eventStreamService
-              .createFieldEvents(eventData)
-              .then((result) => result)
-              .catch((error) => {
-                console.error(
-                  `Failed to create events for field ${field.name}:`,
-                  error
-                );
-                // Don't throw - continue with other fields
-                return null;
-              })
-          );
+          eventsToCreate.push(eventData);
         }
       }
 
@@ -399,8 +387,23 @@ const ReviewPage = () => {
         }
       }
 
-      // Wait for all events to be created
-      await Promise.all(eventPromises);
+      // Create events after deletions complete
+      if (eventsToCreate.length > 0) {
+        await Promise.all(
+          eventsToCreate.map((eventData) =>
+            eventStreamService
+              .createFieldEvents(eventData)
+              .catch((error) => {
+                console.error(
+                  `Failed to create events for field ${eventData.fieldId}:`,
+                  error
+                );
+                // Don't throw - continue with other fields
+                return null;
+              })
+          )
+        );
+      }
     toast.dismiss();
 
       toast.success("Farm registration and events created successfully!");
