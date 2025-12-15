@@ -3,6 +3,170 @@ import { useDispatch, useSelector } from "react-redux";
 import { getTypes } from "../../features/type/type.slice";
 import { getCrops } from "../../features/cropModule/crop.slice";
 import cropService from "../../services/crop.service";
+
+const SIMILARITY_WEIGHTS = {
+  soilType: 0.3,
+  soilPH: 0.3,
+  temperature: 0.2,
+  humidity: 0.2
+};
+
+const normalizeText = (value) =>
+  typeof value === "string" ? value.trim().toLowerCase() : value;
+
+const parseNumber = (value) => {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const match = value.match(/-?\d+(\.\d+)?/g);
+    if (match?.length) {
+      const nums = match.map((v) => parseFloat(v)).filter((n) => !isNaN(n));
+      if (nums.length === 1) return nums[0];
+      if (nums.length >= 2) return (nums[0] + nums[1]) / 2; // use avg of first two if range
+    }
+  }
+  return undefined;
+};
+
+const parsePhValue = (value) => {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === "number") return value;
+
+  if (typeof value === "string") {
+    const numeric = value.match(/(\d+(\.\d+)?)/g);
+    if (Array.isArray(numeric) && numeric.length > 0) {
+      const numbers = numeric.map((v) => parseFloat(v)).filter((v) => !isNaN(v));
+      if (numbers.length === 1) return numbers[0];
+      if (numbers.length === 2) return (numbers[0] + numbers[1]) / 2;
+    }
+  }
+  return undefined;
+};
+
+const scoreSoilType = (soilTypeRule, fieldSoilType) => {
+  if (!soilTypeRule || !fieldSoilType) return 0;
+
+  const fieldSoil = normalizeText(fieldSoilType);
+  const inList = (list) => (list || []).map(normalizeText).includes(fieldSoil);
+
+  if (inList(soilTypeRule.excluded)) return 0;
+  if (inList(soilTypeRule.preferred)) return 1;
+  if (inList(soilTypeRule.allowed)) return 0.8;
+
+  if (
+    !soilTypeRule.allowed?.length &&
+    !soilTypeRule.preferred?.length &&
+    !soilTypeRule.excluded?.length
+  ) {
+    return 0.5;
+  }
+
+  return 0.2;
+};
+
+const scoreSoilPh = (soilPhRule, fieldPhValue) => {
+  if (!soilPhRule || fieldPhValue === undefined) return 0;
+
+  const { min, max, optimal } = soilPhRule;
+  const clampScore = (val) => Math.max(0, Math.min(1, val));
+
+  if (optimal !== undefined) {
+    const diff = Math.abs(fieldPhValue - optimal);
+    return clampScore(1 - diff / 4);
+  }
+
+  if (min !== undefined && max !== undefined) {
+    if (fieldPhValue >= min && fieldPhValue <= max) return 1;
+    const distance = fieldPhValue < min ? min - fieldPhValue : fieldPhValue - max;
+    return clampScore(1 - distance / 4);
+  }
+
+  if (min !== undefined) {
+    return clampScore(fieldPhValue >= min ? 1 : 1 - (min - fieldPhValue) / 4);
+  }
+
+  if (max !== undefined) {
+    return clampScore(fieldPhValue <= max ? 1 : 1 - (fieldPhValue - max) / 4);
+  }
+
+  return 0;
+};
+
+const scoreRange = (rangeRule, currentValue) => {
+  if (!rangeRule || currentValue === undefined) return 0;
+  const { min, max, optimal } = rangeRule;
+  const clampScore = (val) => Math.max(0, Math.min(1, val));
+
+  if (optimal !== undefined) {
+    const diff = Math.abs(currentValue - optimal);
+    return clampScore(1 - diff / (Math.abs(optimal) + 10 || 10));
+  }
+
+  if (min !== undefined && max !== undefined) {
+    if (currentValue >= min && currentValue <= max) return 1;
+    const distance = currentValue < min ? min - currentValue : currentValue - max;
+    return clampScore(1 - distance / (Math.abs(max - min) + 10 || 10));
+  }
+
+  if (min !== undefined) {
+    return clampScore(currentValue >= min ? 1 : 1 - (min - currentValue) / 10);
+  }
+
+  if (max !== undefined) {
+    return clampScore(currentValue <= max ? 1 : 1 - (currentValue - max) / 10);
+  }
+
+  return 0;
+};
+
+const calculateRecipeSimilarity = (field, recipe, weights = SIMILARITY_WEIGHTS) => {
+  const fieldAttrs = field?.attributes || {};
+  const soilType = field?.soilType ?? fieldAttrs?.soilType;
+  const soilPh = parsePhValue(field?.soilph ?? fieldAttrs?.soilph);
+  const weather = field?.weather?.current || {};
+  const tempValue =
+    parseNumber(weather.temp) ??
+    (weather.maxTemp !== undefined && weather.minTemp !== undefined
+      ? parseNumber(weather.maxTemp) + parseNumber(weather.minTemp) / 2
+      : parseNumber(weather.maxTemp ?? weather.minTemp));
+  const humidityValue = parseNumber(weather.humid ?? weather.humidity);
+  const env = recipe?.recipeRules?.environmentalConditions || {};
+
+  let totalWeight = 0;
+  let score = 0;
+
+  if (weights.soilType && env.soilType) {
+    totalWeight += weights.soilType;
+    score += weights.soilType * scoreSoilType(env.soilType, soilType);
+  }
+
+  if (weights.soilPH && env.soilPH) {
+    const phScore = scoreSoilPh(env.soilPH, soilPh);
+    if (phScore > 0 || soilPh !== undefined) {
+      totalWeight += weights.soilPH;
+      score += weights.soilPH * phScore;
+    }
+  }
+
+  if (weights.temperature && env.temperature) {
+    const tempScore = scoreRange(env.temperature, tempValue);
+    if (tempScore > 0 || tempValue !== undefined) {
+      totalWeight += weights.temperature;
+      score += weights.temperature * tempScore;
+    }
+  }
+
+  if (weights.humidity && env.humidity) {
+    const humidityScore = scoreRange(env.humidity, humidityValue);
+    if (humidityScore > 0 || humidityValue !== undefined) {
+      totalWeight += weights.humidity;
+      score += weights.humidity * humidityScore;
+    }
+  }
+
+  return totalWeight > 0 ? score / totalWeight : 0;
+};
+
 export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap }) => {
     const dispatch = useDispatch();
     const {
@@ -101,6 +265,22 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
   
       fetchRecipes();
     }, [cropAssignmentData.cropName]);
+
+    const recipesWithSimilarity = useMemo(() => {
+      const recipes = Array.isArray(recipesState.recipes)
+        ? recipesState.recipes
+        : [];
+
+      return recipes
+        .map((recipe) => ({
+          ...recipe,
+          similarityScore: calculateRecipeSimilarity(field, recipe)
+        }))
+        .sort(
+          (a, b) =>
+            (b.similarityScore ?? 0) - (a.similarityScore ?? 0)
+        );
+    }, [recipesState.recipes, field]);
   
     const handleChange = (key, value) => {
       if (key === "cropName") {
@@ -251,7 +431,7 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
                 >
                   Loading recipes...
                 </div>
-              ) : recipesState.recipes.length > 0 ? (
+              ) : recipesWithSimilarity.length > 0 ? (
                 <div
                   style={{
                     border: "1px solid #e0e0e0",
@@ -260,10 +440,13 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
                     overflowY: "auto",
                   }}
                 >
-                  {recipesState.recipes.map((recipe, index) => {
+                  {recipesWithSimilarity.map((recipe, index) => {
                     const recipeId = recipe.id || `recipe-${index}`;
                     const isSelected =
                       cropAssignmentData.selectedRecipe?.id === recipeId;
+                    const similarityPercent = Math.round(
+                      (recipe.similarityScore ?? 0) * 100
+                    );
   
                     return (
                       <div
@@ -272,7 +455,7 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
                         style={{
                           padding: "12px",
                           borderBottom:
-                            index < recipesState.recipes.length - 1
+                            index < recipesWithSimilarity.length - 1
                               ? "1px solid #f0f0f0"
                               : "none",
                           background: isSelected
@@ -318,6 +501,9 @@ export const CropAssignmentForm = ({ field = {}, onSubmit, fieldName, onViewMap 
                             {recipe?.recipeInfo?.description?.trim() ||
                               recipe.id ||
                               `Recipe ${index + 1}`}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#555" }}>
+                            Similarity: {similarityPercent}%
                           </div>
                           <button
                             type="button"
