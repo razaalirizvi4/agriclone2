@@ -301,7 +301,6 @@ const LoginPage = () => {
           <div className="auth-card">
             <div className="auth-header">
               <div className="auth-title">Welcome back</div>
-              <div className="badge">Secure Access</div>
             </div>
 
             <form className="auth-form" onSubmit={handleSubmit}>
