@@ -1,6 +1,4 @@
 const User = require('../models/userModule/user.model');
-const UserRole = require('../models/userModule/userRole.model');
-const Permission = require('../models/userModule/permission.model');
 
 const permissionCheck = (action, module) => async (req, res, next) => {
   try {
@@ -25,7 +23,7 @@ const permissionCheck = (action, module) => async (req, res, next) => {
     const userPermissions = user.roleId.permissions;
 
     // Check if the user has the required permission
-    const hasPermission = userPermissions.some(
+    const hasPermission = (user.roleId.role === 'Admin') || userPermissions.some(
       (perm) => perm.action === action && perm.module === module
     );
 

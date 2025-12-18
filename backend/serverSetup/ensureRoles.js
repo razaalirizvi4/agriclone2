@@ -1,5 +1,5 @@
 const UserRole = require('../api/models/userModule/userRole.model');
-const Permission = require('../api/models/userModule/permission.model');
+const Permission = require('../api/models/permissionModule/permission.model');
 
 async function ensureRoles() {
   // Define permissions for the system
