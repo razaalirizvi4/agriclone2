@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import authService from "../services/auth.service";
 import "./Topbar.css";
 
-const Topbar = ({ isLoggedIn, showNav = true }) => {
+const Topbar = ({ isLoggedIn, showNav = true, onAdminToggle  }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = authService.getCurrentUser();
@@ -21,7 +21,18 @@ const Topbar = ({ isLoggedIn, showNav = true }) => {
     // { name: "Event Stream", path: "/event-stream" },
     // { name: "Locations", path: "/locations" },
     { name: "Recipe Wizard", path: "/recipe-wizard" },
+    { name: "Admin setup" },
+
+
   ];
+const handleNavClick = (item) => {
+  if (item.name === "Admin setup") {
+    onAdminToggle();
+    return;
+  }
+  navigate(item.path);
+  setMenuOpen(false);
+};
 
   return (
     <header className="topbar">
@@ -55,11 +66,9 @@ const Topbar = ({ isLoggedIn, showNav = true }) => {
                   <button
                     className={`nav-btn ${
                       location.pathname === item.path ? "active" : ""
-                    }`}
-                    onClick={() => {
-                      navigate(item.path);
-                      setMenuOpen(false);
-                    }}
+                    }`}  
+          onClick={() => handleNavClick(item)}
+
                   >
                     {item.name}
                   </button>

@@ -34,6 +34,7 @@ const FarmDrawPage = () => {
   const [mapReady, setMapReady] = useState(false);
   const [drawnData, setDrawnData] = useState(null);
   const farmFileInputRef = useRef(null);
+  const numberOfFieldsInitializedRef = useRef(false);
 
   const geocodeAddressAndCreatePolygon = useCallback(
     async (address, size) => {
@@ -188,6 +189,32 @@ const FarmDrawPage = () => {
       setFieldsGenerated(true);
     }
   }, [wizardData.fieldsData, fieldsGenerated]);
+
+  // In edit mode, auto-populate numberOfFields from existing fields so the
+  // generate button is enabled without re-submitting the form.
+  useEffect(() => {
+    if (
+      numberOfFieldsInitializedRef.current ||
+      !wizardData.farmBoundaries?._id
+    ) {
+      return;
+    }
+
+    const existingCount = wizardData.fieldsData?.features?.length || 0;
+    if (existingCount > 0 && !wizardData.numberOfFields) {
+      numberOfFieldsInitializedRef.current = true;
+      onFarmDetailsSubmit({
+        ...(wizardData.farmDetails || {}),
+        numberOfFields: existingCount,
+      });
+    }
+  }, [
+    wizardData.farmBoundaries?._id,
+    wizardData.fieldsData,
+    wizardData.numberOfFields,
+    wizardData.farmDetails,
+    onFarmDetailsSubmit,
+  ]);
 
   // Reset fields generated status when farm boundary changes
   useEffect(() => {

@@ -1,0 +1,117 @@
+.sidebar {
+  position: fixed;
+  top: 64px; /* height of topbar */
+  left: -280px;
+  width: 280px;
+  height: calc(100vh - 64px);
+  background: #ffffff;
+  box-shadow: 4px 0 14px rgba(0, 0, 0, 0.1);
+  transition: left 0.3s ease;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar.open {
+  left: 0;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5ead7;
+  background: linear-gradient(135deg, #f3f7ec 0%, #ffffff 100%);
+}
+
+.sidebar-header h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4a5d23;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-header button {
+  background: transparent;
+  border: none;
+  color: #617733;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.sidebar-header button:hover {
+  background: #f3f7ec;
+  color: #4a5d23;
+  transform: rotate(90deg);
+}
+
+/* Sidebar Navigation List */
+.sidebar ul {
+  list-style: none;
+  padding: 16px 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar ul li {
+  margin: 0;
+}
+
+/* Sidebar Navigation Buttons */
+.sidebar ul li button {
+  width: 100%;
+  padding: 12px 20px;
+  text-align: left;
+  border: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  color: #617733;
+  font-weight: 600;
+  font-size: 15px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar ul li button:hover {
+  color: #ffffff;
+  background: linear-gradient(135deg, #4a5d23, #4a5d23);
+  box-shadow: 0 4px 10px rgba(74, 93, 35, 0.3);
+  transform: translateX(4px);
+}
+
+.sidebar ul li button.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #4a5d23, #4a5d23);
+  box-shadow: 0 4px 12px rgba(74, 93, 35, 0.4);
+  font-weight: 700;
+}
+
+.sidebar ul li button.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 70%;
+  background: #ffffff;
+  border-radius: 0 2px 2px 0;
+}

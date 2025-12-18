@@ -15,6 +15,8 @@ import RecipeWizard from "./pages/RecipeWizard";
 import FarmDrawPage from "./pages/FarmDrawPage";
 import FieldsPage from "./pages/FieldsPage";
 import ReviewPage from "./pages/ReviewPage";
+import UserManage from "./pages/UserManage";
+import PermissionsManage from "./pages/PermissionsManage";
 import ProtectedRoute from "./router/ProtectedRoute";
 import PublicRoute from "./router/PublicRoute";
 import { ToastContainer } from "react-toastify";
@@ -55,6 +57,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 {/* Default: wizard/FarmDraw */}
                 <Route path="fields" element={<FieldsPage />} />
                 <Route path="review" element={<ReviewPage />} />
+              </Route>
+
+                <Route path="admin">
+                <Route path="users" element={<UserManage />} />
+                <Route path="permissions" element={<PermissionsManage />} />
               </Route>
               <Route path="recipe-wizard" element={<RecipeWizard />} />
             </Route>
