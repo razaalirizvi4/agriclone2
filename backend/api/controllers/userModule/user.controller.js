@@ -33,11 +33,6 @@ const createUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role specified.' });
     }
 
-    let assignedPermissions = userRole.permissions;
-    if (permissions && Array.isArray(permissions) && permissions.length > 0) {
-        assignedPermissions = permissions; 
-    }
-
     const isAdmin = (userRole.roleId === 'admin');
 
     const user = await User.create({
@@ -45,13 +40,15 @@ const createUser = async (req, res) => {
       email,
       hashPassword: password,
       roleId: userRole._id,
-      permissions: assignedPermissions,
       isAdmin,
       contact,
     });
 
     console.log('User created:', user._id);
-    res.status(201).json(user);
+    const populatedUser = await User.findById(user._id)
+      .populate({ path: 'roleId', model: 'UserRole', populate: { path: 'permissions', model: 'Permission' } })
+      .select('-hashPassword');
+    res.status(201).json(populatedUser);
   } catch (error) {
     console.error('createUser Error:', error);
     res.status(500).json({ message: 'Server Error', error: error.message });
@@ -65,9 +62,8 @@ const getUsers = async (req, res) => {
   try {
     console.log('getUsers called');
     const users = await User.find({})
-      .populate('roleId', 'role roleId')
-      .populate('permissions', 'name action module')
-      .select('-hashPassword'); 
+      .populate({ path: 'roleId', model: 'UserRole', populate: { path: 'permissions', model: 'Permission' } })
+      .select('-hashPassword');
     console.log(`Found ${users.length} users`);
     res.json(users);
   } catch (error) {
@@ -103,22 +99,14 @@ const updateUser = async (req, res) => {
        }
        if (userRole) {
            user.roleId = userRole._id;
-           if (!permissions) {
-               user.permissions = userRole.permissions;
-           }
            user.isAdmin = (userRole.roleId === 'admin');
        }
-    }
-
-    if (permissions) {
-        user.permissions = permissions;
     }
 
     const updatedUser = await user.save();
     
     const populatedUser = await User.findById(updatedUser._id)
-        .populate('roleId', 'role roleId')
-        .populate('permissions', 'name action module')
+        .populate({ path: 'roleId', model: 'UserRole', populate: { path: 'permissions', model: 'Permission' } })
         .select('-hashPassword');
 
     res.json(populatedUser);
@@ -145,9 +133,20 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const getRoles = async (req, res) => {
+  try {
+    const roles = await UserRole.find({})
+      .populate('permissions', 'name action module');
+    res.json(roles);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
 module.exports = {
   createUser,
   getUsers,
   updateUser,
   deleteUser,
+  getRoles,
 };

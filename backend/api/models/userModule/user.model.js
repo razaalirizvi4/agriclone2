@@ -23,12 +23,12 @@ const userSchema = new mongoose.Schema({
     ref: 'UserRole',
     required: true,
   },
-  permissions: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Permission',
-    },
-  ],
+  // permissions: [
+  //   {
+  //     type: mongoose.Schema.Types.ObjectId,
+  //     ref: 'Permission',
+  //   },
+  // ],
   contact: {
     type: String,
     trim: true,

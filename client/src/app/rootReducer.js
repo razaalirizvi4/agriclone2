@@ -5,6 +5,7 @@ import cropReducer from '../features/cropModule/crop.slice.js';
 import typeReducer from '../features/type/type.slice.js';
 import permissionsReducer from '../features/permissions/permissions.slice.js';
 import userReducer from '../features/users/users.slice.js';
+import rolesReducer from '../features/roles/roles.slice.js';
 
 const rootReducer = combineReducers({
   eventStream: eventStreamReducer,
@@ -13,6 +14,7 @@ const rootReducer = combineReducers({
   types: typeReducer,
   permissions: permissionsReducer,
   users: userReducer,
+  roles: rolesReducer,
 });
 
 export default rootReducer;

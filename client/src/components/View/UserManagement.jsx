@@ -7,11 +7,11 @@ import "./PermissionsTable.css";
 const UserManagement = () => {
   const {
     users,
+    roles,
     form,
     editingId,
     selectedUserId,
     selectedUser,
-    rolePermissions,
     handleChange,
     startAdd,
     startEdit,
@@ -64,14 +64,19 @@ const UserManagement = () => {
       </td>
       <td>
         <div className="permissions-edit-wrapper">
-          <input
-            type="text"
+          <select
             name="role"
             className="permissions-inline-input"
-            placeholder="Role"
             value={form.role}
             onChange={handleChange}
-          />
+          >
+            <option value="">Select Role</option>
+            {roles.map((role) => (
+              <option key={role._id} value={role.roleId}>
+                {role.role}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             className="permissions-icon-button"
@@ -190,13 +195,13 @@ const UserManagement = () => {
       {selectedUser && (
         <div style={{ marginTop: "1rem" }}>
           <h4>
-            Permissions for role: <strong>{selectedUser.role}</strong>
+            Permissions for user: <strong>{selectedUser.name}</strong>
           </h4>
-          {rolePermissions && rolePermissions.length > 0 ? (
+          {selectedUser.roleId && selectedUser.roleId.permissions && selectedUser.roleId.permissions.length > 0 ? (
             <ul
               style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.9rem" }}
             >
-              {rolePermissions.map((perm) => (
+              {selectedUser.roleId.permissions.map((perm) => (
                 <li key={perm.id ?? perm._id}>
                   {perm.name} ({perm.action} - {perm.module})
                 </li>
@@ -204,7 +209,7 @@ const UserManagement = () => {
             </ul>
           ) : (
             <p style={{ fontSize: "0.9rem", color: "#666" }}>
-              No permissions found for this role.
+              No permissions assigned to this role.
             </p>
           )}
         </div>

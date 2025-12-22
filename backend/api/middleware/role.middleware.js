@@ -19,12 +19,16 @@ module.exports = async function permissionAccess(req, res, next) {
       return res.status(401).json({ message: 'Authentication required.' });
     }
     // Get user with populated permissions
-    const user = await User.findById(req.user._id).populate('permissions');
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'roleId',
+        populate: { path: 'permissions', model: 'Permission' },
+      });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
-    // Use isAdmin flag to determine access level
-    req.isAdmin = user.isAdmin === true;
+    // Use isAdmin to determine access level
+    req.isAdmin = user.isAdmin;
     req.isOwner = !req.isAdmin;
     req.userRole = user;
     

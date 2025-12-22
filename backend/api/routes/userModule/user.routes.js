@@ -5,6 +5,7 @@ const {
   getUsers,
   updateUser,
   deleteUser,
+  getRoles,
 } = require('../../controllers/userModule/user.controller');
 const CheckAuth = require('../../middleware/auth.middleware');
 const permissionCheck = require('../../middleware/permission.middleware');
@@ -17,6 +18,9 @@ router.post('/', permissionCheck('create', 'users'), createUser);
 // Get Users: Requires 'view' 'users' (Global) or we might need to handle 'view' 'own_users'
 // For now, restricting to 'view' 'users' which Admin has.
 router.get('/', permissionCheck('view', 'users'), getUsers);
+
+// Get Roles
+router.get('/roles', CheckAuth, getRoles);
 
 // Update/Delete:
 router.put('/:id', permissionCheck('update', 'users'), updateUser);

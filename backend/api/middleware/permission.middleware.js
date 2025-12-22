@@ -7,23 +7,21 @@ const permissionCheck = (action, module) => async (req, res, next) => {
       return res.status(401).json({ message: 'Authentication required.' });
     }
 
-    const user = await User.findById(req.user._id).populate({
-      path: 'roleId',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'roleId',
+        populate: { path: 'permissions', model: 'Permission' },
+      });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Extract permissions from the user's role
+    // Extract permissions from role
     const userPermissions = user.roleId.permissions;
 
     // Check if the user has the required permission
-    const hasPermission = (user.roleId.role === 'Admin') || userPermissions.some(
+    const hasPermission = user.isAdmin || userPermissions.some(
       (perm) => perm.action === action && perm.module === module
     );
 
@@ -38,3 +36,4 @@ const permissionCheck = (action, module) => async (req, res, next) => {
 };
 
 module.exports = permissionCheck;
+

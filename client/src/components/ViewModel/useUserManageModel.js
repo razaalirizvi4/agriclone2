@@ -6,7 +6,7 @@ import {
   updateUser,
   deleteUser,
 } from "../../features/users/users.slice";
-import { fetchPermissions } from "../../features/permissions/permissions.slice";
+import { fetchRoles } from "../../features/roles/roles.slice";
 
 const useUserManageModel = () => {
   const dispatch = useDispatch();
@@ -15,8 +15,8 @@ const useUserManageModel = () => {
   const { items: users = [], loading: usersLoading } = useSelector(
     (state) => state.users || {}
   );
-  const { items: rolePermissions = [] } = useSelector(
-    (state) => state.permissions || {}
+  const { items: roles = [] } = useSelector(
+    (state) => state.roles || {}
   );
 
   // Local state for UI interactions
@@ -29,9 +29,10 @@ const useUserManageModel = () => {
     contact: "",
   });
 
-  // Fetch users on mount
+  // Fetch users and roles on mount
   useEffect(() => {
     dispatch(fetchUsers());
+    dispatch(fetchRoles());
   }, [dispatch]);
 
   const activeUsers = useMemo(() => users.filter((u) => !u.isRemoved), [users]);
@@ -41,23 +42,6 @@ const useUserManageModel = () => {
     [activeUsers, selectedUserId]
   );
 
-  // Fetch permissions when a user is selected (based on their role)
-  // Note: The backend user object populates roleId object now, so user.roleId might be an object.
-  // The table displays user.role. We need to check how the backend returns data.
-  // Backend getUsers populates roleId. So user.roleId is likely an object { _id, role, roleId }.
-  // The frontend component expects user.role to be a string (the role name).
-  // We might need to map the backend data to flat format for the table or update the table.
-  // For now, let's look at the effect.
-  useEffect(() => {
-    if (selectedUser) {
-        // If user.roleId is populated, use that. If it's a string, use it directly.
-        // The backend returns populated roleId. 
-        const rId = selectedUser.roleId?.roleId || selectedUser.roleId; 
-        if (rId) {
-            dispatch(fetchPermissions({ role: rId }));
-        }
-    }
-  }, [dispatch, selectedUser]);
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -178,11 +162,11 @@ const useUserManageModel = () => {
 
   return {
     users: displayUsers,
+    roles,
     form,
     editingId,
     selectedUserId,
     selectedUser,
-    rolePermissions,
     handleChange,
     startAdd,
     startEdit,
