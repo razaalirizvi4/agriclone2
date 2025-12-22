@@ -26,6 +26,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // API Routes
 app.use('/api/auth', require('./api/routes/userModule/auth.routes'));
+app.use('/api/users', require('./api/routes/userModule/user.routes'));
 app.use('/api/eventstream', require('./api/routes/eventStream/eventStream.routes.js'));
 app.use('/api/weather', require('./api/routes/weather/weather.routes'));
 app.use('/api/locations', require('./api/routes/locationModule/location.routes.js'));

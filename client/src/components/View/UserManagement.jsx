@@ -21,8 +21,8 @@ const UserManagement = () => {
     selectUser,
   } = useUserManageModel();
 
-  const handleSave = () => {
-    const ok = saveUser();
+  const handleSave = async () => {
+    const ok = await saveUser();
     if (!ok) {
       toast.error("Please fill in Name, Email and Role.");
       return;
