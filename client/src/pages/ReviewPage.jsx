@@ -7,6 +7,7 @@ import {
   normalizeFieldsForExport,
   exportFeatureCollection,
 } from "../utils/geoJson";
+import { geoJSONToWkt } from "../utils/wkt";
 import { toast } from "react-toastify";
 import ConfirmationModal from "../components/View/confirmationModal";
 
@@ -113,6 +114,68 @@ const ReviewPage = () => {
       exportFeatureCollection(normalizedFields, `${farmName || "farm"}-fields`);
     } else {
       toast.error("No fields available to export.");
+    }
+  };
+
+
+  const handleExportWktAll = () => {
+    if (!farmFeature?.geometry) {
+      toast.error("Farm boundary is missing; cannot export.");
+      return;
+    }
+
+    // Export Farm Boundary
+    const farmWkt = geoJSONToWkt(farmFeature.geometry);
+    if (farmWkt) {
+      const blob = new Blob([farmWkt], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${farmName || "farm"}-boundary.wkt`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Export Fields
+    const fieldsData = wizardData.fieldsData || {
+      type: "FeatureCollection",
+      features: [],
+    };
+    
+    // We want to combine all field polygons into a single MultiPolygon for WKT export
+    // or just export them if they are already valid.
+    const polygons = [];
+    
+    fieldsData.features.forEach(f => {
+      if (!f.geometry) return;
+      if (f.geometry.type === 'Polygon') {
+        polygons.push(f.geometry.coordinates);
+      } else if (f.geometry.type === 'MultiPolygon') {
+        f.geometry.coordinates.forEach(poly => polygons.push(poly));
+      }
+    });
+
+    if (polygons.length > 0) {
+      const multiPoly = {
+        type: 'MultiPolygon',
+        coordinates: polygons
+      };
+      const fieldsWkt = geoJSONToWkt(multiPoly);
+      
+      if (fieldsWkt) {
+        const blob = new Blob([fieldsWkt], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${farmName || "farm"}-fields.wkt`;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    } else {
+       // If no fields or no polygons, maybe just warn or skip
+       if (fieldsData.features.length > 0) {
+          toast.warn("No polygon fields to export to WKT.");
+       }
     }
   };
 
@@ -472,7 +535,15 @@ const ReviewPage = () => {
               onClick={handleExportAll}
               disabled={!farmFeature}
             >
-              Export Farm &amp; Fields
+              Export Farm &amp; Fields GeoJSON
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleExportWktAll}
+              disabled={!farmFeature}
+            >
+              Export Farm &amp; Fields WKT
             </button>
           </div>
         </section>

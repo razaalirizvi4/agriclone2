@@ -7,6 +7,7 @@ const FarmDetailsForm = ({
   onSubmit,
   initialValues = {},
   onImportGeoJSONClick,
+  onImportWktClick,
 }) => {
   const dispatch = useDispatch();
   const {
@@ -89,14 +90,26 @@ const FarmDetailsForm = ({
                 }}
               />
               {isAddressField && onImportGeoJSONClick && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={onImportGeoJSONClick}
-                  style={{ marginLeft: "8px", whiteSpace: "nowrap" }}
-                >
-                  Import Farm GeoJSON
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={onImportGeoJSONClick}
+                    style={{ marginLeft: "8px", whiteSpace: "nowrap" }}
+                  >
+                    Import Farm GeoJSON
+                  </button>
+                  {onImportWktClick && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={onImportWktClick}
+                      style={{ marginLeft: "8px", whiteSpace: "nowrap" }}
+                    >
+                      Import Farm WKT
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

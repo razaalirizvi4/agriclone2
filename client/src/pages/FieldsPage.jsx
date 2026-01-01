@@ -11,7 +11,9 @@ import * as turf from "@turf/turf";
 import FieldDetailsForm from "../components/View/FieldDetailsForm";
 import { CropAssignmentForm } from "../components/View/cropAssignmentForm";
 import MapWizard from "../components/View/MapWizard";
-import { normalizeFieldsFeatureCollection } from "../utils/geoJson";
+import { normalizeFieldsFeatureCollection,
+} from "../utils/geoJson";
+import { wktToGeoJSON } from "../utils/wkt";
 import { toast } from "react-toastify";
 
 const FieldsPage = () => {
@@ -46,6 +48,7 @@ const FieldsPage = () => {
   const mapApiRef = useRef(null);
   const lastValidFieldGeometryRef = useRef(null);
   const fieldsFileInputRef = useRef(null);
+  const fieldsWktInputRef = useRef(null);
 
   const farmFeature = useMemo(() => {
     const farmBoundaries = wizardData.farmBoundaries;
@@ -266,8 +269,85 @@ const FieldsPage = () => {
     }
   };
 
+  const handleFieldsWktChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const geoJsonGeometry = wktToGeoJSON(text);
+      if (!geoJsonGeometry) {
+        toast.error("Invalid WKT file.");
+        return;
+      }
+
+      let features = [];
+
+      // If MultiPolygon, split into individual Polygons so they become separate fields
+      if (geoJsonGeometry.type === "MultiPolygon") {
+        features = geoJsonGeometry.coordinates.map((coords) => ({
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Polygon",
+            coordinates: coords,
+          },
+        }));
+      } else {
+        // Wrap single geometry in a feature
+        features = [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: geoJsonGeometry,
+          },
+        ];
+      }
+
+      if (!validateFieldsWithinFarm(features)) {
+        return;
+      }
+
+      const normalized = normalizeFieldsFeatureCollection(
+        { type: "FeatureCollection", features },
+        wizardData.farmDetails?.name ||
+          wizardData.farmBoundaries?.name ||
+          "Farm"
+      );
+
+      if (!normalized) {
+        toast.error("Invalid geometry from WKT.");
+        return;
+      }
+
+      onImportFieldsData(normalized.fieldsData, normalized.fieldsInfo);
+      const firstFieldId =
+        normalized.fieldsInfo?.[0]?.id ||
+        normalized.fieldsData.features?.[0]?.properties?.id ||
+        null;
+
+      if (firstFieldId) {
+        setSelectedField(firstFieldId);
+        onFieldSelect(firstFieldId);
+      }
+
+      if (mapApiRef.current?.focusOnFeature) {
+        mapApiRef.current.focusOnFeature(normalized.fieldsData.features[0]);
+      }
+    } catch (error) {
+      console.error("Failed to import WKT:", error);
+      toast.error("Unable to import WKT file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const triggerFieldsImport = () => {
     fieldsFileInputRef.current?.click();
+  };
+
+  const triggerFieldsWktImport = () => {
+    fieldsWktInputRef.current?.click();
   };
 
   const handleFieldSelect = (fieldInfo) => {
@@ -426,6 +506,13 @@ const FieldsPage = () => {
         style={{ display: "none" }}
         onChange={handleFieldsFileChange}
       />
+      <input
+        ref={fieldsWktInputRef}
+        type="file"
+        accept=".wkt,.txt"
+        style={{ display: "none" }}
+        onChange={handleFieldsWktChange}
+      />
       <div className="wizard-layout">
         {/* Left Side - Field Management Panel */}
         <div className="crop-card fields-panel">
@@ -534,9 +621,12 @@ const FieldsPage = () => {
         </div>
         {/* Right Side - Map with Fields table below */}
         <div className="recipe-card fields-map-card">
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
             <button type="button" className="secondary-button" onClick={triggerFieldsImport}>
               Import Fields GeoJSON
+            </button>
+            <button type="button" className="secondary-button" onClick={triggerFieldsWktImport}>
+              Import Fields WKT
             </button>
           </div>
           <div className="fields-map-wrapper">

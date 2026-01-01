@@ -8,6 +8,7 @@ import {
   calculateAcresFromFeature,
   deriveFarmNameFromFile,
 } from "../utils/geoJson";
+import { wktToGeoJSON } from "../utils/wkt";
 import * as turf from "@turf/turf";
 import { toast } from "react-toastify";
 
@@ -34,6 +35,7 @@ const FarmDrawPage = () => {
   const [mapReady, setMapReady] = useState(false);
   const [drawnData, setDrawnData] = useState(null);
   const farmFileInputRef = useRef(null);
+  const farmWktInputRef = useRef(null);
   const numberOfFieldsInitializedRef = useRef(false);
 
   const geocodeAddressAndCreatePolygon = useCallback(
@@ -310,6 +312,77 @@ const FarmDrawPage = () => {
     farmFileInputRef.current?.click();
   };
 
+  const handleFarmWktChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const geoJsonGeometry = wktToGeoJSON(text);
+
+      if (!geoJsonGeometry) {
+        toast.error("Invalid WKT file. Please provide a valid WKT string.");
+        return;
+      }
+
+      // Create a feature from the geometry
+      const farmFeature = {
+        type: "Feature",
+        properties: {},
+        geometry: geoJsonGeometry,
+      };
+
+      // Reuse existing logic for farm feature processing
+      const centerPoint = turf.center(farmFeature);
+      const center = {
+        lat: centerPoint.geometry.coordinates[1],
+        lng: centerPoint.geometry.coordinates[0],
+      };
+      const derivedName = deriveFarmNameFromFile(file.name);
+      const calculatedAcres = calculateAcresFromFeature(farmFeature);
+
+      onImportFarmBoundary(farmFeature);
+      setDrawnData({
+        type: "FeatureCollection",
+        features: [farmFeature],
+      });
+      setFarmCenter(center);
+      setFieldsGenerated(false);
+      polygonInitializedRef.current = true;
+
+      applyFeatureToMap(farmFeature, center);
+      if (!mapReady) {
+        pendingFeatureRef.current = farmFeature;
+        pendingCenterRef.current = center;
+      }
+
+      const updatedDetails = {
+        ...wizardData.farmDetails,
+        ...(derivedName && { name: derivedName }),
+        ...(calculatedAcres && {
+          size: calculatedAcres,
+          area: calculatedAcres,
+        }),
+      };
+
+      if (Object.keys(updatedDetails).length) {
+        onFarmDetailsSubmit(updatedDetails);
+        if (calculatedAcres) {
+          setFarmSize(calculatedAcres);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to import farm WKT:", error);
+      toast.error("Unable to import farm WKT. Ensure the file is valid.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const triggerFarmWktImport = () => {
+    farmWktInputRef.current?.click();
+  };
+
   // Handle field generation (uses drawnData captured from MapWizard)
   const handleGenerateFields = () => {
     // Check if we're in edit mode and already have fields
@@ -370,6 +443,13 @@ const FarmDrawPage = () => {
         style={{ display: "none" }}
         onChange={handleFarmFileChange}
       />
+      <input
+        ref={farmWktInputRef}
+        type="file"
+        accept=".wkt,.txt"
+        style={{ display: "none" }}
+        onChange={handleFarmWktChange}
+      />
       <div className="wizard-layout">
         {/* Left Side - Farm Details Form & Controls */}
         <div className="crop-card">
@@ -377,6 +457,7 @@ const FarmDrawPage = () => {
             onSubmit={handleFarmDetailsSubmit}
             initialValues={wizardData.farmDetails || {}}
             onImportGeoJSONClick={triggerFarmImport}
+            onImportWktClick={triggerFarmWktImport}
           />
 
           {/* Farm Summary */}
