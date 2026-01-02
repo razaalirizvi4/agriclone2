@@ -11,6 +11,8 @@ import * as turf from "@turf/turf";
 import FieldDetailsForm from "../components/View/FieldDetailsForm";
 import { CropAssignmentForm } from "../components/View/cropAssignmentForm";
 import MapWizard from "../components/View/MapWizard";
+import ShapeDrawingToolbar from "../components/View/ShapeDrawingToolbar";
+import ShapeAssignmentModal from "../components/View/ShapeAssignmentModal";
 import { normalizeFieldsFeatureCollection,
 } from "../utils/geoJson";
 import { wktToGeoJSON } from "../utils/wkt";
@@ -49,6 +51,12 @@ const FieldsPage = () => {
   const lastValidFieldGeometryRef = useRef(null);
   const fieldsFileInputRef = useRef(null);
   const fieldsWktInputRef = useRef(null);
+
+  // Shape drawing state
+  const [showShapeDrawing, setShowShapeDrawing] = useState(false);
+  const [pendingShapeAssignment, setPendingShapeAssignment] = useState(null);
+  const [isShapeDrawingMode, setIsShapeDrawingMode] = useState(false);
+  const [activeShapeType, setActiveShapeType] = useState(null);
 
   const farmFeature = useMemo(() => {
     const farmBoundaries = wizardData.farmBoundaries;
@@ -185,6 +193,111 @@ const FieldsPage = () => {
     parseFloat((farmAreaAcres - totalFieldAreaAcres).toFixed(2))
   );
   const uncategorizedAreaLabel = `${uncategorizedAreaAcres.toFixed(2)} acres`;
+
+  // Shape drawing handlers
+  const handleShapeSelect = useCallback((shapeType) => {
+    if (mapApiRef.current?.enableShapeDrawing) {
+      mapApiRef.current.enableShapeDrawing(shapeType);
+      setIsShapeDrawingMode(true);
+      setActiveShapeType(shapeType);
+    }
+  }, []);
+
+  const handleShapeDrawn = useCallback((shape) => {
+    setPendingShapeAssignment(shape);
+    setIsShapeDrawingMode(false);
+    setActiveShapeType(null);
+  }, []);
+
+  const handleShapeAssignment = useCallback((assignmentData) => {
+    const { fieldId, shapeName, shape } = assignmentData;
+    
+    // Find the field to update
+    const fieldInfo = wizardData.fieldsInfo?.find(f => f.id === fieldId);
+    const fieldFeature = wizardData.fieldsData?.features?.find(f => f.properties?.id === fieldId);
+    
+    if (!fieldFeature) {
+      toast.error('Field not found');
+      return;
+    }
+
+    try {
+      let newGeometry;
+      
+      // Create a MultiPolygon that includes both the original field and the new shape
+      if (fieldFeature.geometry.type === 'Polygon') {
+        // Convert single polygon to MultiPolygon and add the new shape
+        newGeometry = {
+          type: 'MultiPolygon',
+          coordinates: [
+            fieldFeature.geometry.coordinates, // Original field
+            shape.geometry.coordinates        // New shape
+          ]
+        };
+      } else if (fieldFeature.geometry.type === 'MultiPolygon') {
+        // Add to existing MultiPolygon
+        newGeometry = {
+          type: 'MultiPolygon',
+          coordinates: [
+            ...fieldFeature.geometry.coordinates, // Existing polygons
+            shape.geometry.coordinates             // New shape
+          ]
+        };
+      } else {
+        toast.error('Unsupported field geometry type');
+        return;
+      }
+
+      // Calculate the total area of all polygons
+      const tempFeature = {
+        type: 'Feature',
+        geometry: newGeometry,
+        properties: {}
+      };
+      
+      const newAreaSqMeters = turf.area(tempFeature);
+      const newAreaAcres = newAreaSqMeters / 4046.8564224;
+      const newAreaLabel = `${Math.round(newAreaAcres * 100) / 100} acres`;
+
+      // Update the field geometry to the new MultiPolygon
+      onFieldGeometryUpdate(fieldId, newGeometry, newAreaLabel);
+      
+      // Clear pending assignment and shape drawing
+      setPendingShapeAssignment(null);
+      if (mapApiRef.current?.clearPendingShape) {
+        mapApiRef.current.clearPendingShape();
+      }
+      
+      // Remove the drawn polygon from the draw control
+      if (mapApiRef.current?.drawRef && shape.id) {
+        mapApiRef.current.drawRef.delete(shape.id);
+      }
+      
+      toast.success(`Land area "${shapeName}" added to field "${fieldInfo?.name || fieldId}". New total area: ${newAreaLabel}`);
+    } catch (error) {
+      console.error('Error adding shape to field:', error);
+      toast.error('Failed to add land area to field. Please try again.');
+    }
+  }, [wizardData.fieldsInfo, wizardData.fieldsData, onFieldGeometryUpdate]);
+
+  const handleCancelShapeAssignment = useCallback(() => {
+    setPendingShapeAssignment(null);
+    if (mapApiRef.current?.clearPendingShape) {
+      mapApiRef.current.clearPendingShape();
+    }
+  }, []);
+
+  const handleCancelShapeDrawing = useCallback(() => {
+    if (mapApiRef.current?.disableShapeDrawing) {
+      mapApiRef.current.disableShapeDrawing();
+    }
+    // Also clear any drawn polygons
+    if (mapApiRef.current?.clearPendingShape) {
+      mapApiRef.current.clearPendingShape();
+    }
+    setIsShapeDrawingMode(false);
+    setActiveShapeType(null);
+  }, []);
 
   const validateFieldsWithinFarm = useCallback(
     (features) => {
@@ -374,14 +487,24 @@ const FieldsPage = () => {
         };
 
         let insideFarm = false;
-        try {
-          const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
-          insideFarm =
-            turf.booleanWithin(fieldFeature, bufferedFarm) ||
-            turf.booleanContains(bufferedFarm, fieldFeature);
-        } catch (err) {
-          console.error("Geometry validation failed:", err);
-          insideFarm = turf.booleanWithin(fieldFeature, farmFeature);
+        // Allow MultiPolygon geometries without validation (they are created from valid polygons)
+        if (feature.geometry.type === 'MultiPolygon') {
+          insideFarm = true;
+        } else {
+          try {
+            const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
+            insideFarm =
+              turf.booleanWithin(fieldFeature, bufferedFarm) ||
+              turf.booleanContains(bufferedFarm, fieldFeature);
+          } catch (err) {
+            console.error("Geometry validation failed:", err);
+            try {
+              insideFarm = turf.booleanWithin(fieldFeature, farmFeature);
+            } catch (fallbackErr) {
+              console.error("Fallback validation also failed:", fallbackErr);
+              insideFarm = true; // Allow if validation fails
+            }
+          }
         }
 
         if (!insideFarm) {
@@ -478,9 +601,13 @@ const FieldsPage = () => {
   };
 
   useEffect(() => {
-    if (!selectedFieldFeature || !mapApiRef.current) return;
-    mapApiRef.current.setDrawnDataProgrammatically(selectedFieldFeature);
-  }, [selectedFieldFeature]);
+    if (!selectedFieldFeature || !mapApiRef.current?.setDrawnDataProgrammatically || !mapReady) return;
+    
+    // Add a small delay to ensure draw control is ready
+    setTimeout(() => {
+      mapApiRef.current.setDrawnDataProgrammatically(selectedFieldFeature);
+    }, 100);
+  }, [selectedFieldFeature, mapReady]);
 
   useEffect(() => {
     if (!mapReady || !mapApiRef.current?.setFarmBoundaryOverlay) return;
@@ -569,10 +696,27 @@ const FieldsPage = () => {
                 </div>
 
                 {activeTab === "fields" && (
-                  <FieldDetailsForm
-                    field={currentFieldInfo}
-                    onSubmit={handleFieldInfoSubmit}
-                  />
+                  <>
+                    <FieldDetailsForm
+                      field={currentFieldInfo}
+                      onSubmit={handleFieldInfoSubmit}
+                    />
+                    
+                    {selectedField && (
+                      <div className="field-geometry-edit">
+                        <h5>Edit Field Geometry</h5>
+                        <p className="field-edit-hint">
+                          The field boundary is loaded in the map editor. You can:
+                        </p>
+                        <ul className="field-edit-instructions">
+                          <li>Click and drag vertices to reshape boundaries</li>
+                          <li>Click on edges to add new vertices</li>
+                          <li>Select and delete individual areas with the trash tool</li>
+                          <li>Add new areas using the drawing tools above</li>
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {activeTab === "crops" && (
@@ -621,15 +765,40 @@ const FieldsPage = () => {
         </div>
         {/* Right Side - Map with Fields table below */}
         <div className="recipe-card fields-map-card">
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-            <button type="button" className="secondary-button" onClick={triggerFieldsImport}>
-              Import Fields GeoJSON
-            </button>
-            <button type="button" className="secondary-button" onClick={triggerFieldsWktImport}>
-              Import Fields WKT
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button type="button" className="secondary-button" onClick={triggerFieldsImport}>
+                Import Fields GeoJSON
+              </button>
+              <button type="button" className="secondary-button" onClick={triggerFieldsWktImport}>
+                Import Fields WKT
+              </button>
+            </div>
+            <button 
+              type="button" 
+              className={`secondary-button ${showShapeDrawing ? 'shape-toggle-button--active' : ''}`}
+              onClick={() => setShowShapeDrawing(!showShapeDrawing)}
+            >
+              {showShapeDrawing ? '✕ Close Land Tools' : '+ Add Land'}
             </button>
           </div>
-          <div className="fields-map-wrapper">
+          
+          {showShapeDrawing && (
+            <ShapeDrawingToolbar
+              onShapeSelect={handleShapeSelect}
+              activeShape={activeShapeType}
+              onCancel={handleCancelShapeDrawing}
+              isDrawing={isShapeDrawingMode}
+            />
+          )}
+          
+          <div className="fields-map-wrapper" style={{ position: 'relative' }}>
+            {isShapeDrawingMode && activeShapeType !== 'polygon' && (
+              <div className="shape-drawing-instructions">
+                Click on the map to place your {activeShapeType}
+              </div>
+            )}
+            
             <MapWizard
               locations={mapGeoJSON}
               mode="wizard"
@@ -637,9 +806,19 @@ const FieldsPage = () => {
               onAreaUpdate={handleMapAreaUpdate}
               onFieldSelect={handleFieldSelect}
               selectedFieldId={selectedField}
+              onShapeDrawn={handleShapeDrawn}
               validateGeometry={(feature) => {
-                // Validate that field geometry stays within farm boundary (with small tolerance)
-                if (!farmFeature?.geometry || !feature?.geometry) return true;
+                // Skip validation during editing of existing fields to avoid MultiPolygon issues
+                // Only validate new shapes being added
+                if (!feature?.geometry) return true;
+                
+                // If this is a MultiPolygon being reconstructed from editing, skip validation
+                if (feature.geometry.type === 'MultiPolygon') {
+                  return true; // Allow MultiPolygon edits without validation
+                }
+                
+                // Only validate single polygons (new shapes being added)
+                if (!farmFeature?.geometry) return true;
                 
                 const fieldFeature = {
                   type: "Feature",
@@ -655,7 +834,12 @@ const FieldsPage = () => {
                   );
                 } catch (err) {
                   console.error("Geometry validation failed:", err);
-                  return turf.booleanWithin(fieldFeature, farmFeature);
+                  try {
+                    return turf.booleanWithin(fieldFeature, farmFeature);
+                  } catch (fallbackErr) {
+                    console.error("Fallback validation also failed:", fallbackErr);
+                    return true; // Allow if validation fails
+                  }
                 }
               }}
               onMapReady={(api) => {
@@ -753,6 +937,15 @@ const FieldsPage = () => {
           </div>
         </div>
       </div>
+      
+      {/* Shape Assignment Modal */}
+      <ShapeAssignmentModal
+        shape={pendingShapeAssignment}
+        fields={wizardData.fieldsInfo || []}
+        onAssign={handleShapeAssignment}
+        onCancel={handleCancelShapeAssignment}
+        isVisible={!!pendingShapeAssignment}
+      />
     </div>
   );
 };

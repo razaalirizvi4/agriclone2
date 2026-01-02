@@ -20,6 +20,7 @@ const MapWizard = ({
   onMapReady,
   onDrawnDataChange,
   validateGeometry,
+  onShapeDrawn,
   className,
   style,
 }) => {
@@ -31,6 +32,7 @@ const MapWizard = ({
     onFieldSelect,
     selectedFieldId,
     validateGeometry,
+    onShapeDrawn,
   });
 
   // Expose map helpers once ready

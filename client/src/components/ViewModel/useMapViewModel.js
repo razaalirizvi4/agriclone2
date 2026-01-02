@@ -12,6 +12,7 @@ import { createFarmLayers } from "../../utils/mapLayers";
 import { createFieldLayers } from "../../utils/mapLayers";
 import { createGeometryLayers } from "../../utils/mapLayers";
 import { toast } from "react-toastify";
+import { createCircle, createSquare, createTriangle, createCustomPolygon } from "../../utils/shapeUtils";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -26,7 +27,8 @@ const useMapViewModel = ({
   mode = null,
   shouldInitialize = true,
   onAreaUpdate,
-  validateGeometry = null // Optional validation callback: (feature) => boolean
+  validateGeometry = null, // Optional validation callback: (feature) => boolean
+  onShapeDrawn = null // Optional callback when a shape is drawn: (shape) => void
 }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -35,6 +37,7 @@ const useMapViewModel = ({
   const drawRef = useRef(null);
   const onAreaUpdateRef = useRef(onAreaUpdate);
   const validateGeometryRef = useRef(validateGeometry);
+  const onShapeDrawnRef = useRef(onShapeDrawn);
   const lastValidDrawDataRef = useRef(null);
   
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -44,6 +47,11 @@ const useMapViewModel = ({
   );
   const farmsGeoJSON = buildGeoJSON(locations);
   const [drawnData, setDrawnData] = useState(null);
+  
+  // Shape drawing state
+  const [isShapeDrawingMode, setIsShapeDrawingMode] = useState(false);
+  const [activeShapeType, setActiveShapeType] = useState(null);
+  const [pendingShape, setPendingShape] = useState(null);
 
   useEffect(() => {
     onAreaUpdateRef.current = onAreaUpdate;
@@ -53,12 +61,96 @@ const useMapViewModel = ({
     validateGeometryRef.current = validateGeometry;
   }, [validateGeometry]);
 
+  useEffect(() => {
+    onShapeDrawnRef.current = onShapeDrawn;
+  }, [onShapeDrawn]);
+
   // Sync external selectedFieldId from parent whenever it changes
   useEffect(() => {
     if (externalSelectedFieldId && externalSelectedFieldId !== selectedFieldId) {
       setSelectedFieldId(externalSelectedFieldId);
     }
   }, [externalSelectedFieldId]);
+
+  // SHAPE DRAWING FUNCTIONS
+  const enableShapeDrawing = useCallback((shapeType) => {
+    setIsShapeDrawingMode(true);
+    setActiveShapeType(shapeType);
+    
+    if (map.current) {
+      map.current.getCanvas().style.cursor = 'crosshair';
+    }
+  }, []);
+
+  const disableShapeDrawing = useCallback(() => {
+    setIsShapeDrawingMode(false);
+    setActiveShapeType(null);
+    setPendingShape(null);
+    
+    if (map.current) {
+      map.current.getCanvas().style.cursor = '';
+    }
+  }, []);
+
+  const handleMapClickForShape = useCallback((e) => {
+    if (!isShapeDrawingMode || !activeShapeType) return;
+
+    const center = [e.lngLat.lng, e.lngLat.lat];
+    let shape = null;
+
+    try {
+      switch (activeShapeType) {
+        case 'circle':
+          shape = createCircle(center, 50); // 50 meter radius
+          break;
+        case 'square':
+          shape = createSquare(center, 100); // 100 meter side
+          break;
+        case 'polygon':
+          // For polygon, users should use the MapboxDraw control
+          return;
+        default:
+          return;
+      }
+
+      if (shape) {
+        // Validate that the shape is within farm boundary if validation is provided
+        if (validateGeometryRef.current) {
+          const isValid = validateGeometryRef.current(shape);
+          if (!isValid) {
+            toast.error('Land addition must be within the farm boundary. Please try a different location.');
+            return;
+          }
+        }
+
+        // Add the shape to the draw control so it appears on the map
+        if (drawRef.current) {
+          drawRef.current.add(shape);
+        }
+
+        setPendingShape(shape);
+        
+        // Notify parent component
+        if (onShapeDrawnRef.current) {
+          onShapeDrawnRef.current(shape);
+        }
+        
+        // Disable drawing mode
+        disableShapeDrawing();
+      }
+    } catch (error) {
+      console.error('Error creating shape:', error);
+      toast.error('Failed to create shape. Please try again.');
+    }
+  }, [isShapeDrawingMode, activeShapeType, disableShapeDrawing]);
+
+  const clearPendingShape = useCallback(() => {
+    setPendingShape(null);
+    // For polygon drawing, we clear the drawn polygon from the draw control
+    if (drawRef.current) {
+      drawRef.current.deleteAll();
+    }
+  }, []);
 
   // MAP INITIALIZATION - SINGLE UNIFIED EFFECT
   useEffect(() => {
@@ -230,6 +322,12 @@ const useMapViewModel = ({
   );
 
   const handleMapClick = useCallback((e) => {
+    // Handle shape drawing first (for circle and square)
+    if (isShapeDrawingMode && activeShapeType !== 'polygon') {
+      handleMapClickForShape(e);
+      return;
+    }
+
     const features = map.current.queryRenderedFeatures(e.point, {
       layers: [LAYER_IDS.FIELDS, LAYER_IDS.FARMS],
     });
@@ -239,7 +337,7 @@ const useMapViewModel = ({
       map.current.setLayoutProperty(LAYER_IDS.FARMS, "visibility", "visible");
       setShowFields(false);
     }
-  }, []);
+  }, [isShapeDrawingMode, activeShapeType, handleMapClickForShape]);
 
   // LAYER SETUP & UPDATES
   useEffect(() => {
@@ -262,10 +360,9 @@ const useMapViewModel = ({
         }
       });
 
-      // Add click handlers
+      // Add click handlers for specific layers (these don't change)
       mapInstance.on("click", LAYER_IDS.FARMS, handleFarmClick);
       mapInstance.on("click", LAYER_IDS.FIELDS, handleFieldClick);
-      mapInstance.on("click", handleMapClick);
 
       // Add hover handlers
       [
@@ -283,6 +380,9 @@ const useMapViewModel = ({
         }
       });
     }
+
+    // Add temporary shape source and layers for shape drawing (not needed for polygon drawing)
+    // Polygon drawing uses the MapboxDraw control which has its own styling
 
     // Update data source
     if (mapInstance.getSource("data") && farmsGeoJSON) {
@@ -352,11 +452,29 @@ const useMapViewModel = ({
     showFields,
     handleFarmClick,
     handleFieldClick,
-    handleMapClick,
     showHoverPopup,
     hideHoverPopup,
     mode,
   ]);
+
+  // Separate effect for general map click handler that needs to be reactive to shape drawing state
+  useEffect(() => {
+    if (!mapLoaded || !map.current) return;
+
+    const mapInstance = map.current;
+
+    // Remove existing general click handler
+    mapInstance.off("click", handleMapClick);
+    
+    // Add updated click handler
+    mapInstance.on("click", handleMapClick);
+
+    return () => {
+      if (mapInstance) {
+        mapInstance.off("click", handleMapClick);
+      }
+    };
+  }, [mapLoaded, handleMapClick]);
 
   // Update drawn data source when drawnData changes
   useEffect(() => {
@@ -376,35 +494,6 @@ const useMapViewModel = ({
     }
   }, [drawnData, mapLoaded, mode]);
 
-  const syncDrawFeature = useCallback(
-    (feature) => {
-      if (!feature || mode !== "wizard" || !drawRef.current) return;
-
-      const normalizedFeature =
-        feature.type === "Feature"
-          ? feature
-          : feature.type === "FeatureCollection"
-          ? feature.features?.[0]
-          : null;
-
-      if (!normalizedFeature) return;
-
-      drawRef.current.deleteAll();
-      drawRef.current.add(normalizedFeature);
-      const currentFeatures = drawRef.current.getAll()?.features || [];
-      const addedFeature = currentFeatures[0];
-
-      if (addedFeature?.id) {
-        drawRef.current.changeMode("direct_select", {
-          featureId: addedFeature.id,
-        });
-      } else {
-        drawRef.current.changeMode("simple_select");
-      }
-    },
-    [mode]
-  );
-
 // --- MAPBOX DRAW & AREA MEASUREMENT --- (Wizard mode only)
 useEffect(() => {
   if (!mapLoaded || !map.current || mode !== "wizard") return;
@@ -414,13 +503,19 @@ useEffect(() => {
     map.current.removeControl(drawRef.current);
   }
 
-  // Create draw control with simple_select mode for edit functionality
+  // Create draw control with all drawing tools enabled
   const draw = new MapboxDraw({
     displayControlsDefault: false,
-    defaultMode: "simple_select", // This enables edit functionality
+    defaultMode: "simple_select",
+    controls: {
+      polygon: true,
+      line_string: true,
+      point: true,
+      trash: true
+    }
   });
   
-  map.current.addControl(draw);
+  map.current.addControl(draw, 'top-left');
   drawRef.current = draw;
 
   // Add source for drawn data if it doesn't exist
@@ -463,55 +558,118 @@ useEffect(() => {
     const data = draw.getAll();
     
     if (data.features.length > 0) {
-      const feature = data.features[data.features.length - 1];
-      
-      // Validate geometry if validation callback is provided
-      if (validateGeometryRef.current) {
-        const isValid = validateGeometryRef.current(feature);
-        
-        if (!isValid) {
-          // Alert the user
-          toast.error("Field boundary must stay within the farm boundary. Please adjust the shape.");
-          
-          // Revert to last valid data if available
-          if (lastValidDrawDataRef.current && map.current.getSource('drawn-data')) {
-            map.current.getSource('drawn-data').setData(lastValidDrawDataRef.current);
-            // Restore the draw control to the last valid state
-            if (drawRef.current && lastValidDrawDataRef.current.features.length > 0) {
-              const lastValidFeature = lastValidDrawDataRef.current.features[0];
-              drawRef.current.deleteAll();
-              drawRef.current.add(lastValidFeature);
-            }
+      // If we have multiple features, we need to reconstruct the MultiPolygon
+      if (data.features.length > 1) {
+        // Create a MultiPolygon from all the individual polygons
+        const coordinates = data.features.map(feature => feature.geometry.coordinates);
+        const multiPolygonFeature = {
+          type: 'Feature',
+          properties: data.features[0].properties || {},
+          geometry: {
+            type: 'MultiPolygon',
+            coordinates: coordinates
           }
-          return; // Don't proceed with invalid geometry
+        };
+        
+        // Validate geometry if validation callback is provided
+        if (validateGeometryRef.current) {
+          const isValid = validateGeometryRef.current(multiPolygonFeature);
+          
+          if (!isValid) {
+            toast.error("Field boundary must stay within the farm boundary. Please adjust the shape.");
+            
+            // Revert to last valid data if available
+            if (lastValidDrawDataRef.current && map.current.getSource('drawn-data')) {
+              map.current.getSource('drawn-data').setData(lastValidDrawDataRef.current);
+              // Restore the draw control to the last valid state
+              if (drawRef.current && lastValidDrawDataRef.current.features.length > 0) {
+                drawRef.current.deleteAll();
+                lastValidDrawDataRef.current.features.forEach(feature => {
+                  drawRef.current.add(feature);
+                });
+              }
+            }
+            return;
+          }
         }
-      }
-      
-      // Store valid data for future reverts
-      lastValidDrawDataRef.current = JSON.parse(JSON.stringify(data));
-      
-      // Update the drawn data source to show on map
-      if (map.current.getSource('drawn-data')) {
-        map.current.getSource('drawn-data').setData(data);
-      }
-      
-      // Calculate center coordinates for the farm
-      const center = turf.center(feature);
-      const centerCoordinates = {
-        lat: center.geometry.coordinates[1],
-        lng: center.geometry.coordinates[0]
-      };
+        
+        // Store valid data for future reverts
+        lastValidDrawDataRef.current = JSON.parse(JSON.stringify(data));
+        
+        // Update the drawn data source to show on map
+        if (map.current.getSource('drawn-data')) {
+          map.current.getSource('drawn-data').setData(data);
+        }
+        
+        // Calculate center coordinates for the MultiPolygon
+        const center = turf.center(multiPolygonFeature);
+        const centerCoordinates = {
+          lat: center.geometry.coordinates[1],
+          lng: center.geometry.coordinates[0]
+        };
 
-      // Calculate in acres
-      const areaSqMeters = turf.area(feature);
-      const areaAcres = areaSqMeters / 4046.8564224;
-      const rounded = Math.round(areaAcres * 100) / 100;
-      const calculatedArea = `${rounded} acres`;
-      
-      // Call the callback with both area and center coordinates
-      onAreaUpdateRef.current?.(calculatedArea, centerCoordinates, feature);
-      
-      setDrawnData(data);
+        // Calculate total area in acres
+        const areaSqMeters = turf.area(multiPolygonFeature);
+        const areaAcres = areaSqMeters / 4046.8564224;
+        const rounded = Math.round(areaAcres * 100) / 100;
+        const calculatedArea = `${rounded} acres`;
+        
+        // Call the callback with the MultiPolygon feature
+        onAreaUpdateRef.current?.(calculatedArea, centerCoordinates, multiPolygonFeature);
+        
+        setDrawnData(data);
+      } else {
+        // Single feature - handle normally
+        const feature = data.features[0];
+        
+        // Validate geometry if validation callback is provided
+        if (validateGeometryRef.current) {
+          const isValid = validateGeometryRef.current(feature);
+          
+          if (!isValid) {
+            toast.error("Field boundary must stay within the farm boundary. Please adjust the shape.");
+            
+            // Revert to last valid data if available
+            if (lastValidDrawDataRef.current && map.current.getSource('drawn-data')) {
+              map.current.getSource('drawn-data').setData(lastValidDrawDataRef.current);
+              // Restore the draw control to the last valid state
+              if (drawRef.current && lastValidDrawDataRef.current.features.length > 0) {
+                drawRef.current.deleteAll();
+                lastValidDrawDataRef.current.features.forEach(feature => {
+                  drawRef.current.add(feature);
+                });
+              }
+            }
+            return;
+          }
+        }
+        
+        // Store valid data for future reverts
+        lastValidDrawDataRef.current = JSON.parse(JSON.stringify(data));
+        
+        // Update the drawn data source to show on map
+        if (map.current.getSource('drawn-data')) {
+          map.current.getSource('drawn-data').setData(data);
+        }
+        
+        // Calculate center coordinates for the feature
+        const center = turf.center(feature);
+        const centerCoordinates = {
+          lat: center.geometry.coordinates[1],
+          lng: center.geometry.coordinates[0]
+        };
+
+        // Calculate in acres
+        const areaSqMeters = turf.area(feature);
+        const areaAcres = areaSqMeters / 4046.8564224;
+        const rounded = Math.round(areaAcres * 100) / 100;
+        const calculatedArea = `${rounded} acres`;
+        
+        // Call the callback with both area and center coordinates
+        onAreaUpdateRef.current?.(calculatedArea, centerCoordinates, feature);
+        
+        setDrawnData(data);
+      }
     } else {
       // Call the callback with null when no area
       onAreaUpdateRef.current?.(null, null, null);
@@ -520,14 +678,50 @@ useEffect(() => {
     }
   };
 
+  const handleFeatureCreate = (e) => {
+    const feature = e.features[0];
+    
+    // Validate that the feature is within farm boundary if validation is provided
+    if (validateGeometryRef.current && feature.geometry.type === 'Polygon') {
+      const isValid = validateGeometryRef.current(feature);
+      if (!isValid) {
+        toast.error('Land addition must be within the farm boundary. Please try a different location.');
+        // Remove the invalid feature
+        draw.delete(feature.id);
+        return;
+      }
+    }
+
+    // Only handle polygons for field assignment
+    if (feature.geometry.type === 'Polygon') {
+      setPendingShape(feature);
+      
+      // Notify parent component
+      if (onShapeDrawnRef.current) {
+        onShapeDrawnRef.current(feature);
+      } else {
+        // Regular field drawing mode
+        updateArea();
+      }
+    }
+  };
+
+  const handleFeatureDelete = (e) => {
+    // When features are deleted, update the area calculation
+    updateArea();
+  };
 
   // Add event listeners
   map.current.on("draw.update", updateArea);
+  map.current.on("draw.create", handleFeatureCreate);
+  map.current.on("draw.delete", handleFeatureDelete);
 
   return () => {
     if (map.current) {
-
-      map.current.off("draw.update", updateArea);      
+      map.current.off("draw.update", updateArea);
+      map.current.off("draw.create", handleFeatureCreate);
+      map.current.off("draw.delete", handleFeatureDelete);
+      
       // FIXED: Use the correct layer IDs that were actually added
       if (map.current.getLayer('drawn-farm-fill')) {
         map.current.removeLayer('drawn-farm-fill');
@@ -605,31 +799,66 @@ const setDrawnDataProgrammatically = useCallback(
 
     if (!normalizedFeature) return;
 
-    const featureCollection = {
-      type: "FeatureCollection",
-      features: [normalizedFeature],
-    };
+    // Handle MultiPolygon by converting to individual polygon features
+    if (normalizedFeature.geometry.type === 'MultiPolygon') {
+      const polygonFeatures = normalizedFeature.geometry.coordinates.map((coords, index) => ({
+        type: 'Feature',
+        properties: {
+          ...normalizedFeature.properties,
+          polygonIndex: index
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: coords
+        }
+      }));
 
-    setDrawnData(featureCollection);
+      const featureCollection = {
+        type: "FeatureCollection",
+        features: polygonFeatures,
+      };
 
-    if (mode === "wizard" && drawRef.current) {
-      drawRef.current.deleteAll();
-      syncDrawFeature(normalizedFeature);
-      // Store as last valid data
-      lastValidDrawDataRef.current = JSON.parse(JSON.stringify(featureCollection));
+      setDrawnData(featureCollection);
+
+      if (mode === "wizard" && drawRef.current) {
+        drawRef.current.deleteAll();
+        polygonFeatures.forEach((polygonFeature) => {
+          drawRef.current.add(polygonFeature);
+        });
+        
+        // Store as last valid data
+        lastValidDrawDataRef.current = JSON.parse(JSON.stringify(featureCollection));
+      }
+    } else {
+      // Handle single polygon normally
+      const featureCollection = {
+        type: "FeatureCollection",
+        features: [normalizedFeature],
+      };
+
+      setDrawnData(featureCollection);
+
+      if (mode === "wizard" && drawRef.current) {
+        drawRef.current.deleteAll();
+        drawRef.current.add(normalizedFeature);
+        
+        // Store as last valid data
+        lastValidDrawDataRef.current = JSON.parse(JSON.stringify(featureCollection));
         
         // Switch to direct_select mode for immediate editing
-        const currentFeatures = drawRef.current.getAll()?.features || [];
-        const addedFeature = currentFeatures[0];
-        if (addedFeature?.id) {
-          drawRef.current.changeMode("direct_select", {
-            featureId: addedFeature.id,
-          });
-        }
-
+        setTimeout(() => {
+          const currentFeatures = drawRef.current.getAll()?.features || [];
+          const addedFeature = currentFeatures[0];
+          if (addedFeature?.id) {
+            drawRef.current.changeMode("direct_select", {
+              featureId: addedFeature.id,
+            });
+          }
+        }, 100);
+      }
     }
   },
-  [mode,syncDrawFeature]
+  [mode]
 );
 
   const focusOnFeature = useCallback((feature, options = {}) => {
@@ -747,7 +976,15 @@ const setDrawnDataProgrammatically = useCallback(
     setDrawnDataProgrammatically,
     focusOnFeature,
     setFarmBoundaryOverlay,
-    disableInteractions
+    disableInteractions,
+    // Shape drawing functions
+    enableShapeDrawing,
+    disableShapeDrawing,
+    isShapeDrawingMode,
+    activeShapeType,
+    pendingShape,
+    clearPendingShape,
+    drawRef
   };
 };
 
