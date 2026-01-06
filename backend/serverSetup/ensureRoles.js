@@ -59,7 +59,7 @@ async function ensureRoles() {
     { name: 'Delete All Events', action: 'delete', module: 'events' },
     // Scoped
     { name: 'View Assigned Events', action: 'view', module: 'assigned_events' },
-    
+
     // --- WEATHER ---
     { name: 'View Weather', action: 'view', module: 'weather' },
   ];
@@ -104,7 +104,7 @@ async function ensureRoles() {
         // Users (Own Team)
         'create:users', 'view:own_users', 'update:own_users', 'delete:own_users',
         // Crops/Events/Weather (Full Access as per "*")
-        'view:crops', 'create:crops', 'update:crops', 'delete:crops',
+        //'view:crops', 'create:crops', 'update:crops', 'delete:crops',
         'view:events', 'create:events', 'update:events', 'delete:events',
         'view:weather'
       ])

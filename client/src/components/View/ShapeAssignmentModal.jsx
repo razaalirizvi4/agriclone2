@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { calculateShapeArea } from '../../utils/shapeUtils';
 
-const ShapeAssignmentModal = ({ 
-  shape, 
-  fields, 
-  onAssign, 
-  onCancel, 
-  isVisible 
+const ShapeAssignmentModal = ({
+  shape,
+  fields,
+  onAssign,
+  onCancel,
+  isVisible
 }) => {
   const [selectedFieldId, setSelectedFieldId] = useState('');
-  const [shapeName, setShapeName] = useState('');
   const [length, setLength] = useState('');
   const [width, setWidth] = useState('');
   const [radius, setRadius] = useState('');
@@ -21,14 +20,14 @@ const ShapeAssignmentModal = ({
   const isCircle = shapeType === 'circle';
 
   const handleAssign = () => {
-    if (!selectedFieldId || !shapeName.trim()) {
-      alert('Please select a field and enter a name for this land addition');
+    if (!selectedFieldId) {
+      alert('Please select a field to add this land to');
       return;
     }
 
     onAssign({
       fieldId: selectedFieldId,
-      shapeName: shapeName.trim(),
+      shapeName: 'New Area',
       shape: shape,
       length: isSquare ? length : null,
       width: isSquare ? width : null,
@@ -37,7 +36,6 @@ const ShapeAssignmentModal = ({
 
     // Reset form
     setSelectedFieldId('');
-    setShapeName('');
     setLength('');
     setWidth('');
     setRadius('');
@@ -50,15 +48,15 @@ const ShapeAssignmentModal = ({
       <div className="modal-content shape-assignment-modal">
         <div className="modal-header">
           <h3>Add Land to Field</h3>
-          <button 
-            type="button" 
-            className="modal-close" 
+          <button
+            type="button"
+            className="modal-close"
             onClick={onCancel}
           >
             ×
           </button>
         </div>
-        
+
         <div className="modal-body">
           <div className="shape-info">
             <h4>Land Addition Details</h4>
@@ -68,22 +66,10 @@ const ShapeAssignmentModal = ({
               This area will be added to the selected field.
             </p>
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="shapeName">Description:</label>
-            <input
-              id="shapeName"
-              type="text"
-              value={shapeName}
-              onChange={(e) => setShapeName(e.target.value)}
-              placeholder="e.g., 'North extension', 'Additional plot'"
-              className="form-input"
-            />
-          </div>
 
           {isSquare && (
-            <div style={{display: 'flex', gap: '1rem'}}>
-              <div className="form-group" style={{flex: 1}}>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <div className="form-group" style={{ flex: 1 }}>
                 <label htmlFor="shapeLength">Length (m):</label>
                 <input
                   id="shapeLength"
@@ -94,7 +80,7 @@ const ShapeAssignmentModal = ({
                   className="form-input"
                 />
               </div>
-              <div className="form-group" style={{flex: 1}}>
+              <div className="form-group" style={{ flex: 1 }}>
                 <label htmlFor="shapeWidth">Width (m):</label>
                 <input
                   id="shapeWidth"
@@ -121,7 +107,7 @@ const ShapeAssignmentModal = ({
               />
             </div>
           )}
-          
+
           <div className="form-group">
             <label htmlFor="fieldSelect">Add to Field:</label>
             <select
@@ -139,7 +125,7 @@ const ShapeAssignmentModal = ({
             </select>
           </div>
         </div>
-        
+
         <div className="modal-footer">
           <button
             type="button"
@@ -152,7 +138,7 @@ const ShapeAssignmentModal = ({
             type="button"
             className="primary-button"
             onClick={handleAssign}
-            disabled={!selectedFieldId || !shapeName.trim()}
+            disabled={!selectedFieldId}
           >
             Add to Field
           </button>

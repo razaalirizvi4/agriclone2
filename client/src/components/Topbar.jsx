@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import authService from "../services/auth.service";
 import "./Topbar.css";
 
-const Topbar = ({ isLoggedIn, showNav = true, onAdminToggle  }) => {
+const Topbar = ({ isLoggedIn, showNav = true, onAdminToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = authService.getCurrentUser();
@@ -25,14 +25,14 @@ const Topbar = ({ isLoggedIn, showNav = true, onAdminToggle  }) => {
 
 
   ];
-const handleNavClick = (item) => {
-  if (item.name === "Admin setup") {
-    onAdminToggle();
-    return;
-  }
-  navigate(item.path);
-  setMenuOpen(false);
-};
+  const handleNavClick = (item) => {
+    if (item.name === "Admin setup") {
+      onAdminToggle();
+      return;
+    }
+    navigate(item.path);
+    setMenuOpen(false);
+  };
 
   return (
     <header className="topbar">
@@ -64,10 +64,9 @@ const handleNavClick = (item) => {
               {navItems.map((item) => (
                 <li key={item.name}>
                   <button
-                    className={`nav-btn ${
-                      location.pathname === item.path ? "active" : ""
-                    }`}  
-          onClick={() => handleNavClick(item)}
+                    className={`nav-btn ${location.pathname === item.path ? "active" : ""
+                      }`}
+                    onClick={() => handleNavClick(item)}
 
                   >
                     {item.name}
