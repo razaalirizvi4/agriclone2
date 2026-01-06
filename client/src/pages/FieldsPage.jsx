@@ -644,20 +644,36 @@ const FieldsPage = () => {
         };
 
         let insideFarm = false;
-        // Allow MultiPolygon geometries without validation (they are created from valid polygons)
-
-        try {
-          const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
-          insideFarm =
-            turf.booleanWithin(fieldFeature, bufferedFarm) ||
-            turf.booleanContains(bufferedFarm, fieldFeature);
-        } catch (err) {
-          console.error("Geometry validation failed:", err);
+        // Allow MultiPolygon geometries but validate them
+        if (feature.geometry.type === 'MultiPolygon') {
           try {
-            insideFarm = turf.booleanWithin(fieldFeature, farmFeature);
-          } catch (fallbackErr) {
-            console.error("Fallback validation also failed:", fallbackErr);
-            insideFarm = true; // Allow if validation fails
+            const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
+            // Check if every polygon component in the MultiPolygon is within the farm
+            insideFarm = feature.geometry.coordinates.every(polygonCoords => {
+              const tempPoly = turf.polygon(polygonCoords);
+              return (
+                turf.booleanWithin(tempPoly, bufferedFarm) ||
+                turf.booleanContains(bufferedFarm, tempPoly)
+              );
+            });
+          } catch (err) {
+            console.error("MultiPolygon validation failed:", err);
+            insideFarm = true; // Fallback
+          }
+        } else {
+          try {
+            const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
+            insideFarm =
+              turf.booleanWithin(fieldFeature, bufferedFarm) ||
+              turf.booleanContains(bufferedFarm, fieldFeature);
+          } catch (err) {
+            console.error("Geometry validation failed:", err);
+            try {
+              insideFarm = turf.booleanWithin(fieldFeature, farmFeature);
+            } catch (fallbackErr) {
+              console.error("Fallback validation also failed:", fallbackErr);
+              insideFarm = true; // Allow if validation fails
+            }
           }
         }
 
@@ -992,9 +1008,32 @@ const FieldsPage = () => {
                 // Only validate new shapes being added
                 if (!feature?.geometry) return true;
 
-                // If this is a MultiPolygon being reconstructed from editing, skip validation
+                // If this is a MultiPolygon, validate each polygon component
                 if (feature.geometry.type === 'MultiPolygon') {
-                  return true; // Allow MultiPolygon edits without validation
+                  try {
+                    const bufferedFarm = turf.buffer(farmFeature, 0.5, { units: "meters" });
+
+                    // Check if every polygon in the MultiPolygon is within the farm
+                    const areAllPolygonsValid = feature.geometry.coordinates.every(polygonCoords => {
+                      const tempPoly = turf.polygon(polygonCoords);
+                      return (
+                        turf.booleanWithin(tempPoly, bufferedFarm) ||
+                        turf.booleanContains(bufferedFarm, tempPoly)
+                      );
+                    });
+
+                    if (!areAllPolygonsValid) {
+                      console.warn("MultiPolygon validation failed: One or more parts are outside farm boundary");
+                      return false;
+                    }
+                    return true;
+                  } catch (err) {
+                    console.error("MultiPolygon validation error:", err);
+                    // If validation completely errors out, failsafe to true to avoid locking up, 
+                    // but log it. Or strictly return false?
+                    // Safer to be strict if we want to enforce boundaries.
+                    return false;
+                  }
                 }
 
                 // Only validate single polygons (new shapes being added)
