@@ -29,7 +29,7 @@
 .fields-panel {
   padding: 0;
   /* Match right-side card height so both columns stay parallel */
-  height: 600px;
+  height: 700px;
   display: flex;
   flex-direction: column;
 }
@@ -281,7 +281,7 @@
 .fields-map-card {
   padding: 0;
   /* Same fixed height as left panel so they align even without scroll */
-  height: 600px;
+  height: 700px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1198,7 +1198,7 @@ textarea {
 
 .shape-buttons {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 16px;
 }

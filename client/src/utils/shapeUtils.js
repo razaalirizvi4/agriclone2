@@ -60,6 +60,46 @@ export const createSquare = (center, sideLength = 100) => {
 };
 
 /**
+ * Create a rectangle feature from center point, length and width
+ * @param {Array} center - [lng, lat] coordinates
+ * @param {number} length - length in meters (North-South)
+ * @param {number} width - width in meters (East-West)
+ * @returns {Object} GeoJSON Feature
+ */
+export const createRectangle = (center, length, width) => {
+  const halfLength = length / 2;
+  const halfWidth = width / 2;
+  
+  // Convert meters to degrees (approximate)
+  const metersToLat = 1 / 111320;
+  const metersToLng = 1 / (111320 * Math.cos(center[1] * Math.PI / 180));
+  
+  const latOffset = halfLength * metersToLat;
+  const lngOffset = halfWidth * metersToLng;
+  
+  const coordinates = [[
+    [center[0] - lngOffset, center[1] - latOffset], // bottom-left
+    [center[0] + lngOffset, center[1] - latOffset], // bottom-right
+    [center[0] + lngOffset, center[1] + latOffset], // top-right
+    [center[0] - lngOffset, center[1] + latOffset], // top-left
+    [center[0] - lngOffset, center[1] - latOffset]  // close the polygon
+  ]];
+  
+  return {
+    type: 'Feature',
+    properties: {
+      shapeType: 'rectangle',
+      length: length,
+      width: width
+    },
+    geometry: {
+      type: 'Polygon',
+      coordinates: coordinates
+    }
+  };
+};
+
+/**
  * Create a triangle feature from center point and size
  * @param {Array} center - [lng, lat] coordinates
  * @param {number} size - size in meters (distance from center to vertex)

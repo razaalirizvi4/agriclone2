@@ -16,6 +16,7 @@ import ShapeAssignmentModal from "../components/View/ShapeAssignmentModal";
 import { normalizeFieldsFeatureCollection,
 } from "../utils/geoJson";
 import { wktToGeoJSON } from "../utils/wkt";
+import { createRectangle, getShapeCenter, createCircle } from "../utils/shapeUtils";
 import { toast } from "react-toastify";
 
 const FieldsPage = () => {
@@ -194,6 +195,10 @@ const FieldsPage = () => {
   );
   const uncategorizedAreaLabel = `${uncategorizedAreaAcres.toFixed(2)} acres`;
 
+  // Merge Fields state
+  const [isMergeMode, setIsMergeMode] = useState(false);
+  const [mergeSelectedIds, setMergeSelectedIds] = useState([]);
+
   // Shape drawing handlers
   const handleShapeSelect = useCallback((shapeType) => {
     if (mapApiRef.current?.enableShapeDrawing) {
@@ -209,8 +214,8 @@ const FieldsPage = () => {
     setActiveShapeType(null);
   }, []);
 
-  const handleShapeAssignment = useCallback((assignmentData) => {
-    const { fieldId, shapeName, shape } = assignmentData;
+    const handleShapeAssignment = useCallback((assignmentData) => {
+    const { fieldId, shapeName, shape, length, width } = assignmentData;
     
     // Find the field to update
     const fieldInfo = wizardData.fieldsInfo?.find(f => f.id === fieldId);
@@ -222,6 +227,25 @@ const FieldsPage = () => {
     }
 
     try {
+      let finalShape = shape;
+      const center = getShapeCenter(shape);
+
+      // If dimensions are provided, regenerate the shape geometry
+      if (length && width) {
+        const l = parseFloat(length);
+        const w = parseFloat(width);
+        
+        if (l > 0 && w > 0) {
+           finalShape = createRectangle(center, l, w);
+        }
+      } else if (assignmentData.radius) {
+        // Handle Circle Radius resizing
+        const r = parseFloat(assignmentData.radius);
+        if (r > 0) {
+          finalShape = createCircle(center, r);
+        }
+      }
+
       let newGeometry;
       
       // Create a MultiPolygon that includes both the original field and the new shape
@@ -231,7 +255,7 @@ const FieldsPage = () => {
           type: 'MultiPolygon',
           coordinates: [
             fieldFeature.geometry.coordinates, // Original field
-            shape.geometry.coordinates        // New shape
+            finalShape.geometry.coordinates        // New shape
           ]
         };
       } else if (fieldFeature.geometry.type === 'MultiPolygon') {
@@ -240,7 +264,7 @@ const FieldsPage = () => {
           type: 'MultiPolygon',
           coordinates: [
             ...fieldFeature.geometry.coordinates, // Existing polygons
-            shape.geometry.coordinates             // New shape
+            finalShape.geometry.coordinates             // New shape
           ]
         };
       } else {
@@ -299,6 +323,124 @@ const FieldsPage = () => {
     setActiveShapeType(null);
   }, []);
 
+  // Merge Fields Logic
+  const toggleMergeMode = () => {
+    if (isMergeMode) {
+      // Cancel Merge
+      setIsMergeMode(false);
+      setMergeSelectedIds([]);
+    } else {
+      // Start Merge
+      setIsMergeMode(true);
+      setMergeSelectedIds([]);
+      // Select the currently selected field as the first one if exists
+      if (selectedField) {
+        setMergeSelectedIds([selectedField]);
+      }
+      setShowShapeDrawing(false); // Close other toolbars
+    }
+  };
+
+  const handleMergeConfirm = () => {
+    if (mergeSelectedIds.length < 2) {
+      toast.warning("Please select at least 2 fields to merge.");
+      return;
+    }
+
+    // The first selected field is the "primary" field that will receive the merged geometry
+    const primaryFieldId = mergeSelectedIds[0];
+    const primaryFieldInfo = wizardData.fieldsInfo?.find(f => f.id === primaryFieldId);
+    
+    // Collect all features to be merged
+    const featuresToMerge = mergeSelectedIds.map(id => 
+      wizardData.fieldsData?.features?.find(f => f.properties?.id === id)
+    ).filter(Boolean);
+
+    if (featuresToMerge.length !== mergeSelectedIds.length) {
+      toast.error("Could not find all selected fields.");
+      return;
+    }
+
+    try {
+      // Use turf to union geometries
+      let mergedFeature = featuresToMerge[0];
+      
+      for (let i = 1; i < featuresToMerge.length; i++) {
+        const nextFeature = featuresToMerge[i];
+        try {
+           mergedFeature = turf.union(mergedFeature, nextFeature);
+        } catch (err) {
+           console.error("Turf union failed, falling back to MultiPolygon construction", err);
+           // Fallback: If boolean operations fail, manually construct a MultiPolygon
+           // This is safer if polygons are disjoint or share edges in complex ways
+           const coords1 = mergedFeature.geometry.type === 'MultiPolygon' 
+             ? mergedFeature.geometry.coordinates 
+             : [mergedFeature.geometry.coordinates];
+             
+           const coords2 = nextFeature.geometry.type === 'MultiPolygon'
+             ? nextFeature.geometry.coordinates
+             : [nextFeature.geometry.coordinates];
+
+             mergedFeature = {
+               type: 'Feature',
+               properties: mergedFeature.properties,
+               geometry: {
+                 type: 'MultiPolygon',
+                 coordinates: [...coords1, ...coords2]
+               }
+             };
+        }
+      }
+      
+      if (!mergedFeature) {
+        throw new Error("Failed to create merged geometry");
+      }
+
+      // Calculate new area
+      const newAreaSqMeters = turf.area(mergedFeature);
+      const newAreaAcres = newAreaSqMeters / 4046.8564224;
+      const newAreaLabel = `${Math.round(newAreaAcres * 100) / 100} acres`;
+
+      // Update the primary field geometry and area
+      onFieldGeometryUpdate(primaryFieldId, mergedFeature.geometry, newAreaLabel);
+
+      // Remove the other fields
+      // We can't directly remove fields via context functions provided (only updateGeometry/Info).
+      // Assuming we need to keep them or if there's a delete function...
+      // Checking context: onFieldInfoUpdate, onFieldGeometryUpdate, onImportFieldsData.
+      // There isn't a "deleteFields" or "removeField" function exposed in useOutletContext based on line 28.
+      // However, we can update context by filtering fieldsData and fieldsInfo manually and re-importing?
+      // Or maybe we treat them as "merged" into the first one. 
+      // WITHOUT A DELETE FUNCTION, WE HAVE TO BE CREATIVE. 
+      // Wait, 'onImportFieldsData' replaces EVERYTHING. 
+      // So we can construct the new state and call onImportFieldsData.
+      
+      const remainingFieldsData = {
+        type: 'FeatureCollection',
+        features: wizardData.fieldsData.features
+          .filter(f => !mergeSelectedIds.includes(f.properties?.id) || f.properties?.id === primaryFieldId)
+          .map(f => f.properties?.id === primaryFieldId ? { ...f, geometry: mergedFeature.geometry, properties: { ...f.properties, area: newAreaLabel } } : f)
+      };
+
+      const remainingFieldsInfo = wizardData.fieldsInfo
+        .filter(f => !mergeSelectedIds.includes(f.id) || f.id === primaryFieldId)
+        .map(f => f.id === primaryFieldId ? { ...f, area: newAreaLabel } : f);
+
+      onImportFieldsData(remainingFieldsData, remainingFieldsInfo);
+
+      toast.success(`Successfully merged ${mergeSelectedIds.length} fields into "${primaryFieldInfo.name}".`);
+      
+      // Reset modes
+      setIsMergeMode(false);
+      setMergeSelectedIds([]);
+      setSelectedField(primaryFieldId);
+
+    } catch (error) {
+      console.error("Merge failed:", error);
+      toast.error("Failed to merge fields. See console for details.");
+    }
+  };
+
   const validateFieldsWithinFarm = useCallback(
     (features) => {
       if (!farmFeature?.geometry) {
@@ -336,6 +478,24 @@ const FieldsPage = () => {
     },
     [farmFeature]
   );
+
+  const handleFieldSelect = (fieldInfo) => {
+    const fieldId = fieldInfo.fieldId;
+    
+    if (isMergeMode) {
+       // Toggle selection
+       setMergeSelectedIds(prev => {
+         if (prev.includes(fieldId)) {
+           return prev.filter(id => id !== fieldId);
+         } else {
+           return [...prev, fieldId];
+         }
+       });
+    } else {
+      setSelectedField(fieldId);
+      onFieldSelect(fieldId);
+    }
+  };
 
   const handleFieldsFileChange = async (event) => {
     const file = event.target.files?.[0];
@@ -463,11 +623,7 @@ const FieldsPage = () => {
     fieldsWktInputRef.current?.click();
   };
 
-  const handleFieldSelect = (fieldInfo) => {
-    const fieldId = fieldInfo.fieldId;
-    setSelectedField(fieldId);
-    onFieldSelect(fieldId);
-  };
+
 
   const handleMapAreaUpdate = useCallback(
     (areaLabel, _center, feature) => {
@@ -781,6 +937,15 @@ const FieldsPage = () => {
             >
               {showShapeDrawing ? '✕ Close Land Tools' : '+ Add Land'}
             </button>
+            <button
+               type="button"
+               className={`secondary-button ${isMergeMode ? 'shape-toggle-button--active' : ''}`}
+               onClick={toggleMergeMode}
+               disabled={showShapeDrawing}
+               style={{opacity: showShapeDrawing ? 0.5 : 1}}
+            >
+               {isMergeMode ? '✕ Cancel Merge' : '⛙ Merge Fields'}
+            </button>
           </div>
           
           {showShapeDrawing && (
@@ -791,6 +956,24 @@ const FieldsPage = () => {
               isDrawing={isShapeDrawingMode}
             />
           )}
+
+          {isMergeMode && (
+             <div className="shape-drawing-toolbar" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem', background:'#f8f9fa', borderRadius:'8px', marginBottom:'1rem'}}>
+                <div>
+                   <span style={{fontWeight:'bold'}}>Merge Fields: </span>
+                   <span>Select fields on the map to merge. ({mergeSelectedIds.length} selected)</span>
+                </div>
+                <button 
+                   type="button"
+                   className="primary-button"
+                   onClick={handleMergeConfirm}
+                   disabled={mergeSelectedIds.length < 2}
+                   style={{opacity: mergeSelectedIds.length < 2 ? 0.6 : 1}}
+                >
+                   Query Merge
+                </button>
+             </div>
+          )}
           
           <div className="fields-map-wrapper" style={{ position: 'relative' }}>
             {isShapeDrawingMode && activeShapeType !== 'polygon' && (
@@ -800,13 +983,13 @@ const FieldsPage = () => {
             )}
             
             <MapWizard
+              ref={mapApiRef}
               locations={mapGeoJSON}
-              mode="wizard"
-              shouldInitialize={true}
               onAreaUpdate={handleMapAreaUpdate}
+              onShapeDrawn={handleShapeDrawn}
               onFieldSelect={handleFieldSelect}
               selectedFieldId={selectedField}
-              onShapeDrawn={handleShapeDrawn}
+              multiSelectIds={mergeSelectedIds}
               validateGeometry={(feature) => {
                 // Skip validation during editing of existing fields to avoid MultiPolygon issues
                 // Only validate new shapes being added

@@ -18,7 +18,7 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const FARM_OVERLAY_SOURCE = "farm-boundary-overlay-source";
 
-// MAIN HOOK
+  // Main Hook
 const useMapViewModel = ({
   locations = [],
   crops,
@@ -28,7 +28,8 @@ const useMapViewModel = ({
   shouldInitialize = true,
   onAreaUpdate,
   validateGeometry = null, // Optional validation callback: (feature) => boolean
-  onShapeDrawn = null // Optional callback when a shape is drawn: (shape) => void
+  onShapeDrawn = null, // Optional callback when a shape is drawn: (shape) => void
+  multiSelectIds = [], // New prop for multi-selection
 }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -39,7 +40,7 @@ const useMapViewModel = ({
   const validateGeometryRef = useRef(validateGeometry);
   const onShapeDrawnRef = useRef(onShapeDrawn);
   const lastValidDrawDataRef = useRef(null);
-  
+
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showFields, setShowFields] = useState(true);
   const [selectedFieldId, setSelectedFieldId] = useState(
@@ -79,6 +80,11 @@ const useMapViewModel = ({
     
     if (map.current) {
       map.current.getCanvas().style.cursor = 'crosshair';
+    }
+
+    // Activate MapboxDraw for polygon
+    if (shapeType === 'polygon' && drawRef.current) {
+      drawRef.current.changeMode('draw_polygon');
     }
   }, []);
 
@@ -322,9 +328,12 @@ const useMapViewModel = ({
   );
 
   const handleMapClick = useCallback((e) => {
-    // Handle shape drawing first (for circle and square)
-    if (isShapeDrawingMode && activeShapeType !== 'polygon') {
-      handleMapClickForShape(e);
+    // Handle shape drawing 
+    if (isShapeDrawingMode) {
+      if (activeShapeType !== 'polygon') {
+         handleMapClickForShape(e);
+      }
+      // If polygon, mapbox-draw handles it, but we still want to prevent field selection
       return;
     }
 
@@ -393,7 +402,7 @@ const useMapViewModel = ({
     if (mapInstance.getLayer(LAYER_IDS.FIELDS)) {
       mapInstance.setPaintProperty(LAYER_IDS.FIELDS, "fill-color", [
         "case",
-        ["==", ["get", "id"], selectedFieldId],
+        ["any", ["==", ["get", "id"], selectedFieldId], ["in", ["get", "id"], ["literal", multiSelectIds]]],
         COLORS.FIELD_SELECTED,
         COLORS.FIELD_DEFAULT,
       ]);
@@ -402,13 +411,13 @@ const useMapViewModel = ({
     if (mapInstance.getLayer(LAYER_IDS.FIELDS_OUTLINE)) {
       mapInstance.setPaintProperty(LAYER_IDS.FIELDS_OUTLINE, "line-color", [
         "case",
-        ["==", ["get", "id"], selectedFieldId],
+        ["any", ["==", ["get", "id"], selectedFieldId], ["in", ["get", "id"], ["literal", multiSelectIds]]],
         COLORS.FIELD_OUTLINE_SELECTED,
         COLORS.FIELD_OUTLINE_DEFAULT,
       ]);
       mapInstance.setPaintProperty(LAYER_IDS.FIELDS_OUTLINE, "line-width", [
         "case",
-        ["==", ["get", "id"], selectedFieldId],
+        ["any", ["==", ["get", "id"], selectedFieldId], ["in", ["get", "id"], ["literal", multiSelectIds]]],
         3,
         1.5,
       ]);
@@ -455,6 +464,7 @@ const useMapViewModel = ({
     showHoverPopup,
     hideHoverPopup,
     mode,
+    multiSelectIds,
   ]);
 
   // Separate effect for general map click handler that needs to be reactive to shape drawing state

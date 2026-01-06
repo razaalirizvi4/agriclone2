@@ -10,8 +10,15 @@ const ShapeAssignmentModal = ({
 }) => {
   const [selectedFieldId, setSelectedFieldId] = useState('');
   const [shapeName, setShapeName] = useState('');
+  const [length, setLength] = useState('');
+  const [width, setWidth] = useState('');
+  const [radius, setRadius] = useState('');
 
   if (!isVisible || !shape) return null;
+
+  const shapeType = shape.properties?.shapeType; // 'square', 'circle', or undefined (polygon)
+  const isSquare = shapeType === 'square';
+  const isCircle = shapeType === 'circle';
 
   const handleAssign = () => {
     if (!selectedFieldId || !shapeName.trim()) {
@@ -22,16 +29,21 @@ const ShapeAssignmentModal = ({
     onAssign({
       fieldId: selectedFieldId,
       shapeName: shapeName.trim(),
-      shape: shape
+      shape: shape,
+      length: isSquare ? length : null,
+      width: isSquare ? width : null,
+      radius: isCircle ? radius : null
     });
 
     // Reset form
     setSelectedFieldId('');
     setShapeName('');
+    setLength('');
+    setWidth('');
+    setRadius('');
   };
 
   const shapeArea = calculateShapeArea(shape);
-  const shapeType = shape.properties?.shapeType || 'unknown';
 
   return (
     <div className="modal-overlay">
@@ -50,10 +62,10 @@ const ShapeAssignmentModal = ({
         <div className="modal-body">
           <div className="shape-info">
             <h4>Land Addition Details</h4>
-            <p><strong>Shape:</strong> Polygon</p>
+            <p><strong>Shape:</strong> {shapeType ? (shapeType.charAt(0).toUpperCase() + shapeType.slice(1)) : 'Polygon'}</p>
             <p><strong>Area:</strong> {shapeArea}</p>
             <p className="shape-info-note">
-              This polygon will be added as a separate area belonging to the selected field.
+              This area will be added to the selected field.
             </p>
           </div>
           
@@ -68,6 +80,47 @@ const ShapeAssignmentModal = ({
               className="form-input"
             />
           </div>
+
+          {isSquare && (
+            <div style={{display: 'flex', gap: '1rem'}}>
+              <div className="form-group" style={{flex: 1}}>
+                <label htmlFor="shapeLength">Length (m):</label>
+                <input
+                  id="shapeLength"
+                  type="number"
+                  value={length}
+                  onChange={(e) => setLength(e.target.value)}
+                  placeholder="Length"
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group" style={{flex: 1}}>
+                <label htmlFor="shapeWidth">Width (m):</label>
+                <input
+                  id="shapeWidth"
+                  type="number"
+                  value={width}
+                  onChange={(e) => setWidth(e.target.value)}
+                  placeholder="Width"
+                  className="form-input"
+                />
+              </div>
+            </div>
+          )}
+
+          {isCircle && (
+            <div className="form-group">
+              <label htmlFor="shapeRadius">Radius (m):</label>
+              <input
+                id="shapeRadius"
+                type="number"
+                value={radius}
+                onChange={(e) => setRadius(e.target.value)}
+                placeholder="Radius"
+                className="form-input"
+              />
+            </div>
+          )}
           
           <div className="form-group">
             <label htmlFor="fieldSelect">Add to Field:</label>
