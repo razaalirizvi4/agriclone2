@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Provider } from "react-redux";
 import store from "./app/store"; // ✅ note the default import
-import CorePage from "./components/CorePage";
+import CorePage from "./components/layout/CorePage";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import LoginPage from "./pages/LoginPage";

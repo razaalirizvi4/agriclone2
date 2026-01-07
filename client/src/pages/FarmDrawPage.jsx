@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import FarmDetailsForm from "../components/View/FarmDetailsForm";
-import MapWizard from "../components/View/MapWizard";
+import FarmDetailsForm from "../features/locations/components/FarmDetailsForm";
+import MapWizard from "../features/locations/components/MapWizard";
 import { processFarmDivision, createFieldsInfo } from "../utils/fieldDivision";
 import {
   normalizeFarmFeatureFromFile,

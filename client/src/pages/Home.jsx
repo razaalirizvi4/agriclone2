@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { getLocations } from "../features/location/location.slice";
+import { getLocations } from "../features/locations/slices/location.slice";
 import { getEvents } from "../features/eventStream/eventStream.slice";
-import { getCrops, setSelectedCropId } from "../features/cropModule/crop.slice";
+import { getCrops, setSelectedCropId } from "../features/crops/slices/crop.slice";
 import { dashboardSchema } from "../data/dashboardSchema";
-import { componentMapper } from "../components/componentMapper";
+import { componentMapper } from "../utils/componentMapper";
 // import "./Dashboard.css";
 
 // prepare ids for events and crops

@@ -1,5 +1,5 @@
 import React from "react";
-import UserManagement from "../components/View/UserManagement";
+import UserManagement from "../features/users/components/UserManagement";
 
 function UserManage() {
   return (

@@ -2,14 +2,14 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import eventStreamService from "../services/eventStream.service";
-import MapWizard from "../components/View/MapWizard";
+import MapWizard from "../features/locations/components/MapWizard";
 import {
   normalizeFieldsForExport,
   exportFeatureCollection,
 } from "../utils/geoJson";
 import { geoJSONToWkt } from "../utils/wkt";
 import { toast } from "react-toastify";
-import ConfirmationModal from "../components/View/confirmationModal";
+import ConfirmationModal from "../components/common/ConfirmationModal";
 
 const ReviewPage = () => {
   const { wizardData, onWizardComplete, isSavingWizard } = useOutletContext();

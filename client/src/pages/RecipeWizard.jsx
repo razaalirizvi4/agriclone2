@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import CropCreationCard from "../components/CropCreationCard";
-import CropRecipePanel from "../components/CropRecipePanel";
+import CropCreationCard from "../features/crops/components/CropCreationCard";
+import CropRecipePanel from "../features/crops/components/CropRecipePanel";
 import cropService from "../services/crop.service";
 
 const RecipeWizard = () => {

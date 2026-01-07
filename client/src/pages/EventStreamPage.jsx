@@ -1,5 +1,5 @@
 import React from 'react';
-import EventStream from '../components/EventStream';
+import EventStream from "../features/events/components/EventStream";
 
 const EventStreamPage = () => {
   return (

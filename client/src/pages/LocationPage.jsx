@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getLocations, createLocation, updateLocation, deleteLocation } from '../features/location/location.slice';
+import { getLocations, createLocation, updateLocation, deleteLocation } from '../features/locations/slices/location.slice';
 
 const getTypeName = (typeValue) => {
   if (!typeValue) {

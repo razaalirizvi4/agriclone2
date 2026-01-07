@@ -8,11 +8,11 @@ import React, {
 } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import * as turf from "@turf/turf";
-import FieldDetailsForm from "../components/View/FieldDetailsForm";
-import { CropAssignmentForm } from "../components/View/cropAssignmentForm";
-import MapWizard from "../components/View/MapWizard";
-import ShapeDrawingToolbar from "../components/View/ShapeDrawingToolbar";
-import ShapeAssignmentModal from "../components/View/ShapeAssignmentModal";
+import FieldDetailsForm from "../features/locations/components/FieldDetailsForm";
+import { CropAssignmentForm } from "../features/crops/components/CropAssignmentForm";
+import MapWizard from "../features/locations/components/MapWizard";
+import ShapeDrawingToolbar from "../features/locations/components/ShapeDrawingToolbar";
+import ShapeAssignmentModal from "../features/locations/components/ShapeAssignmentModal";
 import {
   normalizeFieldsFeatureCollection,
 } from "../utils/geoJson";

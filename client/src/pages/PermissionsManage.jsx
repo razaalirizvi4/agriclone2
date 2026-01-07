@@ -1,5 +1,5 @@
 import React from "react";
-import PermissionsTable from "../components/View/PermissionsTable";
+import PermissionsTable from "../features/permissions/components/PermissionsTable";
 
 function PermissionsManage() {
   return (
