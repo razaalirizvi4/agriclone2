@@ -37,7 +37,7 @@ app.use('/api/webhook', require('./api/routes/webhookModule/webhook.routes.js'))
 
 app.get('/', (req, res) => {
     res.send('API is running and im cooler.');
-);
+});
 
 const PORT = process.env.PORT || 5000;
 
