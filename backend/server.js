@@ -33,9 +33,10 @@ app.use('/api/locations', require('./api/routes/locationModule/location.routes.j
 app.use('/api/crops', require('./api/routes/cropModule/crop.routes.js'));
 app.use('/api/types', require('./api/routes/typeModule/type.routes.js'));
 app.use('/api/permissions', require('./api/routes/permissionModule/permission.routes.js'));
+app.use('/api/webhook', require('./api/routes/webhookModule/webhook.routes.js'));
 
 app.get('/', (req, res) => {
-    res.send('API is running...');
+    res.send('API is running and im checking smn rq...');
 });
 
 const PORT = process.env.PORT || 5000;
