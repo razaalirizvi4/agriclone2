@@ -9,6 +9,14 @@ module.exports = {
             }
         },
         {
+            name: "agri-pro-email-service",
+            script: "./backend/email-service/server.js",
+            cwd: "./backend/email-service",
+            env: {
+                NODE_ENV: "production",
+            }
+        },
+        {
             name: "agri-pro-webhook",
             script: "./webhook/server.js",
             cwd: "./webhook",
