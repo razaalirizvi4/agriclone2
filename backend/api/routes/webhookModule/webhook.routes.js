@@ -4,8 +4,13 @@ const { exec } = require('child_process');
 const path = require('path');
 
 router.post('/', (req, res) => {
+    const { ref } = req.body;
     console.log('Webhook received:', new Date().toISOString());
 
+    if (ref !== 'refs/heads/master') {
+        console.log(`Ignored push to ${ref}. Only master is deployed.`);
+        return res.status(200).json({ message: 'Ignored push to non-master branch.' });
+    }
 
     // Calculate paths relative to this file: backend/api/routes/webhookModule/webhook.routes.js
     // We want to reach the project root: d:\work\agri-pro
@@ -13,7 +18,7 @@ router.post('/', (req, res) => {
     const backendDir = path.join(projectRoot, 'backend');
 
     // Respond immediately to GitHub to prevent timeout
-    res.status(200).json({ message: 'Webhook received, deployment process started.' });
+    res.status(200).json({ message: 'Webhook received, deployment process started for master.' });
 
     // Execute asynchronously
     const gitPull = `cd "${projectRoot}" && git pull`;
@@ -33,12 +38,9 @@ router.post('/', (req, res) => {
         exec(checkChanges, (diffError, diffStdout, diffStderr) => {
             if (diffError) {
                 // If this fails, it might be the first pull or something else. 
-                // We'll proceed with restart to be safe, or just log error.
                 console.error(`Error checking diff: ${diffError}`);
-                // Fallback: Restart anyway if we can't check diffs? 
-                // Or maybe just log it. Let's restart to be safe if we can't be sure.
-                console.log('Could not determine changes, forcing restart.');
-                restartBackend();
+                console.log('Could not determine changes, forcing full restart to be safe.');
+                restartBackend(true); // Force npm install if we can't tell
                 return;
             }
 
@@ -46,22 +48,28 @@ router.post('/', (req, res) => {
             console.log('Changed files:', changedFiles);
 
             const hasBackendChanges = changedFiles.some(file => file.startsWith('backend/'));
+            const hasPackageJsonChanges = changedFiles.some(file => file === 'backend/package.json');
 
             if (hasBackendChanges) {
-                console.log('Backend changes detected. Restarting server...');
-                restartBackend();
+                console.log(`Backend changes detected. Package.json changed: ${hasPackageJsonChanges}`);
+                restartBackend(hasPackageJsonChanges);
             } else {
                 console.log('No backend changes detected. Skipping restart.');
             }
         });
     });
 
-    function restartBackend() {
-        const restartCommands = [
-            `cd "${backendDir}" && npm install`,
-            'pm2 restart agri-pro-backend'
-        ];
+    function restartBackend(runNpmInstall) {
+        let restartCommands = [];
+
+        if (runNpmInstall) {
+            restartCommands.push(`cd "${backendDir}" && npm install`);
+        }
+
+        restartCommands.push('pm2 restart agri-pro-backend');
+
         const commandString = restartCommands.join(' && ');
+        console.log(`Executing restart sequence: ${commandString}`);
 
         exec(commandString, (error, stdout, stderr) => {
             if (error) {
