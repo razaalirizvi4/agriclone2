@@ -43,7 +43,7 @@ app.post('/send-email', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('API is crap');
+    res.send('API is crappp');
 });
 
 app.listen(PORT, () => {
