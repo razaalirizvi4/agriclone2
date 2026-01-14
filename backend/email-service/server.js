@@ -42,6 +42,10 @@ app.post('/send-email', (req, res) => {
     });
 });
 
+app.get('/', (req, res) => {
+    res.send('API is cri');
+});
+
 app.listen(PORT, () => {
     console.log(`Email Service running on port ${PORT}`);
 });

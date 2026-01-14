@@ -16,6 +16,7 @@ router.post('/', (req, res) => {
     // We want to reach the project root: d:\work\agri-pro
     const projectRoot = path.resolve(__dirname, '../../../../');
     const backendDir = path.join(projectRoot, 'backend');
+    const emailServiceDir = path.join(projectRoot, 'backend/email-service');
 
     // Respond immediately to GitHub to prevent timeout
     res.status(200).json({ message: 'Webhook received, deployment process started for master.' });
@@ -47,14 +48,23 @@ router.post('/', (req, res) => {
             const changedFiles = diffStdout.split('\n').filter(line => line.trim() !== '');
             console.log('Changed files:', changedFiles);
 
-            const hasBackendChanges = changedFiles.some(file => file.startsWith('backend/'));
+            const hasBackendChanges = changedFiles.some(file => file.startsWith('backend/') && !file.startsWith('backend/email-service/'));
             const hasPackageJsonChanges = changedFiles.some(file => file === 'backend/package.json');
+            const hasEmailServiceChanges = changedFiles.some(file => file.startsWith('backend/email-service/'));
+            const hasEmailServicePackageJsonChanges = changedFiles.some(file => file === 'backend/email-service/package.json');
 
             if (hasBackendChanges) {
                 console.log(`Backend changes detected. Package.json changed: ${hasPackageJsonChanges}`);
                 restartBackend(hasPackageJsonChanges);
             } else {
                 console.log('No backend changes detected. Skipping restart.');
+            }
+
+            if (hasEmailServiceChanges) {
+                console.log(`Email service changes detected. Package.json changed: ${hasEmailServicePackageJsonChanges}`);
+                restartEmailService(hasEmailServicePackageJsonChanges);
+            } else {
+                console.log('No email service changes detected. Skipping restart.');
             }
         });
     });
@@ -79,6 +89,29 @@ router.post('/', (req, res) => {
             }
             console.log(`Restart stdout: ${stdout}`);
             console.log('Backend restart sequence completed.');
+        });
+    }
+
+    function restartEmailService(runNpmInstall) {
+        let restartCommands = [];
+
+        if (runNpmInstall) {
+            restartCommands.push(`cd "${emailServiceDir}" && npm install`);
+        }
+
+        restartCommands.push('pm2 restart agri-pro-email-service');
+
+        const commandString = restartCommands.join(' && ');
+        console.log(`Executing email service restart sequence: ${commandString}`);
+
+        exec(commandString, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Email service restart error: ${error}`);
+                console.error(`stderr: ${stderr}`);
+                return;
+            }
+            console.log(`Email service restart stdout: ${stdout}`);
+            console.log('Email service restart sequence completed.');
         });
     }
 });
