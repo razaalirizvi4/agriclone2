@@ -8,6 +8,45 @@ const LoginPage = () => {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
+  // Handle Azure SSO Redirect
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const id = params.get('id');
+    const name = params.get('name');
+    const email = params.get('email');
+    const error = params.get('error');
+
+    if (error) {
+      setMessage(decodeURIComponent(error));
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    if (token && id) {
+      // Construct user object similar to auth.service login response
+      const userData = {
+        _id: id,
+        name: name,
+        email: email,
+        token: token
+      };
+
+      // Store in localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Determine redirect path (Wizard Logic)
+      if (typeof window !== 'undefined') {
+        const wizardKey = `farmWizardCompleted_${id}`;
+        const hasCompletedWizard = localStorage.getItem(wizardKey) === 'true';
+        const redirectPath = hasCompletedWizard ? '/' : '/wizard';
+        
+        navigate(redirectPath);
+        window.location.reload(); // Reload to update Topbar/Sidebar state
+      }
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -212,6 +251,28 @@ const LoginPage = () => {
           transform: translateY(0);
         }
 
+        .microsoft-btn {
+          width: 100%;
+          padding: 12px 14px;
+          border: 1px solid #ced4da;
+          border-radius: 12px;
+          background: white;
+          color: #5e5e5e;
+          font-weight: 700;
+          font-size: 15px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+        }
+        
+        .microsoft-btn:hover {
+          background: #f8f9fa;
+          border-color: #adb5bd;
+        }
+
         .alt-link {
           margin-top: 16px;
           text-align: center;
@@ -324,6 +385,24 @@ const LoginPage = () => {
                 Login
               </button>
             </form>
+
+            <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
+              <div style={{ flex: 1, height: '1px', background: '#e5efe5' }}></div>
+              <span style={{ padding: '0 10px', color: '#6b7280', fontSize: '13px' }}>OR</span>
+              <div style={{ flex: 1, height: '1px', background: '#e5efe5' }}></div>
+            </div>
+
+            <a href="http://localhost:5000/api/auth/login" style={{ textDecoration: 'none' }}>
+              <button type="button" className="microsoft-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21">
+                  <path fill="#f35325" d="M1 1h9v9H1z"/>
+                  <path fill="#81bc06" d="M11 1h9v9h-9z"/>
+                  <path fill="#05a6f0" d="M1 11h9v9H1z"/>
+                  <path fill="#ffba08" d="M11 11h9v9h-9z"/>
+                </svg>
+                Sign with Microsoft
+              </button>
+            </a>
 
             {message && <p className="message">{message}</p>}
 
